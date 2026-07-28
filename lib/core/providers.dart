@@ -80,3 +80,18 @@ final themeModeProvider = Provider<ThemeMode>((ref) {
 });
 
 final shellIndexProvider = StateProvider<int>((_) => 0);
+
+/// Keeps nested destinations addressable while their pages stay alive inside
+/// the shell's [IndexedStack].
+final financeTabProvider = StateProvider<int>((_) => 0);
+final moreDestinationProvider = StateProvider<String?>((_) => null);
+
+void openFinance(WidgetRef ref, int tab) {
+  ref.read(financeTabProvider.notifier).state = tab;
+  ref.read(shellIndexProvider.notifier).state = 1;
+}
+
+void openMore(WidgetRef ref, String destination) {
+  ref.read(moreDestinationProvider.notifier).state = destination;
+  ref.read(shellIndexProvider.notifier).state = 4;
+}

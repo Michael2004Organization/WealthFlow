@@ -61,10 +61,9 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(36),
-        child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final content = Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
@@ -91,8 +90,22 @@ class EmptyState extends StatelessWidget {
             ),
             if (action != null) ...[const SizedBox(height: 20), action!],
           ],
-        ),
-      ),
+        );
+        if (!constraints.hasBoundedHeight) {
+          return Center(
+            child: Padding(padding: const EdgeInsets.all(36), child: content),
+          );
+        }
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: (constraints.maxHeight - 48).clamp(0, double.infinity),
+            ),
+            child: Center(child: content),
+          ),
+        );
+      },
     );
   }
 }

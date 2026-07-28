@@ -427,11 +427,12 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: Text(
         widget.investment == null ? 'Position anlegen' : 'Position bearbeiten',
       ),
       content: SizedBox(
-        width: 650,
+        width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 650.0),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(

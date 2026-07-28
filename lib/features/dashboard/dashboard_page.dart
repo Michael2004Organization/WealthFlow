@@ -75,8 +75,7 @@ class DashboardPage extends ConsumerWidget {
                           '${accounts.length} Konten · ${investments.length} Positionen',
                       icon: Icons.account_balance_wallet_rounded,
                       color: colors.primary,
-                      onTap: () =>
-                          ref.read(shellIndexProvider.notifier).state = 1,
+                      onTap: () => openFinance(ref, 0),
                     ),
                     MetricCard(
                       title: 'Depotwert',
@@ -86,8 +85,7 @@ class DashboardPage extends ConsumerWidget {
                           : '${portfolio >= invested ? '+' : ''}${((portfolio - invested) / invested * 100).toStringAsFixed(2)} % Performance',
                       icon: Icons.trending_up_rounded,
                       color: portfolio >= invested ? Colors.teal : colors.error,
-                      onTap: () =>
-                          ref.read(shellIndexProvider.notifier).state = 1,
+                      onTap: () => openFinance(ref, 1),
                     ),
                     MetricCard(
                       title: 'Ausgaben im Monat',
@@ -116,8 +114,7 @@ class DashboardPage extends ConsumerWidget {
                       caption: '${money(dividend / 12)} im Monatsdurchschnitt',
                       icon: Icons.payments_rounded,
                       color: Colors.green,
-                      onTap: () =>
-                          ref.read(shellIndexProvider.notifier).state = 1,
+                      onTap: () => openFinance(ref, 2),
                     ),
                     MetricCard(
                       title: 'Freier Cashflow',
@@ -126,7 +123,7 @@ class DashboardPage extends ConsumerWidget {
                       icon: Icons.waterfall_chart_rounded,
                       color: income >= expenses ? Colors.cyan : colors.error,
                       onTap: () =>
-                          ref.read(shellIndexProvider.notifier).state = 3,
+                          ref.read(shellIndexProvider.notifier).state = 2,
                     ),
                   ];
                   return Wrap(

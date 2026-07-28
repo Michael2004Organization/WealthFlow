@@ -39,6 +39,7 @@ dependencies:
   drift_flutter: ^0.3.1
   crypto: ^3.0.7
   flutter_secure_storage: ^10.3.1
+  shared_preferences: ^2.5.3
   intl: ^0.20.3
   uuid: ^4.6.0
   fl_chart: ^1.2.0

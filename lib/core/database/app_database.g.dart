@@ -2606,6 +2606,54 @@ class $LedgerEntriesTable extends LedgerEntries
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _recurrenceIdMeta = const VerificationMeta(
+    'recurrenceId',
+  );
+  @override
+  late final GeneratedColumn<String> recurrenceId = GeneratedColumn<String>(
+    'recurrence_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _sourceTypeMeta = const VerificationMeta(
+    'sourceType',
+  );
+  @override
+  late final GeneratedColumn<String> sourceType = GeneratedColumn<String>(
+    'source_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('manual'),
+  );
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _vehicleIdMeta = const VerificationMeta(
+    'vehicleId',
+  );
+  @override
+  late final GeneratedColumn<String> vehicleId = GeneratedColumn<String>(
+    'vehicle_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -2650,6 +2698,10 @@ class $LedgerEntriesTable extends LedgerEntries
     merchant,
     description,
     paymentMethod,
+    recurrenceId,
+    sourceType,
+    sourceId,
+    vehicleId,
     createdAt,
     updatedAt,
     deletedAt,
@@ -2736,6 +2788,33 @@ class $LedgerEntriesTable extends LedgerEntries
         ),
       );
     }
+    if (data.containsKey('recurrence_id')) {
+      context.handle(
+        _recurrenceIdMeta,
+        recurrenceId.isAcceptableOrUnknown(
+          data['recurrence_id']!,
+          _recurrenceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('source_type')) {
+      context.handle(
+        _sourceTypeMeta,
+        sourceType.isAcceptableOrUnknown(data['source_type']!, _sourceTypeMeta),
+      );
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    }
+    if (data.containsKey('vehicle_id')) {
+      context.handle(
+        _vehicleIdMeta,
+        vehicleId.isAcceptableOrUnknown(data['vehicle_id']!, _vehicleIdMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -2803,6 +2882,22 @@ class $LedgerEntriesTable extends LedgerEntries
         DriftSqlType.string,
         data['${effectivePrefix}payment_method'],
       )!,
+      recurrenceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence_id'],
+      )!,
+      sourceType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_type'],
+      )!,
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      )!,
+      vehicleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vehicle_id'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -2834,6 +2929,10 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
   final String merchant;
   final String description;
   final String paymentMethod;
+  final String recurrenceId;
+  final String sourceType;
+  final String sourceId;
+  final String vehicleId;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -2847,6 +2946,10 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     required this.merchant,
     required this.description,
     required this.paymentMethod,
+    required this.recurrenceId,
+    required this.sourceType,
+    required this.sourceId,
+    required this.vehicleId,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -2863,6 +2966,10 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     map['merchant'] = Variable<String>(merchant);
     map['description'] = Variable<String>(description);
     map['payment_method'] = Variable<String>(paymentMethod);
+    map['recurrence_id'] = Variable<String>(recurrenceId);
+    map['source_type'] = Variable<String>(sourceType);
+    map['source_id'] = Variable<String>(sourceId);
+    map['vehicle_id'] = Variable<String>(vehicleId);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -2882,6 +2989,10 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
       merchant: Value(merchant),
       description: Value(description),
       paymentMethod: Value(paymentMethod),
+      recurrenceId: Value(recurrenceId),
+      sourceType: Value(sourceType),
+      sourceId: Value(sourceId),
+      vehicleId: Value(vehicleId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -2905,6 +3016,10 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
       merchant: serializer.fromJson<String>(json['merchant']),
       description: serializer.fromJson<String>(json['description']),
       paymentMethod: serializer.fromJson<String>(json['paymentMethod']),
+      recurrenceId: serializer.fromJson<String>(json['recurrenceId']),
+      sourceType: serializer.fromJson<String>(json['sourceType']),
+      sourceId: serializer.fromJson<String>(json['sourceId']),
+      vehicleId: serializer.fromJson<String>(json['vehicleId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -2923,6 +3038,10 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
       'merchant': serializer.toJson<String>(merchant),
       'description': serializer.toJson<String>(description),
       'paymentMethod': serializer.toJson<String>(paymentMethod),
+      'recurrenceId': serializer.toJson<String>(recurrenceId),
+      'sourceType': serializer.toJson<String>(sourceType),
+      'sourceId': serializer.toJson<String>(sourceId),
+      'vehicleId': serializer.toJson<String>(vehicleId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -2939,6 +3058,10 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     String? merchant,
     String? description,
     String? paymentMethod,
+    String? recurrenceId,
+    String? sourceType,
+    String? sourceId,
+    String? vehicleId,
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -2952,6 +3075,10 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     merchant: merchant ?? this.merchant,
     description: description ?? this.description,
     paymentMethod: paymentMethod ?? this.paymentMethod,
+    recurrenceId: recurrenceId ?? this.recurrenceId,
+    sourceType: sourceType ?? this.sourceType,
+    sourceId: sourceId ?? this.sourceId,
+    vehicleId: vehicleId ?? this.vehicleId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -2973,6 +3100,14 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
       paymentMethod: data.paymentMethod.present
           ? data.paymentMethod.value
           : this.paymentMethod,
+      recurrenceId: data.recurrenceId.present
+          ? data.recurrenceId.value
+          : this.recurrenceId,
+      sourceType: data.sourceType.present
+          ? data.sourceType.value
+          : this.sourceType,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      vehicleId: data.vehicleId.present ? data.vehicleId.value : this.vehicleId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -2991,6 +3126,10 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
           ..write('merchant: $merchant, ')
           ..write('description: $description, ')
           ..write('paymentMethod: $paymentMethod, ')
+          ..write('recurrenceId: $recurrenceId, ')
+          ..write('sourceType: $sourceType, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('vehicleId: $vehicleId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -3009,6 +3148,10 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     merchant,
     description,
     paymentMethod,
+    recurrenceId,
+    sourceType,
+    sourceId,
+    vehicleId,
     createdAt,
     updatedAt,
     deletedAt,
@@ -3026,6 +3169,10 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
           other.merchant == this.merchant &&
           other.description == this.description &&
           other.paymentMethod == this.paymentMethod &&
+          other.recurrenceId == this.recurrenceId &&
+          other.sourceType == this.sourceType &&
+          other.sourceId == this.sourceId &&
+          other.vehicleId == this.vehicleId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -3041,6 +3188,10 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
   final Value<String> merchant;
   final Value<String> description;
   final Value<String> paymentMethod;
+  final Value<String> recurrenceId;
+  final Value<String> sourceType;
+  final Value<String> sourceId;
+  final Value<String> vehicleId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
@@ -3055,6 +3206,10 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     this.merchant = const Value.absent(),
     this.description = const Value.absent(),
     this.paymentMethod = const Value.absent(),
+    this.recurrenceId = const Value.absent(),
+    this.sourceType = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.vehicleId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -3070,6 +3225,10 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     this.merchant = const Value.absent(),
     this.description = const Value.absent(),
     this.paymentMethod = const Value.absent(),
+    this.recurrenceId = const Value.absent(),
+    this.sourceType = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.vehicleId = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.deletedAt = const Value.absent(),
@@ -3091,6 +3250,10 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     Expression<String>? merchant,
     Expression<String>? description,
     Expression<String>? paymentMethod,
+    Expression<String>? recurrenceId,
+    Expression<String>? sourceType,
+    Expression<String>? sourceId,
+    Expression<String>? vehicleId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
@@ -3106,6 +3269,10 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
       if (merchant != null) 'merchant': merchant,
       if (description != null) 'description': description,
       if (paymentMethod != null) 'payment_method': paymentMethod,
+      if (recurrenceId != null) 'recurrence_id': recurrenceId,
+      if (sourceType != null) 'source_type': sourceType,
+      if (sourceId != null) 'source_id': sourceId,
+      if (vehicleId != null) 'vehicle_id': vehicleId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -3123,6 +3290,10 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     Value<String>? merchant,
     Value<String>? description,
     Value<String>? paymentMethod,
+    Value<String>? recurrenceId,
+    Value<String>? sourceType,
+    Value<String>? sourceId,
+    Value<String>? vehicleId,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
@@ -3138,6 +3309,10 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
       merchant: merchant ?? this.merchant,
       description: description ?? this.description,
       paymentMethod: paymentMethod ?? this.paymentMethod,
+      recurrenceId: recurrenceId ?? this.recurrenceId,
+      sourceType: sourceType ?? this.sourceType,
+      sourceId: sourceId ?? this.sourceId,
+      vehicleId: vehicleId ?? this.vehicleId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -3175,6 +3350,18 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     if (paymentMethod.present) {
       map['payment_method'] = Variable<String>(paymentMethod.value);
     }
+    if (recurrenceId.present) {
+      map['recurrence_id'] = Variable<String>(recurrenceId.value);
+    }
+    if (sourceType.present) {
+      map['source_type'] = Variable<String>(sourceType.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (vehicleId.present) {
+      map['vehicle_id'] = Variable<String>(vehicleId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3202,6 +3389,10 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
           ..write('merchant: $merchant, ')
           ..write('description: $description, ')
           ..write('paymentMethod: $paymentMethod, ')
+          ..write('recurrenceId: $recurrenceId, ')
+          ..write('sourceType: $sourceType, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('vehicleId: $vehicleId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -7205,6 +7396,10 @@ typedef $$LedgerEntriesTableCreateCompanionBuilder =
       Value<String> merchant,
       Value<String> description,
       Value<String> paymentMethod,
+      Value<String> recurrenceId,
+      Value<String> sourceType,
+      Value<String> sourceId,
+      Value<String> vehicleId,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<DateTime?> deletedAt,
@@ -7221,6 +7416,10 @@ typedef $$LedgerEntriesTableUpdateCompanionBuilder =
       Value<String> merchant,
       Value<String> description,
       Value<String> paymentMethod,
+      Value<String> recurrenceId,
+      Value<String> sourceType,
+      Value<String> sourceId,
+      Value<String> vehicleId,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
@@ -7299,6 +7498,26 @@ class $$LedgerEntriesTableFilterComposer
 
   ColumnFilters<String> get paymentMethod => $composableBuilder(
     column: $table.paymentMethod,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recurrenceId => $composableBuilder(
+    column: $table.recurrenceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vehicleId => $composableBuilder(
+    column: $table.vehicleId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7390,6 +7609,26 @@ class $$LedgerEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get recurrenceId => $composableBuilder(
+    column: $table.recurrenceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get vehicleId => $composableBuilder(
+    column: $table.vehicleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -7468,6 +7707,22 @@ class $$LedgerEntriesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get recurrenceId => $composableBuilder(
+    column: $table.recurrenceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get vehicleId =>
+      $composableBuilder(column: $table.vehicleId, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -7538,6 +7793,10 @@ class $$LedgerEntriesTableTableManager
                 Value<String> merchant = const Value.absent(),
                 Value<String> description = const Value.absent(),
                 Value<String> paymentMethod = const Value.absent(),
+                Value<String> recurrenceId = const Value.absent(),
+                Value<String> sourceType = const Value.absent(),
+                Value<String> sourceId = const Value.absent(),
+                Value<String> vehicleId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -7552,6 +7811,10 @@ class $$LedgerEntriesTableTableManager
                 merchant: merchant,
                 description: description,
                 paymentMethod: paymentMethod,
+                recurrenceId: recurrenceId,
+                sourceType: sourceType,
+                sourceId: sourceId,
+                vehicleId: vehicleId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -7568,6 +7831,10 @@ class $$LedgerEntriesTableTableManager
                 Value<String> merchant = const Value.absent(),
                 Value<String> description = const Value.absent(),
                 Value<String> paymentMethod = const Value.absent(),
+                Value<String> recurrenceId = const Value.absent(),
+                Value<String> sourceType = const Value.absent(),
+                Value<String> sourceId = const Value.absent(),
+                Value<String> vehicleId = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -7582,6 +7849,10 @@ class $$LedgerEntriesTableTableManager
                 merchant: merchant,
                 description: description,
                 paymentMethod: paymentMethod,
+                recurrenceId: recurrenceId,
+                sourceType: sourceType,
+                sourceId: sourceId,
+                vehicleId: vehicleId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,

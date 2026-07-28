@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/app_database.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
+import 'investments_page.dart';
 
 class DividendsPage extends ConsumerWidget {
   const DividendsPage({super.key});
@@ -36,10 +37,15 @@ class DividendsPage extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const PageHeader(
+                  PageHeader(
                     title: 'Dividenden',
                     subtitle:
                         'Erträge und Ausschüttungsrhythmus deiner Positionen.',
+                    action: FilledButton.icon(
+                      onPressed: () => openFinance(ref, 1),
+                      icon: const Icon(Icons.edit_rounded),
+                      label: const Text('Positionen verwalten'),
+                    ),
                   ),
                   LayoutBuilder(
                     builder: (context, constraints) {
@@ -83,13 +89,18 @@ class DividendsPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   if (dividendItems.isEmpty)
-                    const SizedBox(
+                    SizedBox(
                       height: 360,
                       child: EmptyState(
                         icon: Icons.payments_rounded,
                         title: 'Noch keine Dividenden',
                         message:
                             'Hinterlege bei deinen Portfolio-Positionen eine jährliche Dividende.',
+                        action: FilledButton.icon(
+                          onPressed: () => openFinance(ref, 1),
+                          icon: const Icon(Icons.add_rounded),
+                          label: const Text('Position bearbeiten'),
+                        ),
                       ),
                     )
                   else
@@ -132,6 +143,11 @@ class DividendsPage extends ConsumerWidget {
                                       for (final item in dividendItems)
                                         ListTile(
                                           contentPadding: EdgeInsets.zero,
+                                          onTap: () => showInvestmentEditor(
+                                            context,
+                                            ref,
+                                            investment: item,
+                                          ),
                                           leading: CircleAvatar(
                                             child: Text(
                                               item.symbol.isEmpty

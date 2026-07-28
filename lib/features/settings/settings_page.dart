@@ -149,7 +149,7 @@ class SettingsPage extends ConsumerWidget {
                     leading: Icon(Icons.shield_rounded),
                     title: Text('Sichere lokale Speicherung'),
                     subtitle: Text(
-                      'Sitzung und Servergeheimnisse liegen im Plattform-Schlüsselspeicher. Finanzdaten werden in SQLite gespeichert.',
+                      'Finanzdaten liegen lokal in SQLite beziehungsweise im Web-Speicher. Die Sitzung nutzt den Plattform-Schlüsselspeicher mit lokalem Cache als Fallback.',
                     ),
                   ),
                 ],
@@ -163,7 +163,7 @@ class SettingsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'WealthFlow 1.0.0 · Lokale Datenbankversion 1',
+                'WealthFlow 1.0.0 · Lokale Datenbankversion 2',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),

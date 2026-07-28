@@ -288,73 +288,48 @@ class _AccountEditorState extends State<_AccountEditor> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: Text(
         widget.account == null ? 'Konto anlegen' : 'Konto bearbeiten',
       ),
       content: SizedBox(
-        width: 560,
+        width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 560.0),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
               children: [
-                Row(
-                  children: [
-                    Expanded(child: _field(_bank, 'Bankname', required: true)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _field(_label, 'Kontobezeichnung', required: true),
-                    ),
-                  ],
-                ),
+                _responsiveFields([
+                  _field(_bank, 'Bankname', required: true),
+                  _field(_label, 'Kontobezeichnung', required: true),
+                ]),
                 const SizedBox(height: 12),
                 _field(_holder, 'Kontoinhaber'),
                 const SizedBox(height: 12),
                 _field(_iban, 'IBAN'),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _field(_bic, 'BIC')),
-                    const SizedBox(width: 12),
-                    Expanded(child: _field(_number, 'Kontonummer')),
-                  ],
-                ),
+                _responsiveFields([
+                  _field(_bic, 'BIC'),
+                  _field(_number, 'Kontonummer'),
+                ]),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _field(
-                        _balance,
-                        'Kontostand',
-                        number: true,
-                        required: true,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _field(
-                        _available,
-                        'Verfügbar',
-                        number: true,
-                        required: true,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _currency,
-                      items: const ['EUR', 'USD', 'CHF', 'GBP']
-                          .map(
-                            (value) => DropdownMenuItem(
-                              value: value,
-                              child: Text(value),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) => _currency = value ?? 'EUR',
-                      decoration: const InputDecoration(labelText: 'Währung'),
-                    ),
-                  ],
-                ),
+                _responsiveFields([
+                  _field(_balance, 'Kontostand', number: true, required: true),
+                  _field(_available, 'Verfügbar', number: true, required: true),
+                  DropdownButtonFormField<String>(
+                    initialValue: _currency,
+                    items: const ['EUR', 'USD', 'CHF', 'GBP']
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) => _currency = value ?? 'EUR',
+                    decoration: const InputDecoration(labelText: 'Währung'),
+                  ),
+                ]),
                 const SizedBox(height: 12),
                 _field(_notes, 'Notizen', lines: 3),
               ],
@@ -368,6 +343,28 @@ class _AccountEditorState extends State<_AccountEditor> {
           child: const Text('Abbrechen'),
         ),
         FilledButton(onPressed: _save, child: const Text('Speichern')),
+      ],
+    );
+  }
+
+  Widget _responsiveFields(List<Widget> fields) {
+    final compact = MediaQuery.sizeOf(context).width < 620;
+    if (compact) {
+      return Column(
+        children: [
+          for (var index = 0; index < fields.length; index++) ...[
+            fields[index],
+            if (index < fields.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      );
+    }
+    return Row(
+      children: [
+        for (var index = 0; index < fields.length; index++) ...[
+          Expanded(child: fields[index]),
+          if (index < fields.length - 1) const SizedBox(width: 12),
+        ],
       ],
     );
   }

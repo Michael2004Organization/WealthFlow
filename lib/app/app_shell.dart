@@ -60,11 +60,15 @@ class AppShell extends ConsumerWidget {
               actions: [
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
-                  child: CircleAvatar(
-                    child: Text(
-                      (user?.displayName.isNotEmpty ?? false)
-                          ? user!.displayName[0].toUpperCase()
-                          : 'W',
+                  child: IconButton(
+                    tooltip: 'Account öffnen',
+                    onPressed: () => openMore(ref, 'settings'),
+                    icon: CircleAvatar(
+                      child: Text(
+                        (user?.displayName.isNotEmpty ?? false)
+                            ? user!.displayName[0].toUpperCase()
+                            : 'W',
+                      ),
                     ),
                   ),
                 ),
@@ -138,9 +142,10 @@ class AppShell extends ConsumerWidget {
                       alignment: Alignment.bottomCenter,
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 16),
-                        child: Tooltip(
-                          message: user?.displayName ?? 'Profil',
-                          child: CircleAvatar(
+                        child: IconButton(
+                          tooltip: '${user?.displayName ?? 'Profil'} öffnen',
+                          onPressed: () => openMore(ref, 'settings'),
+                          icon: CircleAvatar(
                             child: Text(
                               (user?.displayName.isNotEmpty ?? false)
                                   ? user!.displayName[0].toUpperCase()

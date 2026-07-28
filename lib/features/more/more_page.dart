@@ -1,23 +1,62 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../calculators/calculators_page.dart';
 import '../search/search_page.dart';
 import '../settings/settings_page.dart';
 import '../vehicles/vehicles_page.dart';
 
-class MorePage extends StatefulWidget {
+class MorePage extends ConsumerStatefulWidget {
   const MorePage({super.key});
   @override
-  State<MorePage> createState() => _MorePageState();
+  ConsumerState<MorePage> createState() => _MorePageState();
 }
 
-class _MorePageState extends State<MorePage> {
-  _MoreDestination? _selected;
+class _MorePageState extends ConsumerState<MorePage> {
+  static const _destinations = [
+    _MoreDestination(
+      'vehicles',
+      'Fahrzeuge',
+      'Autos, Motorräder und Kosten',
+      Icons.directions_car_rounded,
+      Colors.blue,
+      VehiclesPage(),
+    ),
+    _MoreDestination(
+      'calculators',
+      'Rechner',
+      'Zinseszins, Entnahme und Fahrten',
+      Icons.calculate_rounded,
+      Colors.teal,
+      CalculatorsPage(),
+    ),
+    _MoreDestination(
+      'search',
+      'Globale Suche',
+      'Alle Daten zentral durchsuchen',
+      Icons.manage_search_rounded,
+      Colors.purple,
+      SearchPage(),
+    ),
+    _MoreDestination(
+      'settings',
+      'Account',
+      'Profil, Darstellung und Server',
+      Icons.settings_rounded,
+      Colors.orange,
+      SettingsPage(),
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final selected = _selected;
+    final selectedKey = ref.watch(moreDestinationProvider);
+    _MoreDestination? selected;
+    for (final destination in _destinations) {
+      if (destination.key == selectedKey) selected = destination;
+    }
     if (selected != null) {
       return Column(
         children: [
@@ -27,7 +66,8 @@ class _MorePageState extends State<MorePage> {
               bottom: false,
               child: ListTile(
                 leading: IconButton(
-                  onPressed: () => setState(() => _selected = null),
+                  onPressed: () =>
+                      ref.read(moreDestinationProvider.notifier).state = null,
                   icon: const Icon(Icons.arrow_back_rounded),
                   tooltip: 'Zurück',
                 ),
@@ -42,36 +82,7 @@ class _MorePageState extends State<MorePage> {
         ],
       );
     }
-    final destinations = [
-      const _MoreDestination(
-        'Fahrzeuge',
-        'Autos, Motorräder und Kosten',
-        Icons.directions_car_rounded,
-        Colors.blue,
-        VehiclesPage(),
-      ),
-      const _MoreDestination(
-        'Rechner',
-        'Zinseszins, Entnahme und Fahrten',
-        Icons.calculate_rounded,
-        Colors.teal,
-        CalculatorsPage(),
-      ),
-      const _MoreDestination(
-        'Globale Suche',
-        'Alle Daten zentral durchsuchen',
-        Icons.manage_search_rounded,
-        Colors.purple,
-        SearchPage(),
-      ),
-      const _MoreDestination(
-        'Einstellungen',
-        'Profil, Darstellung und Server',
-        Icons.settings_rounded,
-        Colors.orange,
-        SettingsPage(),
-      ),
-    ];
+    final destinations = _destinations;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -100,7 +111,10 @@ class _MorePageState extends State<MorePage> {
                             child: InkWell(
                               borderRadius: BorderRadius.circular(22),
                               onTap: () =>
-                                  setState(() => _selected = destination),
+                                  ref
+                                      .read(moreDestinationProvider.notifier)
+                                      .state = destination
+                                      .key,
                               child: Padding(
                                 padding: const EdgeInsets.all(22),
                                 child: Row(
@@ -161,12 +175,14 @@ class _MorePageState extends State<MorePage> {
 
 class _MoreDestination {
   const _MoreDestination(
+    this.key,
     this.label,
     this.subtitle,
     this.icon,
     this.color,
     this.page,
   );
+  final String key;
   final String label;
   final String subtitle;
   final IconData icon;

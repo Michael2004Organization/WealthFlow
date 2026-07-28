@@ -275,11 +275,12 @@ class _VehicleEditorState extends State<_VehicleEditor> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
+    insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
     title: Text(
       widget.vehicle == null ? 'Fahrzeug anlegen' : 'Fahrzeug bearbeiten',
     ),
     content: SizedBox(
-      width: 520,
+      width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 520.0),
       child: Form(
         key: _key,
         child: SingleChildScrollView(
@@ -303,76 +304,58 @@ class _VehicleEditorState extends State<_VehicleEditor> {
                     setState(() => _type = value.first),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(child: _requiredField(_make, 'Marke')),
-                  const SizedBox(width: 12),
-                  Expanded(child: _requiredField(_model, 'Modell')),
-                ],
-              ),
+              _responsiveFields([
+                _requiredField(_make, 'Marke'),
+                _requiredField(_model, 'Modell'),
+              ]),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _plate,
                 decoration: const InputDecoration(labelText: 'Kennzeichen'),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _year,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Baujahr'),
-                      validator: (value) {
-                        final year = int.tryParse(value ?? '');
-                        return year == null ||
-                                year < 1886 ||
-                                year > DateTime.now().year + 1
-                            ? 'Ungültig'
-                            : null;
-                      },
-                    ),
+              _responsiveFields([
+                TextFormField(
+                  controller: _year,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Baujahr'),
+                  validator: (value) {
+                    final year = int.tryParse(value ?? '');
+                    return year == null ||
+                            year < 1886 ||
+                            year > DateTime.now().year + 1
+                        ? 'Ungültig'
+                        : null;
+                  },
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: _fuel,
+                  decoration: const InputDecoration(labelText: 'Kraftstoff'),
+                  items:
+                      const [
+                            'Benzin',
+                            'Diesel',
+                            'Elektro',
+                            'Hybrid',
+                            'Gas',
+                            'Sonstiges',
+                          ]
+                          .map(
+                            (v) => DropdownMenuItem(value: v, child: Text(v)),
+                          )
+                          .toList(),
+                  onChanged: (value) => _fuel = value ?? 'Benzin',
+                ),
+                TextFormField(
+                  controller: _tank,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _fuel,
-                      decoration: const InputDecoration(
-                        labelText: 'Kraftstoff',
-                      ),
-                      items:
-                          const [
-                                'Benzin',
-                                'Diesel',
-                                'Elektro',
-                                'Hybrid',
-                                'Gas',
-                                'Sonstiges',
-                              ]
-                              .map(
-                                (v) =>
-                                    DropdownMenuItem(value: v, child: Text(v)),
-                              )
-                              .toList(),
-                      onChanged: (value) => _fuel = value ?? 'Benzin',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _tank,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Tank / Akku',
-                      ),
-                      validator: (value) =>
-                          _number(value) == null ? 'Ungültig' : null,
-                    ),
-                  ),
-                ],
-              ),
+                  decoration: const InputDecoration(labelText: 'Tank / Akku'),
+                  validator: (value) =>
+                      _number(value) == null ? 'Ungültig' : null,
+                ),
+              ]),
             ],
           ),
         ),
@@ -386,6 +369,28 @@ class _VehicleEditorState extends State<_VehicleEditor> {
       FilledButton(onPressed: _save, child: const Text('Speichern')),
     ],
   );
+
+  Widget _responsiveFields(List<Widget> fields) {
+    final compact = MediaQuery.sizeOf(context).width < 620;
+    if (compact) {
+      return Column(
+        children: [
+          for (var index = 0; index < fields.length; index++) ...[
+            fields[index],
+            if (index < fields.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      );
+    }
+    return Row(
+      children: [
+        for (var index = 0; index < fields.length; index++) ...[
+          Expanded(child: fields[index]),
+          if (index < fields.length - 1) const SizedBox(width: 12),
+        ],
+      ],
+    );
+  }
 
   Widget _requiredField(TextEditingController controller, String label) =>
       TextFormField(
@@ -428,11 +433,22 @@ Future<void> showVehicleCostEditor(
   WidgetRef ref,
   Vehicle vehicle,
 ) async {
-  final result = await showDialog<VehicleCostsCompanion>(
+  final result = await showDialog<_VehicleCostSubmission>(
     context: context,
     builder: (_) => _CostEditor(vehicle: vehicle),
   );
-  if (result != null) await ref.read(databaseProvider).saveVehicleCost(result);
+  if (result != null) {
+    await ref
+        .read(databaseProvider)
+        .saveVehicleCostWithLedger(result.cost, result.ledger);
+  }
+}
+
+class _VehicleCostSubmission {
+  const _VehicleCostSubmission({required this.cost, required this.ledger});
+
+  final VehicleCostsCompanion cost;
+  final LedgerEntriesCompanion ledger;
 }
 
 class _CostEditor extends StatefulWidget {
@@ -459,67 +475,82 @@ class _CostEditorState extends State<_CostEditor> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
+    insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
     title: Text('Kosten · ${widget.vehicle.make} ${widget.vehicle.model}'),
     content: SizedBox(
-      width: 480,
+      width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 480.0),
       child: Form(
         key: _key,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DropdownButtonFormField<String>(
-              initialValue: _category,
-              decoration: const InputDecoration(labelText: 'Kostenart'),
-              items: const [
-                'Tanken',
-                'Laden',
-                'Reparatur',
-                'Wartung',
-                'TÜV',
-                'Versicherung',
-                'Steuer',
-                'Reifen',
-                'Ölwechsel',
-                'Sonstiges',
-              ].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-              onChanged: (value) => _category = value ?? 'Sonstiges',
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _amount,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: _category,
+                decoration: const InputDecoration(labelText: 'Kostenart'),
+                items:
+                    const [
+                          'Tanken',
+                          'Laden',
+                          'Reparatur',
+                          'Wartung',
+                          'TÜV',
+                          'Versicherung',
+                          'Steuer',
+                          'Reifen',
+                          'Ölwechsel',
+                          'Sonstiges',
+                        ]
+                        .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                        .toList(),
+                onChanged: (value) => _category = value ?? 'Sonstiges',
               ),
-              decoration: const InputDecoration(
-                labelText: 'Betrag',
-                prefixText: '€ ',
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _amount,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Betrag',
+                  prefixText: '€ ',
+                ),
+                validator: (value) =>
+                    (_number(value) ?? 0) <= 0 ? 'Ungültiger Betrag' : null,
               ),
-              validator: (value) =>
-                  (_number(value) ?? 0) <= 0 ? 'Ungültiger Betrag' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _odometer,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _odometer,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Kilometerstand (optional)',
+                ),
               ),
-              decoration: const InputDecoration(
-                labelText: 'Kilometerstand (optional)',
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _notes,
+                decoration: const InputDecoration(labelText: 'Notizen'),
+                maxLines: 2,
               ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _notes,
-              decoration: const InputDecoration(labelText: 'Notizen'),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _pickDate,
-              icon: const Icon(Icons.calendar_month_rounded),
-              label: Text(DateFormat('dd.MM.yyyy').format(_date)),
-            ),
-          ],
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _pickDate,
+                icon: const Icon(Icons.calendar_month_rounded),
+                label: Text(DateFormat('dd.MM.yyyy').format(_date)),
+              ),
+              const SizedBox(height: 12),
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.receipt_long_rounded),
+                title: Text('Mit Haushaltsbuch verknüpft'),
+                subtitle: Text(
+                  'Die Fahrzeugkosten werden automatisch als Ausgabe erfasst.',
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),
@@ -551,19 +582,44 @@ class _CostEditorState extends State<_CostEditor> {
     ).read(currentUserIdProvider);
     if (userId == null) return;
     final now = DateTime.now().toUtc();
+    final costId = const Uuid().v4();
+    final ledgerId = const Uuid().v4();
+    final amount = _number(_amount.text) ?? 0;
     Navigator.pop(
       context,
-      VehicleCostsCompanion.insert(
-        id: const Uuid().v4(),
-        userId: userId,
-        vehicleId: widget.vehicle.id,
-        bookingDate: _date,
-        category: _category,
-        amount: _number(_amount.text) ?? 0,
-        odometer: Value(_number(_odometer.text)),
-        notes: Value(_notes.text.trim()),
-        createdAt: now,
-        updatedAt: now,
+      _VehicleCostSubmission(
+        cost: VehicleCostsCompanion.insert(
+          id: costId,
+          userId: userId,
+          vehicleId: widget.vehicle.id,
+          bookingDate: _date,
+          category: _category,
+          amount: amount,
+          odometer: Value(_number(_odometer.text)),
+          notes: Value(_notes.text.trim()),
+          createdAt: now,
+          updatedAt: now,
+        ),
+        ledger: LedgerEntriesCompanion.insert(
+          id: ledgerId,
+          userId: userId,
+          bookingDate: _date,
+          amount: amount,
+          category: _category == 'Tanken' || _category == 'Laden'
+              ? _category
+              : widget.vehicle.vehicleType,
+          merchant: Value('${widget.vehicle.make} ${widget.vehicle.model}'),
+          description: Value(
+            _notes.text.trim().isEmpty
+                ? _category
+                : '$_category · ${_notes.text.trim()}',
+          ),
+          sourceType: const Value('vehicle'),
+          sourceId: Value(costId),
+          vehicleId: Value(widget.vehicle.id),
+          createdAt: now,
+          updatedAt: now,
+        ),
       ),
     );
   }

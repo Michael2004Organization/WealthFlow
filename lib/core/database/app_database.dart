@@ -77,6 +77,10 @@ class LedgerEntries extends Table {
   TextColumn get merchant => text().withDefault(const Constant(''))();
   TextColumn get description => text().withDefault(const Constant(''))();
   TextColumn get paymentMethod => text().withDefault(const Constant(''))();
+  TextColumn get recurrenceId => text().withDefault(const Constant(''))();
+  TextColumn get sourceType => text().withDefault(const Constant('manual'))();
+  TextColumn get sourceId => text().withDefault(const Constant(''))();
+  TextColumn get vehicleId => text().withDefault(const Constant(''))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
@@ -164,7 +168,20 @@ final class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (migrator) => migrator.createAll(),
+    onUpgrade: (migrator, from, to) async {
+      if (from < 2) {
+        await migrator.addColumn(ledgerEntries, ledgerEntries.recurrenceId);
+        await migrator.addColumn(ledgerEntries, ledgerEntries.sourceType);
+        await migrator.addColumn(ledgerEntries, ledgerEntries.sourceId);
+        await migrator.addColumn(ledgerEntries, ledgerEntries.vehicleId);
+      }
+    },
+  );
 
   Future<User?> userByEmail(String email) => (select(
     users,
@@ -231,6 +248,13 @@ final class AppDatabase extends _$AppDatabase {
   Future<void> saveLedgerEntry(LedgerEntriesCompanion value) =>
       into(ledgerEntries).insertOnConflictUpdate(value);
 
+  Future<void> saveLedgerEntries(Iterable<LedgerEntriesCompanion> values) =>
+      transaction(() async {
+        for (final value in values) {
+          await into(ledgerEntries).insertOnConflictUpdate(value);
+        }
+      });
+
   Future<void> deleteLedgerEntry(String id, String userId) =>
       (update(
         ledgerEntries,
@@ -240,6 +264,19 @@ final class AppDatabase extends _$AppDatabase {
           updatedAt: Value(DateTime.now().toUtc()),
         ),
       );
+
+  Future<void> deleteLedgerSeries(String recurrenceId, String userId) =>
+      (update(ledgerEntries)..where(
+            (row) =>
+                row.recurrenceId.equals(recurrenceId) &
+                row.userId.equals(userId),
+          ))
+          .write(
+            LedgerEntriesCompanion(
+              deletedAt: Value(DateTime.now().toUtc()),
+              updatedAt: Value(DateTime.now().toUtc()),
+            ),
+          );
 
   Stream<List<Vehicle>> watchVehicles(String userId) =>
       (select(vehicles)
@@ -264,6 +301,18 @@ final class AppDatabase extends _$AppDatabase {
           .write(
             VehicleCostsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
           );
+      await (update(ledgerEntries)..where(
+            (row) =>
+                row.userId.equals(userId) &
+                row.vehicleId.equals(id) &
+                row.sourceType.equals('vehicle'),
+          ))
+          .write(
+            LedgerEntriesCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+            ),
+          );
     });
   }
 
@@ -275,6 +324,14 @@ final class AppDatabase extends _$AppDatabase {
 
   Future<void> saveVehicleCost(VehicleCostsCompanion value) =>
       into(vehicleCosts).insertOnConflictUpdate(value);
+
+  Future<void> saveVehicleCostWithLedger(
+    VehicleCostsCompanion cost,
+    LedgerEntriesCompanion ledger,
+  ) => transaction(() async {
+    await into(vehicleCosts).insertOnConflictUpdate(cost);
+    await into(ledgerEntries).insertOnConflictUpdate(ledger);
+  });
 
   Stream<UserPreference?> watchPreferences(String userId) => (select(
     userPreferences,
