@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/finance/dividend_math.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -42,9 +43,9 @@ class DashboardPage extends ConsumerWidget {
     final expenses = thisMonth
         .where((entry) => !entry.isIncome)
         .fold<double>(0, (sum, entry) => sum + entry.amount);
-    final dividend = investments.fold<double>(
+    final monthlyDividend = investments.fold<double>(
       0,
-      (sum, item) => sum + item.annualDividend * item.quantity,
+      (sum, item) => sum + dividendPerMonth(item.annualDividend, item.quantity),
     );
     final colors = Theme.of(context).colorScheme;
 
@@ -110,8 +111,8 @@ class DashboardPage extends ConsumerWidget {
                     ),
                     MetricCard(
                       title: 'Dividenden p. a.',
-                      value: money(dividend),
-                      caption: '${money(dividend / 12)} im Monatsdurchschnitt',
+                      value: money(dividendPerYearFromMonth(monthlyDividend)),
+                      caption: '${money(monthlyDividend)} pro Monat',
                       icon: Icons.payments_rounded,
                       color: Colors.green,
                       onTap: () => openFinance(ref, 2),

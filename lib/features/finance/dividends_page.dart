@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/finance/dividend_math.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 import 'investments_page.dart';
@@ -21,13 +22,15 @@ class DividendsPage extends ConsumerWidget {
       data: (items) {
         final dividendItems =
             items.where((item) => item.annualDividend > 0).toList()..sort(
-              (a, b) => (b.annualDividend * b.quantity).compareTo(
-                a.annualDividend * a.quantity,
-              ),
+              (a, b) => dividendPerMonth(
+                b.annualDividend,
+                b.quantity,
+              ).compareTo(dividendPerMonth(a.annualDividend, a.quantity)),
             );
-        final annual = dividendItems.fold<double>(
+        final monthly = dividendItems.fold<double>(
           0,
-          (sum, item) => sum + item.annualDividend * item.quantity,
+          (sum, item) =>
+              sum + dividendPerMonth(item.annualDividend, item.quantity),
         );
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -60,7 +63,7 @@ class DividendsPage extends ConsumerWidget {
                             width: width,
                             child: MetricCard(
                               title: 'Pro Jahr',
-                              value: money(annual),
+                              value: money(dividendPerYearFromMonth(monthly)),
                               icon: Icons.calendar_today_rounded,
                               color: Colors.green,
                             ),
@@ -69,7 +72,9 @@ class DividendsPage extends ConsumerWidget {
                             width: width,
                             child: MetricCard(
                               title: 'Pro Quartal',
-                              value: money(annual / 4),
+                              value: money(
+                                dividendPerQuarterFromMonth(monthly),
+                              ),
                               icon: Icons.date_range_rounded,
                               color: Colors.teal,
                             ),
@@ -78,7 +83,7 @@ class DividendsPage extends ConsumerWidget {
                             width: width,
                             child: MetricCard(
                               title: 'Pro Monat',
-                              value: money(annual / 12),
+                              value: money(monthly),
                               icon: Icons.today_rounded,
                               color: Colors.cyan,
                             ),
@@ -95,7 +100,7 @@ class DividendsPage extends ConsumerWidget {
                         icon: Icons.payments_rounded,
                         title: 'Noch keine Dividenden',
                         message:
-                            'Hinterlege bei deinen Portfolio-Positionen eine jährliche Dividende.',
+                            'Hinterlege bei deinen Portfolio-Positionen die Dividende je Stück und Monat.',
                         action: FilledButton.icon(
                           onPressed: () => openFinance(ref, 1),
                           icon: const Icon(Icons.add_rounded),
@@ -157,13 +162,11 @@ class DividendsPage extends ConsumerWidget {
                                           ),
                                           title: Text(item.name),
                                           subtitle: Text(
-                                            item.dividendFrequency,
+                                            '${item.dividendFrequency} · '
+                                            '${money(item.annualDividend)} je Stück/Monat',
                                           ),
                                           trailing: Text(
-                                            money(
-                                              item.annualDividend *
-                                                  item.quantity,
-                                            ),
+                                            '${money(dividendPerMonth(item.annualDividend, item.quantity))}/Monat',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -223,8 +226,10 @@ class _DividendChart extends StatelessWidget {
                   sections: [
                     for (var index = 0; index < items.length; index++)
                       PieChartSectionData(
-                        value:
-                            items[index].annualDividend * items[index].quantity,
+                        value: dividendPerMonth(
+                          items[index].annualDividend,
+                          items[index].quantity,
+                        ),
                         title: items[index].symbol.isEmpty
                             ? items[index].name
                             : items[index].symbol,

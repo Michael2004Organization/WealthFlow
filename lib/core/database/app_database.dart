@@ -54,6 +54,8 @@ class Investments extends Table {
   RealColumn get quantity => real()();
   RealColumn get fees => real().withDefault(const Constant(0))();
   RealColumn get currentPrice => real()();
+  // Legacy column name kept for a non-destructive migration. The stored value
+  // is the dividend per share and month; every projection starts from it.
   RealColumn get annualDividend => real().withDefault(const Constant(0))();
   TextColumn get dividendFrequency =>
       text().withDefault(const Constant('jährlich'))();

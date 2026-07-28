@@ -540,7 +540,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                     Expanded(
                       child: _field(
                         _dividend,
-                        'Dividende je Stück p. a.',
+                        'Dividende je Stück pro Monat',
                         number: true,
                         required: true,
                       ),
@@ -554,7 +554,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                       child: DropdownButtonFormField<String>(
                         initialValue: _frequency,
                         decoration: const InputDecoration(
-                          labelText: 'Ausschüttung',
+                          labelText: 'Auszahlungsrhythmus (nur Info)',
                         ),
                         items:
                             const [
