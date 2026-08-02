@@ -49,6 +49,13 @@ final ledgerEntriesProvider = StreamProvider<List<LedgerEntry>>((ref) {
       : ref.watch(databaseProvider).watchLedgerEntries(userId);
 });
 
+final masterDataProvider = StreamProvider<List<MasterDataData>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <MasterDataData>[])
+      : ref.watch(databaseProvider).watchMasterData(userId);
+});
+
 final vehiclesProvider = StreamProvider<List<Vehicle>>((ref) {
   final userId = ref.watch(currentUserIdProvider);
   return userId == null
@@ -94,4 +101,14 @@ void openFinance(WidgetRef ref, int tab) {
 void openMore(WidgetRef ref, String destination) {
   ref.read(moreDestinationProvider.notifier).state = destination;
   ref.read(shellIndexProvider.notifier).state = 4;
+}
+
+void selectShellDestination(WidgetRef ref, int destination) {
+  if (destination == 1) {
+    ref.read(financeTabProvider.notifier).state = 0;
+  }
+  if (destination == 4) {
+    ref.read(moreDestinationProvider.notifier).state = null;
+  }
+  ref.read(shellIndexProvider.notifier).state = destination;
 }

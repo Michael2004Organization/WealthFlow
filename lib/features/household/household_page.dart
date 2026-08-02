@@ -441,30 +441,68 @@ Future<void> showEntryEditor(
   DateTime? initialDate,
 }) async {
   final vehicles = ref.read(vehiclesProvider).valueOrNull ?? const <Vehicle>[];
+  final accounts = ref.read(accountsProvider).valueOrNull ?? const <Account>[];
+  final masterData =
+      ref.read(masterDataProvider).valueOrNull ?? const <MasterDataData>[];
   final result = await showDialog<_EntrySubmission>(
     context: context,
     builder: (_) => _EntryEditor(
       entry: entry,
       initialDate: initialDate,
       vehicles: vehicles,
+      accounts: accounts,
+      masterData: masterData,
     ),
   );
   if (result != null) {
-    await ref.read(databaseProvider).saveLedgerEntries(result.entries);
+    final database = ref.read(databaseProvider);
+    await database.saveLedgerEntries(result.entries);
+    final userId = ref.read(currentUserIdProvider);
+    if (userId != null) {
+      for (final item in {
+        if (result.merchant.isNotEmpty) 'merchant': result.merchant,
+        if (result.paymentMethod.isNotEmpty)
+          'paymentMethod': result.paymentMethod,
+      }.entries) {
+        await database.saveMasterDatum(
+          MasterDataCompanion.insert(
+            id: const Uuid().v4(),
+            userId: userId,
+            kind: item.key,
+            value: item.value,
+            createdAt: DateTime.now().toUtc(),
+          ),
+        );
+      }
+    }
   }
 }
 
 class _EntrySubmission {
-  const _EntrySubmission(this.entries);
+  const _EntrySubmission(
+    this.entries, {
+    required this.merchant,
+    required this.paymentMethod,
+  });
   final List<LedgerEntriesCompanion> entries;
+  final String merchant;
+  final String paymentMethod;
 }
 
 class _EntryEditor extends StatefulWidget {
-  const _EntryEditor({required this.vehicles, this.entry, this.initialDate});
+  const _EntryEditor({
+    required this.vehicles,
+    required this.accounts,
+    required this.masterData,
+    this.entry,
+    this.initialDate,
+  });
 
   final LedgerEntry? entry;
   final DateTime? initialDate;
   final List<Vehicle> vehicles;
+  final List<Account> accounts;
+  final List<MasterDataData> masterData;
 
   @override
   State<_EntryEditor> createState() => _EntryEditorState();
@@ -487,6 +525,7 @@ class _EntryEditorState extends State<_EntryEditor> {
   late DateTime _date =
       widget.entry?.bookingDate ?? widget.initialDate ?? DateTime.now();
   late String _vehicleId = widget.entry?.vehicleId ?? '';
+  late String _accountId = widget.entry?.accountId ?? '';
   bool _repeatMonthly = false;
   String _timing = 'selected';
   int _months = 3;
@@ -580,18 +619,39 @@ class _EntryEditorState extends State<_EntryEditor> {
                 onChanged: (value) => _vehicleId = value ?? '',
               ),
               const SizedBox(height: 12),
-              _responsiveFields([
-                TextFormField(
-                  controller: _merchant,
-                  decoration: const InputDecoration(
-                    labelText: 'Händler / Quelle',
-                  ),
+              DropdownButtonFormField<String>(
+                initialValue: _accountId,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Konto (Kontostand automatisch aktualisieren)',
+                  prefixIcon: Icon(Icons.account_balance_rounded),
                 ),
-                TextFormField(
-                  controller: _payment,
-                  decoration: const InputDecoration(
-                    labelText: 'Zahlungsmethode',
+                items: [
+                  const DropdownMenuItem(
+                    value: '',
+                    child: Text('Kein Konto verknüpfen'),
                   ),
+                  for (final account in widget.accounts)
+                    DropdownMenuItem(
+                      value: account.id,
+                      child: Text('${account.label} · ${account.bankName}'),
+                    ),
+                ],
+                onChanged: (value) => _accountId = value ?? '',
+              ),
+              const SizedBox(height: 12),
+              _responsiveFields([
+                DropdownMenu<String>(
+                  controller: _merchant,
+                  enableFilter: true,
+                  label: const Text('Händler / Quelle'),
+                  dropdownMenuEntries: _masterEntries('merchant'),
+                ),
+                DropdownMenu<String>(
+                  controller: _payment,
+                  enableFilter: true,
+                  label: const Text('Zahlungsmethode'),
+                  dropdownMenuEntries: _masterEntries('paymentMethod'),
                 ),
               ]),
               const SizedBox(height: 12),
@@ -741,13 +801,30 @@ class _EntryEditorState extends State<_EntryEditor> {
           sourceType: Value(widget.entry?.sourceType ?? 'manual'),
           sourceId: Value(widget.entry?.sourceId ?? ''),
           vehicleId: Value(_vehicleId),
+          accountId: Value(_accountId),
           createdAt: widget.entry?.createdAt ?? now,
           updatedAt: now,
         ),
       );
     }
-    Navigator.pop(context, _EntrySubmission(entries));
+    Navigator.pop(
+      context,
+      _EntrySubmission(
+        entries,
+        merchant: _merchant.text.trim(),
+        paymentMethod: _payment.text.trim(),
+      ),
+    );
   }
+
+  List<DropdownMenuEntry<String>> _masterEntries(String kind) => widget
+      .masterData
+      .where((item) => item.kind == kind)
+      .map(
+        (item) =>
+            DropdownMenuEntry<String>(value: item.value, label: item.value),
+      )
+      .toList();
 
   DateTime _occurrenceDate(int offset) {
     final month = DateTime(_date.year, _date.month + offset, 1);

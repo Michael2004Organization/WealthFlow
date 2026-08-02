@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/providers.dart';
+import '../../core/storage/data_export.dart';
 import '../../core/widgets/common_widgets.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -152,6 +156,15 @@ class SettingsPage extends ConsumerWidget {
                       'Finanzdaten liegen lokal in SQLite beziehungsweise im Web-Speicher. Die Sitzung nutzt den Plattform-Schlüsselspeicher mit lokalem Cache als Fallback.',
                     ),
                   ),
+                  ListTile(
+                    leading: const Icon(Icons.visibility_outlined),
+                    title: const Text('Lokale Daten schreibgeschützt ansehen'),
+                    subtitle: const Text(
+                      'Benutzerbezogener JSON-Export ohne Passwörter und Server-Geheimnisse',
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _showLocalData(context, ref, user.id),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -163,13 +176,88 @@ class SettingsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'WealthFlow 1.0.0 · Lokale Datenbankversion 2',
+                'WealthFlow 1.0.0 · Lokale Datenbankversion 4',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _showLocalData(
+    BuildContext context,
+    WidgetRef ref,
+    String userId,
+  ) async {
+    final data = await ref.read(databaseProvider).exportUserData(userId);
+    final json = const JsonEncoder.withIndent('  ').convert(data);
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        insetPadding: const EdgeInsets.all(16),
+        title: const Text('Lokale Daten (schreibgeschützt)'),
+        content: SizedBox(
+          width: (MediaQuery.sizeOf(dialogContext).width - 64).clamp(280, 760),
+          height: (MediaQuery.sizeOf(dialogContext).height - 220).clamp(
+            260,
+            620,
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(dialogContext).colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(14),
+              child: SelectableText(
+                json,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: json));
+              if (dialogContext.mounted) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('Export wurde kopiert.')),
+                );
+              }
+            },
+            icon: const Icon(Icons.copy_rounded),
+            label: const Text('Kopieren'),
+          ),
+          FilledButton.icon(
+            onPressed: () async {
+              final date = DateTime.now().toIso8601String().substring(0, 10);
+              final saved = await downloadReadonlyExport(
+                json,
+                'wealthflow-export-$date.json',
+              );
+              if (dialogContext.mounted && !saved) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Kein Speicherort gewählt. Auf diesem Gerät kann der Export weiterhin kopiert werden.',
+                    ),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.download_rounded),
+            label: const Text('JSON speichern'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Schließen'),
+          ),
+        ],
       ),
     );
   }

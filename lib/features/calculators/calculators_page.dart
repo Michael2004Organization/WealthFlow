@@ -11,7 +11,7 @@ class CalculatorsPage extends StatelessWidget {
   const CalculatorsPage({super.key});
   @override
   Widget build(BuildContext context) => const DefaultTabController(
-    length: 3,
+    length: 4,
     child: Column(
       children: [
         TabBar(
@@ -21,8 +21,9 @@ class CalculatorsPage extends StatelessWidget {
             Tab(icon: Icon(Icons.payments_outlined), text: 'Entnahme'),
             Tab(
               icon: Icon(Icons.local_gas_station_rounded),
-              text: 'Fahrtkosten',
+              text: 'Spritkosten',
             ),
+            Tab(icon: Icon(Icons.beach_access_rounded), text: 'Freiheit'),
           ],
         ),
         Expanded(
@@ -31,6 +32,7 @@ class CalculatorsPage extends StatelessWidget {
               _CompoundCalculator(),
               _WithdrawalCalculator(),
               _FuelCalculator(),
+              _FreedomCalculator(),
             ],
           ),
         ),
@@ -218,11 +220,14 @@ class _WithdrawalCalculatorState extends State<_WithdrawalCalculator> {
   final _capital = TextEditingController(text: '500000');
   final _rate = TextEditingController(text: '5');
   final _years = TextEditingController(text: '30');
+  final _withdrawal = TextEditingController(text: '2000');
+  String _mode = 'amount';
   @override
   void dispose() {
     _capital.dispose();
     _rate.dispose();
     _years.dispose();
+    _withdrawal.dispose();
     super.dispose();
   }
 
@@ -234,12 +239,29 @@ class _WithdrawalCalculatorState extends State<_WithdrawalCalculator> {
     final monthly = monthlyRate == 0
         ? capital / months
         : capital * monthlyRate / (1 - math.pow(1 + monthlyRate, -months));
+    final wanted = _value(_withdrawal.text);
+    final durationMonths = wanted <= 0
+        ? 0.0
+        : monthlyRate == 0
+        ? capital / wanted
+        : wanted <= capital * monthlyRate
+        ? double.infinity
+        : -math.log(1 - capital * monthlyRate / wanted) /
+              math.log(1 + monthlyRate);
     return _CalculatorScaffold(
       title: 'Entnahmerechner',
-      subtitle:
-          'Ermittle eine gleichmäßige Entnahme bis zum Ende der Laufzeit.',
+      subtitle: 'Berechne den Monatsbetrag oder wie lange dein Kapital reicht.',
       input: Column(
         children: [
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'amount', label: Text('Betrag')),
+              ButtonSegment(value: 'duration', label: Text('Reichweite')),
+            ],
+            selected: {_mode},
+            onSelectionChanged: (value) => setState(() => _mode = value.first),
+          ),
+          const SizedBox(height: 16),
           _NumberField(
             controller: _capital,
             label: 'Depotwert',
@@ -254,12 +276,20 @@ class _WithdrawalCalculatorState extends State<_WithdrawalCalculator> {
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
-          _NumberField(
-            controller: _years,
-            label: 'Laufzeit',
-            suffix: 'Jahre',
-            onChanged: (_) => setState(() {}),
-          ),
+          if (_mode == 'amount')
+            _NumberField(
+              controller: _years,
+              label: 'Laufzeit',
+              suffix: 'Jahre',
+              onChanged: (_) => setState(() {}),
+            )
+          else
+            _NumberField(
+              controller: _withdrawal,
+              label: 'Gewünschte monatliche Entnahme',
+              suffix: '€',
+              onChanged: (_) => setState(() {}),
+            ),
         ],
       ),
       result: Column(
@@ -272,14 +302,31 @@ class _WithdrawalCalculatorState extends State<_WithdrawalCalculator> {
           ),
           const SizedBox(height: 18),
           Text(
-            money(monthly),
+            _mode == 'amount'
+                ? money(monthly)
+                : durationMonths.isInfinite
+                ? 'Dauerhaft'
+                : '${(durationMonths / 12).toStringAsFixed(1)} Jahre',
             style: Theme.of(
               context,
             ).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900),
           ),
-          const Text('monatlich entnehmbar'),
+          Text(
+            _mode == 'amount'
+                ? 'monatlich entnehmbar'
+                : durationMonths.isInfinite
+                ? 'Rendite deckt die Entnahme rechnerisch'
+                : 'mit ${money(wanted)} pro Monat',
+          ),
           const SizedBox(height: 24),
-          _Result(label: 'Jährliche Entnahme', value: money(monthly * 12)),
+          _Result(
+            label: _mode == 'amount' ? 'Jährliche Entnahme' : 'Gesamte Monate',
+            value: _mode == 'amount'
+                ? money(monthly * 12)
+                : durationMonths.isInfinite
+                ? '∞'
+                : '${durationMonths.floor()}',
+          ),
           const SizedBox(height: 10),
           Text(
             'Die Berechnung nimmt eine konstante Rendite und monatliche Entnahme an. Steuern und Inflation sind nicht enthalten.',
@@ -302,54 +349,228 @@ class _FuelCalculatorState extends State<_FuelCalculator> {
   final _distance = TextEditingController(text: '25');
   final _consumption = TextEditingController(text: '7');
   final _price = TextEditingController(text: '1,80');
+  final _priceB = TextEditingController(text: '1,72');
   final _trips = TextEditingController(text: '10');
+  final _tank = TextEditingController(text: '50');
+  String _mode = 'trip';
   @override
   void dispose() {
     _distance.dispose();
     _consumption.dispose();
     _price.dispose();
+    _priceB.dispose();
     _trips.dispose();
+    _tank.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final trip =
-        _value(_distance.text) /
-        100 *
-        _value(_consumption.text) *
-        _value(_price.text);
-    final week = trip * _value(_trips.text);
+    final liters = _mode == 'trip'
+        ? _value(_distance.text) / 100 * _value(_consumption.text)
+        : _value(_tank.text);
+    final costA = liters * _value(_price.text);
+    final costB = liters * _value(_priceB.text);
+    final difference = (costA - costB).abs();
+    final cheaper = costA == costB
+        ? 'Beide Preise sind gleich'
+        : costA < costB
+        ? 'Preis A ist günstiger'
+        : 'Preis B ist günstiger';
     return _CalculatorScaffold(
-      title: 'Fahrtkostenrechner',
-      subtitle: 'Berechne Arbeitsweg, Urlaub oder eine beliebige Strecke.',
+      title: 'Spritkosten-Vergleich',
+      subtitle: 'Vergleiche zwei Preise für eine Strecke oder Tankfüllung.',
       input: Column(
         children: [
-          _NumberField(
-            controller: _distance,
-            label: 'Kilometer pro Fahrt',
-            suffix: 'km',
-            onChanged: (_) => setState(() {}),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'trip', label: Text('Strecke')),
+              ButtonSegment(value: 'tank', label: Text('Tankinhalt')),
+            ],
+            selected: {_mode},
+            onSelectionChanged: (value) => setState(() => _mode = value.first),
           ),
           const SizedBox(height: 12),
-          _NumberField(
-            controller: _consumption,
-            label: 'Verbrauch',
-            suffix: 'l/100 km',
-            onChanged: (_) => setState(() {}),
-          ),
+          if (_mode == 'trip') ...[
+            _NumberField(
+              controller: _distance,
+              label: 'Kilometer pro Fahrt',
+              suffix: 'km',
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            _NumberField(
+              controller: _consumption,
+              label: 'Verbrauch',
+              suffix: 'l/100 km',
+              onChanged: (_) => setState(() {}),
+            ),
+          ] else
+            _NumberField(
+              controller: _tank,
+              label: 'Tankinhalt',
+              suffix: 'Liter',
+              onChanged: (_) => setState(() {}),
+            ),
           const SizedBox(height: 12),
           _NumberField(
             controller: _price,
-            label: 'Kraftstoffpreis',
+            label: 'Kraftstoffpreis A',
             suffix: '€/l',
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
           _NumberField(
-            controller: _trips,
-            label: 'Fahrten pro Woche',
-            suffix: '',
+            controller: _priceB,
+            label: 'Kraftstoffpreis B',
+            suffix: '€/l',
+            onChanged: (_) => setState(() {}),
+          ),
+          if (_mode == 'trip') ...[
+            const SizedBox(height: 12),
+            _NumberField(
+              controller: _trips,
+              label: 'Fahrten pro Woche',
+              suffix: '',
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
+        ],
+      ),
+      result: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            cheaper,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 20),
+          _Result(label: 'Kosten Preis A', value: money(costA)),
+          const SizedBox(height: 16),
+          _Result(label: 'Kosten Preis B', value: money(costB)),
+          const SizedBox(height: 16),
+          _Result(
+            label: _mode == 'trip' ? 'Ersparnis pro Jahr' : 'Ersparnis',
+            value: money(
+              _mode == 'trip'
+                  ? difference * _value(_trips.text) * 52
+                  : difference,
+            ),
+            color: Colors.orange,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FreedomCalculator extends StatefulWidget {
+  const _FreedomCalculator();
+
+  @override
+  State<_FreedomCalculator> createState() => _FreedomCalculatorState();
+}
+
+class _FreedomCalculatorState extends State<_FreedomCalculator> {
+  final _age = TextEditingController(text: '35');
+  final _start = TextEditingController(text: '50000');
+  final _returnRate = TextEditingController(text: '7');
+  final _saving = TextEditingController(text: '800');
+  final _payout = TextEditingController(text: '2500');
+  final _dividends = TextEditingController(text: '0');
+  final _withdrawalRate = TextEditingController(text: '4');
+
+  @override
+  void dispose() {
+    for (final controller in [
+      _age,
+      _start,
+      _returnRate,
+      _saving,
+      _payout,
+      _dividends,
+      _withdrawalRate,
+    ]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final age = _value(_age.text).clamp(0, 100).toDouble();
+    final start = _value(_start.text).clamp(0, double.infinity).toDouble();
+    final saving = _value(_saving.text).clamp(0, double.infinity).toDouble();
+    final payout = _value(_payout.text).clamp(0, double.infinity).toDouble();
+    final dividends = _value(_dividends.text).clamp(0, payout).toDouble();
+    final withdrawalRate = _value(_withdrawalRate.text) / 100;
+    final target = withdrawalRate <= 0
+        ? double.infinity
+        : (payout - dividends) * 12 / withdrawalRate;
+    final monthlyRate = _value(_returnRate.text) / 100 / 12;
+    final months = _monthsToTarget(
+      start: start,
+      monthlySaving: saving,
+      monthlyRate: monthlyRate,
+      target: target,
+    );
+    final years = months.isFinite ? months / 12 : double.infinity;
+    final freedomAge = years.isFinite ? age + years : double.infinity;
+    return _CalculatorScaffold(
+      title: 'Finanzielle Freiheit',
+      subtitle:
+          'Berechne Zielkapital und Alter, ab dem passive Einnahmen deinen Wunschbetrag decken.',
+      input: Column(
+        children: [
+          _NumberField(
+            controller: _age,
+            label: 'Heutiges Alter',
+            suffix: 'Jahre',
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          _NumberField(
+            controller: _start,
+            label: 'Startkapital',
+            suffix: '€',
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          _NumberField(
+            controller: _returnRate,
+            label: 'Erwartete Rendite p. a.',
+            suffix: '%',
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          _NumberField(
+            controller: _saving,
+            label: 'Monatliche Sparrate',
+            suffix: '€',
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          _NumberField(
+            controller: _payout,
+            label: 'Monatlicher Wunschbetrag',
+            suffix: '€',
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          _NumberField(
+            controller: _dividends,
+            label: 'Weitere Dividenden monatlich',
+            suffix: '€',
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          _NumberField(
+            controller: _withdrawalRate,
+            label: 'Nachhaltige Entnahmerate',
+            suffix: '%',
             onChanged: (_) => setState(() {}),
           ),
         ],
@@ -357,20 +578,74 @@ class _FuelCalculatorState extends State<_FuelCalculator> {
       result: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _Result(label: 'Pro Fahrt', value: money(trip)),
-          const SizedBox(height: 16),
-          _Result(label: 'Pro Woche', value: money(week)),
-          const SizedBox(height: 16),
-          _Result(label: 'Pro Monat', value: money(week * 52 / 12)),
-          const SizedBox(height: 16),
-          _Result(
-            label: 'Pro Jahr',
-            value: money(week * 52),
-            color: Colors.orange,
+          Icon(
+            Icons.beach_access_rounded,
+            size: 58,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            freedomAge.isFinite
+                ? 'Mit ${freedomAge.toStringAsFixed(1)} Jahren'
+                : 'Ziel nicht erreichbar',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 22),
+          Wrap(
+            spacing: 28,
+            runSpacing: 16,
+            alignment: WrapAlignment.center,
+            children: [
+              _Result(label: 'Benötigtes Kapital', value: money(target)),
+              _Result(
+                label: 'Zeit bis zum Ziel',
+                value: years.isFinite
+                    ? '${years.toStringAsFixed(1)} Jahre'
+                    : '–',
+              ),
+              _Result(
+                label: 'Durch Kapital zu decken',
+                value: '${money(payout - dividends)}/Monat',
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Modellrechnung mit konstanter Rendite und Entnahmerate. Steuern, Inflation und Kursschwankungen sind nicht enthalten.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
     );
+  }
+
+  double _monthsToTarget({
+    required double start,
+    required double monthlySaving,
+    required double monthlyRate,
+    required double target,
+  }) {
+    if (!target.isFinite) return double.infinity;
+    if (start >= target) return 0;
+    if (monthlyRate <= 0) {
+      return monthlySaving <= 0
+          ? double.infinity
+          : (target - start) / monthlySaving;
+    }
+    if (monthlySaving <= 0) {
+      return start <= 0
+          ? double.infinity
+          : math.log(target / start) / math.log(1 + monthlyRate);
+    }
+    return math.log(
+          (target + monthlySaving / monthlyRate) /
+              (start + monthlySaving / monthlyRate),
+        ) /
+        math.log(1 + monthlyRate);
   }
 }
 
@@ -408,7 +683,7 @@ class _CalculatorScaffold extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(22),
                     child: SizedBox(
-                      height: vertical ? 340 : 420,
+                      height: vertical ? 600 : 480,
                       child: result,
                     ),
                   ),

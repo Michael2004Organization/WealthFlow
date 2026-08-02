@@ -58,6 +58,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                   SizedBox(
                     width: 190,
                     child: DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: _type,
                       decoration: const InputDecoration(
                         labelText: 'Anlageklasse',
@@ -87,6 +88,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                   SizedBox(
                     width: 170,
                     child: DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: _sort,
                       decoration: const InputDecoration(
                         labelText: 'Sortierung',
@@ -359,16 +361,41 @@ Future<void> showInvestmentEditor(
   WidgetRef ref, {
   Investment? investment,
 }) async {
+  final masterData =
+      ref.read(masterDataProvider).valueOrNull ?? const <MasterDataData>[];
   final result = await showDialog<InvestmentsCompanion>(
     context: context,
-    builder: (_) => _InvestmentEditor(investment: investment),
+    builder: (_) =>
+        _InvestmentEditor(investment: investment, masterData: masterData),
   );
-  if (result != null) await ref.read(databaseProvider).saveInvestment(result);
+  if (result != null) {
+    final database = ref.read(databaseProvider);
+    await database.saveInvestment(result);
+    final userId = ref.read(currentUserIdProvider);
+    if (userId != null) {
+      for (final item in {
+        'broker': result.broker.value,
+        'country': result.country.value,
+        'sector': result.sector.value,
+      }.entries.where((item) => item.value.trim().isNotEmpty)) {
+        await database.saveMasterDatum(
+          MasterDataCompanion.insert(
+            id: const Uuid().v4(),
+            userId: userId,
+            kind: item.key,
+            value: item.value.trim(),
+            createdAt: DateTime.now().toUtc(),
+          ),
+        );
+      }
+    }
+  }
 }
 
 class _InvestmentEditor extends StatefulWidget {
-  const _InvestmentEditor({this.investment});
+  const _InvestmentEditor({required this.masterData, this.investment});
   final Investment? investment;
+  final List<MasterDataData> masterData;
   @override
   State<_InvestmentEditor> createState() => _InvestmentEditorState();
 }
@@ -438,154 +465,97 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                Row(
-                  children: [
-                    Expanded(child: _field(_name, 'Name', required: true)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _field(_symbol, 'Symbol')),
-                  ],
-                ),
+                _responsiveFields([
+                  _field(_name, 'Name', required: true),
+                  _field(_symbol, 'Symbol'),
+                ]),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _field(_isin, 'ISIN')),
-                    const SizedBox(width: 12),
-                    Expanded(child: _field(_wkn, 'WKN')),
-                  ],
-                ),
+                _responsiveFields([_field(_isin, 'ISIN'), _field(_wkn, 'WKN')]),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _type,
-                        decoration: const InputDecoration(
-                          labelText: 'Anlageklasse',
-                        ),
-                        items:
-                            const [
-                                  'Aktie',
-                                  'ETF',
-                                  'Kryptowährung',
-                                  'Anleihe',
-                                  'Fonds',
-                                  'Edelmetall',
-                                  'Hebelprodukt',
-                                ]
-                                .map(
-                                  (v) => DropdownMenuItem(
-                                    value: v,
-                                    child: Text(v),
-                                  ),
-                                )
-                                .toList(),
-                        onChanged: (v) => _type = v ?? 'Aktie',
-                      ),
+                _responsiveFields([
+                  DropdownButtonFormField<String>(
+                    initialValue: _type,
+                    decoration: const InputDecoration(
+                      labelText: 'Anlageklasse',
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(child: _field(_broker, 'Broker')),
-                  ],
-                ),
+                    items:
+                        const [
+                              'Aktie',
+                              'ETF',
+                              'Kryptowährung',
+                              'Anleihe',
+                              'Fonds',
+                              'Edelmetall',
+                              'Hebelprodukt',
+                            ]
+                            .map(
+                              (v) => DropdownMenuItem(value: v, child: Text(v)),
+                            )
+                            .toList(),
+                    onChanged: (v) => _type = v ?? 'Aktie',
+                  ),
+                  _masterField(_broker, 'Broker', 'broker'),
+                ]),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _field(_country, 'Land')),
-                    const SizedBox(width: 12),
-                    Expanded(child: _field(_sector, 'Branche')),
-                  ],
-                ),
+                _responsiveFields([
+                  _masterField(_country, 'Land', 'country'),
+                  _masterField(_sector, 'Branche', 'sector'),
+                ]),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _field(
-                        _purchasePrice,
-                        'Kaufkurs',
-                        number: true,
-                        required: true,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _field(
-                        _quantity,
-                        'Stückzahl',
-                        number: true,
-                        required: true,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _field(
-                        _fees,
-                        'Gebühren',
-                        number: true,
-                        required: true,
-                      ),
-                    ),
-                  ],
-                ),
+                _responsiveFields([
+                  _field(
+                    _purchasePrice,
+                    'Kaufkurs',
+                    number: true,
+                    required: true,
+                  ),
+                  _field(_quantity, 'Stückzahl', number: true, required: true),
+                  _field(_fees, 'Gebühren', number: true, required: true),
+                ]),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _field(
-                        _currentPrice,
-                        'Aktueller Kurs',
-                        number: true,
-                        required: true,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _field(
-                        _dividend,
-                        'Dividende je Stück pro Monat',
-                        number: true,
-                        required: true,
-                      ),
-                    ),
-                  ],
-                ),
+                _responsiveFields([
+                  _field(
+                    _currentPrice,
+                    'Aktueller Kurs',
+                    number: true,
+                    required: true,
+                  ),
+                  _field(
+                    _dividend,
+                    'Dividende je Stück/Ausschüttung',
+                    number: true,
+                    required: true,
+                  ),
+                ]),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _frequency,
-                        decoration: const InputDecoration(
-                          labelText: 'Auszahlungsrhythmus (nur Info)',
-                        ),
-                        items:
-                            const [
-                                  'monatlich',
-                                  'vierteljährlich',
-                                  'halbjährlich',
-                                  'jährlich',
-                                  'Sonderdividende',
-                                ]
-                                .map(
-                                  (v) => DropdownMenuItem(
-                                    value: v,
-                                    child: Text(v),
-                                  ),
-                                )
-                                .toList(),
-                        onChanged: (v) => _frequency = v ?? 'jährlich',
-                      ),
+                _responsiveFields([
+                  DropdownButtonFormField<String>(
+                    initialValue: _frequency,
+                    decoration: const InputDecoration(
+                      labelText: 'Auszahlungsrhythmus',
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _pickDate,
-                        icon: const Icon(Icons.calendar_month_rounded),
-                        label: Text(
-                          'Kauf: ${DateFormat('dd.MM.yyyy').format(_date)}',
-                        ),
-                      ),
+                    items:
+                        const [
+                              'monatlich',
+                              'vierteljährlich',
+                              'halbjährlich',
+                              'jährlich',
+                              'Sonderdividende',
+                            ]
+                            .map(
+                              (v) => DropdownMenuItem(value: v, child: Text(v)),
+                            )
+                            .toList(),
+                    onChanged: (v) => _frequency = v ?? 'jährlich',
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _pickDate,
+                    icon: const Icon(Icons.calendar_month_rounded),
+                    label: Text(
+                      'Kauf: ${DateFormat('dd.MM.yyyy').format(_date)}',
                     ),
-                  ],
-                ),
+                  ),
+                ]),
                 const SizedBox(height: 12),
                 _field(_notes, 'Notizen', lines: 3),
               ],
@@ -622,6 +592,44 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       if (number && (_number(value) ?? -1) < 0) return 'Muss positiv sein';
       return null;
     },
+  );
+
+  Widget _responsiveFields(List<Widget> fields) {
+    if (MediaQuery.sizeOf(context).width < 680) {
+      return Column(
+        children: [
+          for (var index = 0; index < fields.length; index++) ...[
+            fields[index],
+            if (index < fields.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      );
+    }
+    return Row(
+      children: [
+        for (var index = 0; index < fields.length; index++) ...[
+          Expanded(child: fields[index]),
+          if (index < fields.length - 1) const SizedBox(width: 12),
+        ],
+      ],
+    );
+  }
+
+  Widget _masterField(
+    TextEditingController controller,
+    String label,
+    String kind,
+  ) => DropdownMenu<String>(
+    controller: controller,
+    enableFilter: true,
+    label: Text(label),
+    dropdownMenuEntries: widget.masterData
+        .where((item) => item.kind == kind)
+        .map(
+          (item) =>
+              DropdownMenuEntry<String>(value: item.value, label: item.value),
+        )
+        .toList(),
   );
 
   double? _number(String? value) =>

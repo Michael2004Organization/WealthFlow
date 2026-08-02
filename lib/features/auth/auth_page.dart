@@ -32,27 +32,42 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+        child: LayoutBuilder(
+          builder: (context, viewport) => SingleChildScrollView(
+            padding: EdgeInsets.all(viewport.maxWidth < 480 ? 12 : 24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1040),
-              child: Card(
-                clipBehavior: Clip.antiAlias,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final wide = constraints.maxWidth >= 760;
-                    final form = _buildForm(context, auth.isBusy, auth.error);
-                    return wide
-                        ? Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(child: _HeroPanel(colors: colors)),
-                              Expanded(child: form),
-                            ],
-                          )
-                        : form;
-                  },
+              constraints: BoxConstraints(
+                minHeight:
+                    viewport.maxHeight - (viewport.maxWidth < 480 ? 24 : 48),
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1040),
+                  child: Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final wide = constraints.maxWidth >= 760;
+                        final form = _buildForm(
+                          context,
+                          auth.isBusy,
+                          auth.error,
+                        );
+                        return wide
+                            ? IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Expanded(child: _HeroPanel(colors: colors)),
+                                    Expanded(child: form),
+                                  ],
+                                ),
+                              )
+                            : form;
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),

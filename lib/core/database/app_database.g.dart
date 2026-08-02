@@ -2654,6 +2654,33 @@ class $LedgerEntriesTable extends LedgerEntries
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _accountAppliedMeta = const VerificationMeta(
+    'accountApplied',
+  );
+  @override
+  late final GeneratedColumn<bool> accountApplied = GeneratedColumn<bool>(
+    'account_applied',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("account_applied" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -2702,6 +2729,8 @@ class $LedgerEntriesTable extends LedgerEntries
     sourceType,
     sourceId,
     vehicleId,
+    accountId,
+    accountApplied,
     createdAt,
     updatedAt,
     deletedAt,
@@ -2815,6 +2844,21 @@ class $LedgerEntriesTable extends LedgerEntries
         vehicleId.isAcceptableOrUnknown(data['vehicle_id']!, _vehicleIdMeta),
       );
     }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    }
+    if (data.containsKey('account_applied')) {
+      context.handle(
+        _accountAppliedMeta,
+        accountApplied.isAcceptableOrUnknown(
+          data['account_applied']!,
+          _accountAppliedMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -2898,6 +2942,14 @@ class $LedgerEntriesTable extends LedgerEntries
         DriftSqlType.string,
         data['${effectivePrefix}vehicle_id'],
       )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      )!,
+      accountApplied: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}account_applied'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -2933,6 +2985,8 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
   final String sourceType;
   final String sourceId;
   final String vehicleId;
+  final String accountId;
+  final bool accountApplied;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -2950,6 +3004,8 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     required this.sourceType,
     required this.sourceId,
     required this.vehicleId,
+    required this.accountId,
+    required this.accountApplied,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -2970,6 +3026,8 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     map['source_type'] = Variable<String>(sourceType);
     map['source_id'] = Variable<String>(sourceId);
     map['vehicle_id'] = Variable<String>(vehicleId);
+    map['account_id'] = Variable<String>(accountId);
+    map['account_applied'] = Variable<bool>(accountApplied);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -2993,6 +3051,8 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
       sourceType: Value(sourceType),
       sourceId: Value(sourceId),
       vehicleId: Value(vehicleId),
+      accountId: Value(accountId),
+      accountApplied: Value(accountApplied),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -3020,6 +3080,8 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
       sourceType: serializer.fromJson<String>(json['sourceType']),
       sourceId: serializer.fromJson<String>(json['sourceId']),
       vehicleId: serializer.fromJson<String>(json['vehicleId']),
+      accountId: serializer.fromJson<String>(json['accountId']),
+      accountApplied: serializer.fromJson<bool>(json['accountApplied']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -3042,6 +3104,8 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
       'sourceType': serializer.toJson<String>(sourceType),
       'sourceId': serializer.toJson<String>(sourceId),
       'vehicleId': serializer.toJson<String>(vehicleId),
+      'accountId': serializer.toJson<String>(accountId),
+      'accountApplied': serializer.toJson<bool>(accountApplied),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -3062,6 +3126,8 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     String? sourceType,
     String? sourceId,
     String? vehicleId,
+    String? accountId,
+    bool? accountApplied,
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -3079,6 +3145,8 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     sourceType: sourceType ?? this.sourceType,
     sourceId: sourceId ?? this.sourceId,
     vehicleId: vehicleId ?? this.vehicleId,
+    accountId: accountId ?? this.accountId,
+    accountApplied: accountApplied ?? this.accountApplied,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -3108,6 +3176,10 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
           : this.sourceType,
       sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
       vehicleId: data.vehicleId.present ? data.vehicleId.value : this.vehicleId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      accountApplied: data.accountApplied.present
+          ? data.accountApplied.value
+          : this.accountApplied,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -3130,6 +3202,8 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
           ..write('sourceType: $sourceType, ')
           ..write('sourceId: $sourceId, ')
           ..write('vehicleId: $vehicleId, ')
+          ..write('accountId: $accountId, ')
+          ..write('accountApplied: $accountApplied, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -3152,6 +3226,8 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     sourceType,
     sourceId,
     vehicleId,
+    accountId,
+    accountApplied,
     createdAt,
     updatedAt,
     deletedAt,
@@ -3173,6 +3249,8 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
           other.sourceType == this.sourceType &&
           other.sourceId == this.sourceId &&
           other.vehicleId == this.vehicleId &&
+          other.accountId == this.accountId &&
+          other.accountApplied == this.accountApplied &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -3192,6 +3270,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
   final Value<String> sourceType;
   final Value<String> sourceId;
   final Value<String> vehicleId;
+  final Value<String> accountId;
+  final Value<bool> accountApplied;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
@@ -3210,6 +3290,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     this.sourceType = const Value.absent(),
     this.sourceId = const Value.absent(),
     this.vehicleId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.accountApplied = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -3229,6 +3311,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     this.sourceType = const Value.absent(),
     this.sourceId = const Value.absent(),
     this.vehicleId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.accountApplied = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.deletedAt = const Value.absent(),
@@ -3254,6 +3338,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     Expression<String>? sourceType,
     Expression<String>? sourceId,
     Expression<String>? vehicleId,
+    Expression<String>? accountId,
+    Expression<bool>? accountApplied,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
@@ -3273,6 +3359,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
       if (sourceType != null) 'source_type': sourceType,
       if (sourceId != null) 'source_id': sourceId,
       if (vehicleId != null) 'vehicle_id': vehicleId,
+      if (accountId != null) 'account_id': accountId,
+      if (accountApplied != null) 'account_applied': accountApplied,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -3294,6 +3382,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     Value<String>? sourceType,
     Value<String>? sourceId,
     Value<String>? vehicleId,
+    Value<String>? accountId,
+    Value<bool>? accountApplied,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
@@ -3313,6 +3403,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
       sourceType: sourceType ?? this.sourceType,
       sourceId: sourceId ?? this.sourceId,
       vehicleId: vehicleId ?? this.vehicleId,
+      accountId: accountId ?? this.accountId,
+      accountApplied: accountApplied ?? this.accountApplied,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -3362,6 +3454,12 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     if (vehicleId.present) {
       map['vehicle_id'] = Variable<String>(vehicleId.value);
     }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (accountApplied.present) {
+      map['account_applied'] = Variable<bool>(accountApplied.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3393,9 +3491,368 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
           ..write('sourceType: $sourceType, ')
           ..write('sourceId: $sourceId, ')
           ..write('vehicleId: $vehicleId, ')
+          ..write('accountId: $accountId, ')
+          ..write('accountApplied: $accountApplied, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MasterDataTable extends MasterData
+    with TableInfo<$MasterDataTable, MasterDataData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MasterDataTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES users (id)',
+    ),
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+    'value',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, userId, kind, value, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'master_data';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MasterDataData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {userId, kind, value},
+  ];
+  @override
+  MasterDataData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MasterDataData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MasterDataTable createAlias(String alias) {
+    return $MasterDataTable(attachedDatabase, alias);
+  }
+}
+
+class MasterDataData extends DataClass implements Insertable<MasterDataData> {
+  final String id;
+  final String userId;
+  final String kind;
+  final String value;
+  final DateTime createdAt;
+  const MasterDataData({
+    required this.id,
+    required this.userId,
+    required this.kind,
+    required this.value,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['kind'] = Variable<String>(kind);
+    map['value'] = Variable<String>(value);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  MasterDataCompanion toCompanion(bool nullToAbsent) {
+    return MasterDataCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      kind: Value(kind),
+      value: Value(value),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory MasterDataData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MasterDataData(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      value: serializer.fromJson<String>(json['value']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'kind': serializer.toJson<String>(kind),
+      'value': serializer.toJson<String>(value),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  MasterDataData copyWith({
+    String? id,
+    String? userId,
+    String? kind,
+    String? value,
+    DateTime? createdAt,
+  }) => MasterDataData(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    kind: kind ?? this.kind,
+    value: value ?? this.value,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  MasterDataData copyWithCompanion(MasterDataCompanion data) {
+    return MasterDataData(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      value: data.value.present ? data.value.value : this.value,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MasterDataData(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('kind: $kind, ')
+          ..write('value: $value, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, userId, kind, value, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MasterDataData &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.kind == this.kind &&
+          other.value == this.value &&
+          other.createdAt == this.createdAt);
+}
+
+class MasterDataCompanion extends UpdateCompanion<MasterDataData> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> kind;
+  final Value<String> value;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const MasterDataCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.value = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MasterDataCompanion.insert({
+    required String id,
+    required String userId,
+    required String kind,
+    required String value,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       kind = Value(kind),
+       value = Value(value),
+       createdAt = Value(createdAt);
+  static Insertable<MasterDataData> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? kind,
+    Expression<String>? value,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (kind != null) 'kind': kind,
+      if (value != null) 'value': value,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MasterDataCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? kind,
+    Value<String>? value,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return MasterDataCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      kind: kind ?? this.kind,
+      value: value ?? this.value,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MasterDataCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('kind: $kind, ')
+          ..write('value: $value, ')
+          ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5388,6 +5845,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AccountsTable accounts = $AccountsTable(this);
   late final $InvestmentsTable investments = $InvestmentsTable(this);
   late final $LedgerEntriesTable ledgerEntries = $LedgerEntriesTable(this);
+  late final $MasterDataTable masterData = $MasterDataTable(this);
   late final $VehiclesTable vehicles = $VehiclesTable(this);
   late final $VehicleCostsTable vehicleCosts = $VehicleCostsTable(this);
   late final $UserPreferencesTable userPreferences = $UserPreferencesTable(
@@ -5402,6 +5860,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     accounts,
     investments,
     ledgerEntries,
+    masterData,
     vehicles,
     vehicleCosts,
     userPreferences,
@@ -5487,6 +5946,24 @@ final class $$UsersTableReferences
     ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_ledgerEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$MasterDataTable, List<MasterDataData>>
+  _masterDataRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.masterData,
+    aliasName: 'users__id__master_data__user_id',
+  );
+
+  $$MasterDataTableProcessedTableManager get masterDataRefs {
+    final manager = $$MasterDataTableTableManager(
+      $_db,
+      $_db.masterData,
+    ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_masterDataRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -5664,6 +6141,31 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
           }) => $$LedgerEntriesTableFilterComposer(
             $db: $db,
             $table: $db.ledgerEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> masterDataRefs(
+    Expression<bool> Function($$MasterDataTableFilterComposer f) f,
+  ) {
+    final $$MasterDataTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.masterData,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MasterDataTableFilterComposer(
+            $db: $db,
+            $table: $db.masterData,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5915,6 +6417,31 @@ class $$UsersTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> masterDataRefs<T extends Object>(
+    Expression<T> Function($$MasterDataTableAnnotationComposer a) f,
+  ) {
+    final $$MasterDataTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.masterData,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MasterDataTableAnnotationComposer(
+            $db: $db,
+            $table: $db.masterData,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> vehiclesRefs<T extends Object>(
     Expression<T> Function($$VehiclesTableAnnotationComposer a) f,
   ) {
@@ -6008,6 +6535,7 @@ class $$UsersTableTableManager
             bool accountsRefs,
             bool investmentsRefs,
             bool ledgerEntriesRefs,
+            bool masterDataRefs,
             bool vehiclesRefs,
             bool vehicleCostsRefs,
             bool userPreferencesRefs,
@@ -6079,6 +6607,7 @@ class $$UsersTableTableManager
                 accountsRefs = false,
                 investmentsRefs = false,
                 ledgerEntriesRefs = false,
+                masterDataRefs = false,
                 vehiclesRefs = false,
                 vehicleCostsRefs = false,
                 userPreferencesRefs = false,
@@ -6089,6 +6618,7 @@ class $$UsersTableTableManager
                     if (accountsRefs) db.accounts,
                     if (investmentsRefs) db.investments,
                     if (ledgerEntriesRefs) db.ledgerEntries,
+                    if (masterDataRefs) db.masterData,
                     if (vehiclesRefs) db.vehicles,
                     if (vehicleCostsRefs) db.vehicleCosts,
                     if (userPreferencesRefs) db.userPreferences,
@@ -6149,6 +6679,27 @@ class $$UsersTableTableManager
                                 table,
                                 p0,
                               ).ledgerEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (masterDataRefs)
+                        await $_getPrefetchedData<
+                          User,
+                          $UsersTable,
+                          MasterDataData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$UsersTableReferences
+                              ._masterDataRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$UsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).masterDataRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.userId == item.id,
@@ -6238,6 +6789,7 @@ typedef $$UsersTableProcessedTableManager =
         bool accountsRefs,
         bool investmentsRefs,
         bool ledgerEntriesRefs,
+        bool masterDataRefs,
         bool vehiclesRefs,
         bool vehicleCostsRefs,
         bool userPreferencesRefs,
@@ -7400,6 +7952,8 @@ typedef $$LedgerEntriesTableCreateCompanionBuilder =
       Value<String> sourceType,
       Value<String> sourceId,
       Value<String> vehicleId,
+      Value<String> accountId,
+      Value<bool> accountApplied,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<DateTime?> deletedAt,
@@ -7420,6 +7974,8 @@ typedef $$LedgerEntriesTableUpdateCompanionBuilder =
       Value<String> sourceType,
       Value<String> sourceId,
       Value<String> vehicleId,
+      Value<String> accountId,
+      Value<bool> accountApplied,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
@@ -7518,6 +8074,16 @@ class $$LedgerEntriesTableFilterComposer
 
   ColumnFilters<String> get vehicleId => $composableBuilder(
     column: $table.vehicleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get accountApplied => $composableBuilder(
+    column: $table.accountApplied,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7629,6 +8195,16 @@ class $$LedgerEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get accountApplied => $composableBuilder(
+    column: $table.accountApplied,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -7723,6 +8299,14 @@ class $$LedgerEntriesTableAnnotationComposer
   GeneratedColumn<String> get vehicleId =>
       $composableBuilder(column: $table.vehicleId, builder: (column) => column);
 
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<bool> get accountApplied => $composableBuilder(
+    column: $table.accountApplied,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -7797,6 +8381,8 @@ class $$LedgerEntriesTableTableManager
                 Value<String> sourceType = const Value.absent(),
                 Value<String> sourceId = const Value.absent(),
                 Value<String> vehicleId = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
+                Value<bool> accountApplied = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -7815,6 +8401,8 @@ class $$LedgerEntriesTableTableManager
                 sourceType: sourceType,
                 sourceId: sourceId,
                 vehicleId: vehicleId,
+                accountId: accountId,
+                accountApplied: accountApplied,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -7835,6 +8423,8 @@ class $$LedgerEntriesTableTableManager
                 Value<String> sourceType = const Value.absent(),
                 Value<String> sourceId = const Value.absent(),
                 Value<String> vehicleId = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
+                Value<bool> accountApplied = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -7853,6 +8443,8 @@ class $$LedgerEntriesTableTableManager
                 sourceType: sourceType,
                 sourceId: sourceId,
                 vehicleId: vehicleId,
+                accountId: accountId,
+                accountApplied: accountApplied,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -7923,6 +8515,323 @@ typedef $$LedgerEntriesTableProcessedTableManager =
       $$LedgerEntriesTableUpdateCompanionBuilder,
       (LedgerEntry, $$LedgerEntriesTableReferences),
       LedgerEntry,
+      PrefetchHooks Function({bool userId})
+    >;
+typedef $$MasterDataTableCreateCompanionBuilder =
+    MasterDataCompanion Function({
+      required String id,
+      required String userId,
+      required String kind,
+      required String value,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$MasterDataTableUpdateCompanionBuilder =
+    MasterDataCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> kind,
+      Value<String> value,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$MasterDataTableReferences
+    extends BaseReferences<_$AppDatabase, $MasterDataTable, MasterDataData> {
+  $$MasterDataTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $UsersTable _userIdTable(_$AppDatabase db) =>
+      db.users.createAlias('master_data__user_id__users__id');
+
+  $$UsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$UsersTableTableManager(
+      $_db,
+      $_db.users,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$MasterDataTableFilterComposer
+    extends Composer<_$AppDatabase, $MasterDataTable> {
+  $$MasterDataTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$UsersTableFilterComposer get userId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableFilterComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MasterDataTableOrderingComposer
+    extends Composer<_$AppDatabase, $MasterDataTable> {
+  $$MasterDataTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$UsersTableOrderingComposer get userId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MasterDataTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MasterDataTable> {
+  $$MasterDataTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$UsersTableAnnotationComposer get userId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MasterDataTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MasterDataTable,
+          MasterDataData,
+          $$MasterDataTableFilterComposer,
+          $$MasterDataTableOrderingComposer,
+          $$MasterDataTableAnnotationComposer,
+          $$MasterDataTableCreateCompanionBuilder,
+          $$MasterDataTableUpdateCompanionBuilder,
+          (MasterDataData, $$MasterDataTableReferences),
+          MasterDataData,
+          PrefetchHooks Function({bool userId})
+        > {
+  $$MasterDataTableTableManager(_$AppDatabase db, $MasterDataTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MasterDataTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MasterDataTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MasterDataTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> value = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MasterDataCompanion(
+                id: id,
+                userId: userId,
+                kind: kind,
+                value: value,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String kind,
+                required String value,
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => MasterDataCompanion.insert(
+                id: id,
+                userId: userId,
+                kind: kind,
+                value: value,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$MasterDataTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({userId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (userId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.userId,
+                                referencedTable: $$MasterDataTableReferences
+                                    ._userIdTable(db),
+                                referencedColumn: $$MasterDataTableReferences
+                                    ._userIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$MasterDataTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MasterDataTable,
+      MasterDataData,
+      $$MasterDataTableFilterComposer,
+      $$MasterDataTableOrderingComposer,
+      $$MasterDataTableAnnotationComposer,
+      $$MasterDataTableCreateCompanionBuilder,
+      $$MasterDataTableUpdateCompanionBuilder,
+      (MasterDataData, $$MasterDataTableReferences),
+      MasterDataData,
       PrefetchHooks Function({bool userId})
     >;
 typedef $$VehiclesTableCreateCompanionBuilder =
@@ -9428,6 +10337,8 @@ class $AppDatabaseManager {
       $$InvestmentsTableTableManager(_db, _db.investments);
   $$LedgerEntriesTableTableManager get ledgerEntries =>
       $$LedgerEntriesTableTableManager(_db, _db.ledgerEntries);
+  $$MasterDataTableTableManager get masterData =>
+      $$MasterDataTableTableManager(_db, _db.masterData);
   $$VehiclesTableTableManager get vehicles =>
       $$VehiclesTableTableManager(_db, _db.vehicles);
   $$VehicleCostsTableTableManager get vehicleCosts =>

@@ -6,6 +6,7 @@ import '../../core/widgets/common_widgets.dart';
 import '../calculators/calculators_page.dart';
 import '../search/search_page.dart';
 import '../settings/settings_page.dart';
+import '../settings/master_data_page.dart';
 import '../vehicles/vehicles_page.dart';
 
 class MorePage extends ConsumerStatefulWidget {
@@ -39,6 +40,14 @@ class _MorePageState extends ConsumerState<MorePage> {
       Icons.manage_search_rounded,
       Colors.purple,
       SearchPage(),
+    ),
+    _MoreDestination(
+      'masterData',
+      'Stammdaten',
+      'Händler, Zahlungsarten und Vorschläge',
+      Icons.list_alt_rounded,
+      Colors.indigo,
+      MasterDataPage(),
     ),
     _MoreDestination(
       'settings',

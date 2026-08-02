@@ -78,7 +78,7 @@ class AppShell extends ConsumerWidget {
             bottomNavigationBar: NavigationBar(
               selectedIndex: selected,
               onDestinationSelected: (value) =>
-                  ref.read(shellIndexProvider.notifier).state = value,
+                  selectShellDestination(ref, value),
               destinations: [
                 for (final destination in _destinations)
                   NavigationDestination(
@@ -98,7 +98,7 @@ class AppShell extends ConsumerWidget {
                   extended: constraints.maxWidth >= 1180,
                   selectedIndex: selected,
                   onDestinationSelected: (value) =>
-                      ref.read(shellIndexProvider.notifier).state = value,
+                      selectShellDestination(ref, value),
                   leading: Padding(
                     padding: const EdgeInsets.only(bottom: 24),
                     child: Row(

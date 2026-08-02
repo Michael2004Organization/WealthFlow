@@ -189,4 +189,108 @@ void main() {
       expect(await database.watchLedgerEntries('driver').first, isEmpty);
     },
   );
+
+  test('linked ledger entries update and restore account balances', () async {
+    final now = DateTime.now();
+    await database.createUser(
+      UsersCompanion.insert(
+        id: 'linked-owner',
+        email: 'linked@example.test',
+        displayName: 'Linked',
+        passwordHash: 'hash',
+        passwordSalt: 'salt',
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await database.saveAccount(
+      AccountsCompanion.insert(
+        id: 'giro',
+        userId: 'linked-owner',
+        bankName: 'Bank',
+        label: 'Giro',
+        balance: const Value(1000),
+        availableBalance: const Value(1000),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    LedgerEntriesCompanion booking({
+      required bool income,
+      required double amount,
+    }) => LedgerEntriesCompanion.insert(
+      id: 'booking',
+      userId: 'linked-owner',
+      bookingDate: now,
+      amount: amount,
+      isIncome: Value(income),
+      category: income ? 'Gehalt' : 'Einkaufen',
+      accountId: const Value('giro'),
+      createdAt: now,
+      updatedAt: DateTime.now(),
+    );
+
+    await database.saveLedgerEntries([booking(income: false, amount: 50)]);
+    expect(
+      (await database.watchAccounts('linked-owner').first).single.balance,
+      950,
+    );
+
+    await database.saveLedgerEntries([booking(income: true, amount: 100)]);
+    expect(
+      (await database.watchAccounts('linked-owner').first).single.balance,
+      1100,
+    );
+
+    await database.deleteLedgerEntry('booking', 'linked-owner');
+    final restored =
+        (await database.watchAccounts('linked-owner').first).single;
+    expect(restored.balance, 1000);
+    expect(restored.availableBalance, 1000);
+  });
+
+  test('future linked entries do not change the balance early', () async {
+    final now = DateTime.now();
+    await database.createUser(
+      UsersCompanion.insert(
+        id: 'future-owner',
+        email: 'future@example.test',
+        displayName: 'Future',
+        passwordHash: 'hash',
+        passwordSalt: 'salt',
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await database.saveAccount(
+      AccountsCompanion.insert(
+        id: 'future-giro',
+        userId: 'future-owner',
+        bankName: 'Bank',
+        label: 'Giro',
+        balance: const Value(500),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await database.saveLedgerEntry(
+      LedgerEntriesCompanion.insert(
+        id: 'future-salary',
+        userId: 'future-owner',
+        bookingDate: now.add(const Duration(days: 2)),
+        amount: 3000,
+        isIncome: const Value(true),
+        category: 'Gehalt',
+        accountId: const Value('future-giro'),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    expect(
+      (await database.watchAccounts('future-owner').first).single.balance,
+      500,
+    );
+  });
 }

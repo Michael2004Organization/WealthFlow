@@ -45,7 +45,13 @@ class DashboardPage extends ConsumerWidget {
         .fold<double>(0, (sum, entry) => sum + entry.amount);
     final monthlyDividend = investments.fold<double>(
       0,
-      (sum, item) => sum + dividendPerMonth(item.annualDividend, item.quantity),
+      (sum, item) =>
+          sum +
+          dividendPerMonth(
+            item.annualDividend,
+            item.quantity,
+            item.dividendFrequency,
+          ),
     );
     final colors = Theme.of(context).colorScheme;
 

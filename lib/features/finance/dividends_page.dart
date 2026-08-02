@@ -22,15 +22,28 @@ class DividendsPage extends ConsumerWidget {
       data: (items) {
         final dividendItems =
             items.where((item) => item.annualDividend > 0).toList()..sort(
-              (a, b) => dividendPerMonth(
-                b.annualDividend,
-                b.quantity,
-              ).compareTo(dividendPerMonth(a.annualDividend, a.quantity)),
+              (a, b) =>
+                  dividendPerMonth(
+                    b.annualDividend,
+                    b.quantity,
+                    b.dividendFrequency,
+                  ).compareTo(
+                    dividendPerMonth(
+                      a.annualDividend,
+                      a.quantity,
+                      a.dividendFrequency,
+                    ),
+                  ),
             );
         final monthly = dividendItems.fold<double>(
           0,
           (sum, item) =>
-              sum + dividendPerMonth(item.annualDividend, item.quantity),
+              sum +
+              dividendPerMonth(
+                item.annualDividend,
+                item.quantity,
+                item.dividendFrequency,
+              ),
         );
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -163,10 +176,11 @@ class DividendsPage extends ConsumerWidget {
                                           title: Text(item.name),
                                           subtitle: Text(
                                             '${item.dividendFrequency} · '
-                                            '${money(item.annualDividend)} je Stück/Monat',
+                                            '${money(item.annualDividend)} je Stück/Ausschüttung · '
+                                            'Kurs ${money(item.currentPrice)}',
                                           ),
                                           trailing: Text(
-                                            '${money(dividendPerMonth(item.annualDividend, item.quantity))}/Monat',
+                                            '${money(dividendPerMonth(item.annualDividend, item.quantity, item.dividendFrequency))}/Monat',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -229,6 +243,7 @@ class _DividendChart extends StatelessWidget {
                         value: dividendPerMonth(
                           items[index].annualDividend,
                           items[index].quantity,
+                          items[index].dividendFrequency,
                         ),
                         title: items[index].symbol.isEmpty
                             ? items[index].name

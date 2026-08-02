@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wealthflow/core/database/app_database.dart';
 import 'package:wealthflow/core/providers.dart';
+import 'package:wealthflow/features/auth/auth_page.dart';
+import 'package:wealthflow/features/calculators/calculators_page.dart';
 import 'package:wealthflow/features/finance/accounts_page.dart';
+import 'package:wealthflow/features/finance/investments_page.dart';
 import 'package:wealthflow/features/vehicles/vehicles_page.dart';
 
 void main() {
@@ -14,8 +17,9 @@ void main() {
     WidgetTester tester,
     Widget page, {
     required List<Override> overrides,
+    Size size = const Size(360, 800),
   }) async {
-    tester.view.physicalSize = const Size(360, 800);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -69,5 +73,62 @@ void main() {
     expect(find.byType(AlertDialog), findsOneWidget);
     expect(find.text('Fahrzeug anlegen'), findsWidgets);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('browser login fills a wide viewport without layout errors', (
+    tester,
+  ) async {
+    await pumpPage(
+      tester,
+      const AuthPage(),
+      size: const Size(1440, 720),
+      overrides: const [],
+    );
+
+    expect(find.text('Willkommen zurück'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('investment editor stacks fields on a narrow viewport', (
+    tester,
+  ) async {
+    await pumpPage(
+      tester,
+      const InvestmentsPage(),
+      overrides: [
+        investmentsProvider.overrideWith(
+          (_) => Stream.value(const <Investment>[]),
+        ),
+        masterDataProvider.overrideWith(
+          (_) => Stream.value(const <MasterDataData>[]),
+        ),
+      ],
+    );
+
+    await tester.tap(find.text('Position').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Position anlegen'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('all calculator tabs fit a narrow viewport', (tester) async {
+    await pumpPage(
+      tester,
+      const CalculatorsPage(),
+      overrides: [
+        investmentsProvider.overrideWith(
+          (_) => Stream.value(const <Investment>[]),
+        ),
+      ],
+    );
+
+    for (final tab in ['Entnahme', 'Spritkosten', 'Freiheit']) {
+      final finder = find.text(tab);
+      await tester.ensureVisible(finder);
+      await tester.tap(finder);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'Tab $tab');
+    }
   });
 }
