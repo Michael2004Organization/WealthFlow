@@ -120,6 +120,7 @@ void main() {
         investmentsProvider.overrideWith(
           (_) => Stream.value(const <Investment>[]),
         ),
+        preferencesProvider.overrideWith((_) => Stream.value(null)),
       ],
     );
 

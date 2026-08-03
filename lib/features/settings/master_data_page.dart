@@ -10,6 +10,7 @@ class MasterDataPage extends ConsumerWidget {
   const MasterDataPage({super.key});
 
   static const kinds = {
+    'category': 'Haushaltskategorie',
     'merchant': 'Händler / Quelle',
     'paymentMethod': 'Zahlungsmethode',
     'broker': 'Broker',

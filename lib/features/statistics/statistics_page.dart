@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/finance/budget_period.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -129,7 +130,10 @@ class _AccountsChart extends StatelessWidget {
                 for (var index = 0; index < accounts.length; index++)
                   PieChartSectionData(
                     value: accounts[index].balance.abs(),
-                    title: accounts[index].label,
+                    title:
+                        accounts[index].label +
+                        '\n' +
+                        money(accounts[index].balance),
                     radius: 62,
                     color: Colors.primaries[index % Colors.primaries.length],
                     titleStyle: const TextStyle(
@@ -227,7 +231,8 @@ class _CategoryChart extends StatelessWidget {
                   for (var index = 0; index < sorted.take(7).length; index++)
                     PieChartSectionData(
                       value: sorted[index].value,
-                      title: sorted[index].key,
+                      title:
+                          sorted[index].key + '\n' + money(sorted[index].value),
                       radius: 64,
                       color: Colors.primaries[index % Colors.primaries.length],
                       titleStyle: const TextStyle(
@@ -253,11 +258,10 @@ class _CashflowChart extends StatelessWidget {
     final expense = List<double>.filled(6, 0);
     for (var index = 0; index < 6; index++) {
       final date = DateTime(now.year, now.month - 5 + index);
-      for (final entry in entries.where(
-        (e) =>
-            e.bookingDate.year == date.year &&
-            e.bookingDate.month == date.month,
-      )) {
+      for (final entry in entries.where((e) {
+        final period = budgetMonthOf(e.bookingDate, e.budgetMonth);
+        return period.year == date.year && period.month == date.month;
+      })) {
         (entry.isIncome ? income : expense)[index] += entry.amount;
       }
     }
@@ -266,6 +270,19 @@ class _CashflowChart extends StatelessWidget {
       description: 'Einnahmen und Ausgaben der letzten sechs Monate',
       child: BarChart(
         BarChartData(
+          barTouchData: BarTouchData(
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipItem: (group, groupIndex, rod, rodIndex) =>
+                  BarTooltipItem(
+                    (rodIndex == 0 ? 'Einnahmen\n' : 'Ausgaben\n') +
+                        money(rod.toY),
+                    const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+            ),
+          ),
           borderData: FlBorderData(show: false),
           gridData: const FlGridData(show: false),
           titlesData: const FlTitlesData(

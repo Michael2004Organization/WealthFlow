@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/finance/budget_period.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -19,10 +20,23 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
   late DateTime _selectedMonth = _month(DateTime.now());
   String _query = '';
   String _category = 'Alle';
+  String? _selectedAccountId;
 
   @override
   Widget build(BuildContext context) {
     final asyncEntries = ref.watch(ledgerEntriesProvider);
+    final accounts =
+        ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
+    final preference = ref.watch(preferencesProvider).valueOrNull;
+    final masterData =
+        ref.watch(masterDataProvider).valueOrNull ?? const <MasterDataData>[];
+    final categories = {
+      ..._categories.skip(1),
+      ...masterData
+          .where((item) => item.kind == 'category')
+          .map((item) => item.value),
+    }.toList()..sort();
+    final selectedAccountId = _effectiveAccountId(accounts, preference);
     return Padding(
       padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 600 ? 16 : 24),
       child: Center(
@@ -34,10 +48,49 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
               PageHeader(
                 title: 'Haushaltsbuch',
                 subtitle: 'Einnahmen, Ausgaben und Monatsserien planen.',
-                action: FilledButton.icon(
-                  onPressed: () => showEntryEditor(context, ref),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Buchung'),
+                action: Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 270,
+                      child: DropdownButtonFormField<String>(
+                        key: ValueKey(selectedAccountId),
+                        initialValue: selectedAccountId,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Haushaltskonto',
+                          prefixIcon: Icon(Icons.account_balance_rounded),
+                        ),
+                        items: accounts
+                            .map(
+                              (account) => DropdownMenuItem(
+                                value: account.id,
+                                child: Text(
+                                  account.label +
+                                      ' · ' +
+                                      money(account.balance),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) => _selectAccount(value, preference),
+                      ),
+                    ),
+                    FilledButton.icon(
+                      onPressed: selectedAccountId == null
+                          ? null
+                          : () => showEntryEditor(
+                              context,
+                              ref,
+                              defaultAccountId: selectedAccountId,
+                            ),
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Buchung'),
+                    ),
+                  ],
                 ),
               ),
               _MonthNavigation(
@@ -66,7 +119,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                     child: DropdownButtonFormField<String>(
                       initialValue: _category,
                       decoration: const InputDecoration(labelText: 'Kategorie'),
-                      items: _categories
+                      items: ['Alle', ...categories]
                           .map(
                             (value) => DropdownMenuItem(
                               value: value,
@@ -91,7 +144,9 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                     ),
                   ),
                   data: (allEntries) {
-                    final entries = allEntries.where(_matches).toList();
+                    final entries = allEntries
+                        .where((entry) => _matches(entry, selectedAccountId))
+                        .toList();
                     final income = entries
                         .where((entry) => entry.isIncome)
                         .fold<double>(0, (sum, entry) => sum + entry.amount);
@@ -117,6 +172,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                                   context,
                                   ref,
                                   initialDate: _selectedMonth,
+                                  defaultAccountId: selectedAccountId,
                                 ),
                                 icon: const Icon(Icons.add_rounded),
                                 label: const Text('Buchung erfassen'),
@@ -152,12 +208,62 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
     );
   }
 
-  bool _matches(LedgerEntry entry) {
+  String? _effectiveAccountId(
+    List<Account> accounts,
+    UserPreference? preference,
+  ) {
+    if (accounts.isEmpty) return null;
+    final validIds = accounts.map((e) => e.id).toSet();
+    if (_selectedAccountId != null && validIds.contains(_selectedAccountId)) {
+      return _selectedAccountId;
+    }
+    if (preference != null &&
+        validIds.contains(preference.selectedHouseholdAccountId)) {
+      return preference.selectedHouseholdAccountId;
+    }
+    return accounts.first.id;
+  }
+
+  Future<void> _selectAccount(
+    String? accountId,
+    UserPreference? preference,
+  ) async {
+    if (accountId == null) return;
+    setState(() => _selectedAccountId = accountId);
+    if (preference == null) return;
+    await ref
+        .read(databaseProvider)
+        .savePreferences(
+          UserPreferencesCompanion(
+            userId: Value(preference.userId),
+            themeMode: Value(preference.themeMode),
+            locale: Value(preference.locale),
+            currency: Value(preference.currency),
+            dateFormat: Value(preference.dateFormat),
+            serverMode: Value(preference.serverMode),
+            serverUrl: Value(preference.serverUrl),
+            serverPort: Value(preference.serverPort),
+            serverUsername: Value(preference.serverUsername),
+            selectedHouseholdAccountId: Value(accountId),
+            dataFilePath: Value(preference.dataFilePath),
+            freedomAge: Value(preference.freedomAge),
+            freedomStartCapital: Value(preference.freedomStartCapital),
+            freedomUsePortfolio: Value(preference.freedomUsePortfolio),
+            lastSyncAt: Value(preference.lastSyncAt),
+            updatedAt: Value(DateTime.now().toUtc()),
+          ),
+        );
+  }
+
+  bool _matches(LedgerEntry entry, String? selectedAccountId) {
+    final period = budgetMonthOf(entry.bookingDate, entry.budgetMonth);
     final sameMonth =
-        entry.bookingDate.year == _selectedMonth.year &&
-        entry.bookingDate.month == _selectedMonth.month;
-    final text = '${entry.merchant} ${entry.description}'.toLowerCase();
+        period.year == _selectedMonth.year &&
+        period.month == _selectedMonth.month;
+    final text = (entry.merchant + ' ' + entry.description).toLowerCase();
     return sameMonth &&
+        selectedAccountId != null &&
+        entry.accountId == selectedAccountId &&
         text.contains(_query) &&
         (_category == 'Alle' || entry.category == _category);
   }
@@ -263,7 +369,8 @@ class _MonthSummary extends StatelessWidget {
     builder: (context, constraints) {
       final width = constraints.maxWidth < 700
           ? constraints.maxWidth
-          : (constraints.maxWidth - 32) / 3;
+          : (constraints.maxWidth - 48) / 4;
+      final savingsRate = income <= 0 ? 0 : (income - expense) / income * 100;
       return Wrap(
         spacing: 16,
         runSpacing: 16,
@@ -295,6 +402,26 @@ class _MonthSummary extends StatelessWidget {
               color: income >= expense
                   ? Colors.teal
                   : Theme.of(context).colorScheme.error,
+            ),
+          ),
+          SizedBox(
+            width: width,
+            child: Tooltip(
+              message:
+                  'Überschuss geteilt durch Einnahmen: ' +
+                  money(income - expense) +
+                  ' / ' +
+                  money(income),
+              child: MetricCard(
+                title: 'Sparquote',
+                value: income <= 0
+                    ? '–'
+                    : savingsRate.toStringAsFixed(1) + ' %',
+                icon: Icons.savings_rounded,
+                color: savingsRate >= 0
+                    ? Colors.purple
+                    : Theme.of(context).colorScheme.error,
+              ),
             ),
           ),
         ],
@@ -439,9 +566,9 @@ Future<void> showEntryEditor(
   WidgetRef ref, {
   LedgerEntry? entry,
   DateTime? initialDate,
+  String? defaultAccountId,
 }) async {
   final vehicles = ref.read(vehiclesProvider).valueOrNull ?? const <Vehicle>[];
-  final accounts = ref.read(accountsProvider).valueOrNull ?? const <Account>[];
   final masterData =
       ref.read(masterDataProvider).valueOrNull ?? const <MasterDataData>[];
   final result = await showDialog<_EntrySubmission>(
@@ -450,7 +577,7 @@ Future<void> showEntryEditor(
       entry: entry,
       initialDate: initialDate,
       vehicles: vehicles,
-      accounts: accounts,
+      defaultAccountId: defaultAccountId,
       masterData: masterData,
     ),
   );
@@ -463,6 +590,7 @@ Future<void> showEntryEditor(
         if (result.merchant.isNotEmpty) 'merchant': result.merchant,
         if (result.paymentMethod.isNotEmpty)
           'paymentMethod': result.paymentMethod,
+        if (result.category.isNotEmpty) 'category': result.category,
       }.entries) {
         await database.saveMasterDatum(
           MasterDataCompanion.insert(
@@ -483,16 +611,18 @@ class _EntrySubmission {
     this.entries, {
     required this.merchant,
     required this.paymentMethod,
+    required this.category,
   });
   final List<LedgerEntriesCompanion> entries;
   final String merchant;
   final String paymentMethod;
+  final String category;
 }
 
 class _EntryEditor extends StatefulWidget {
   const _EntryEditor({
     required this.vehicles,
-    required this.accounts,
+    required this.defaultAccountId,
     required this.masterData,
     this.entry,
     this.initialDate,
@@ -501,7 +631,7 @@ class _EntryEditor extends StatefulWidget {
   final LedgerEntry? entry;
   final DateTime? initialDate;
   final List<Vehicle> vehicles;
-  final List<Account> accounts;
+  final String? defaultAccountId;
   final List<MasterDataData> masterData;
 
   @override
@@ -520,12 +650,16 @@ class _EntryEditorState extends State<_EntryEditor> {
   late final _payment = TextEditingController(
     text: widget.entry?.paymentMethod,
   );
+  late final _category = TextEditingController(
+    text: widget.entry?.category ?? 'Einkaufen',
+  );
   late bool _income = widget.entry?.isIncome ?? false;
-  late String _category = widget.entry?.category ?? 'Einkaufen';
   late DateTime _date =
       widget.entry?.bookingDate ?? widget.initialDate ?? DateTime.now();
   late String _vehicleId = widget.entry?.vehicleId ?? '';
-  late String _accountId = widget.entry?.accountId ?? '';
+  late final String _accountId =
+      widget.entry?.accountId ?? widget.defaultAccountId ?? '';
+  late int _budgetOffset = _initialBudgetOffset();
   bool _repeatMonthly = false;
   String _timing = 'selected';
   int _months = 3;
@@ -536,6 +670,7 @@ class _EntryEditorState extends State<_EntryEditor> {
     _merchant.dispose();
     _description.dispose();
     _payment.dispose();
+    _category.dispose();
     super.dispose();
   }
 
@@ -584,18 +719,24 @@ class _EntryEditorState extends State<_EntryEditor> {
                     : null,
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _category,
-                decoration: const InputDecoration(labelText: 'Kategorie'),
-                items: _categories
-                    .skip(1)
-                    .map(
-                      (value) =>
-                          DropdownMenuItem(value: value, child: Text(value)),
-                    )
-                    .toList(),
-                onChanged: (value) =>
-                    setState(() => _category = value ?? 'Sonstiges'),
+              DropdownMenu<String>(
+                controller: _category,
+                enableFilter: true,
+                requestFocusOnTap: true,
+                label: const Text('Kategorie'),
+                helperText: 'Auswählen oder neue Kategorie eingeben',
+                dropdownMenuEntries:
+                    {
+                          ..._categories.skip(1),
+                          ...widget.masterData
+                              .where((item) => item.kind == 'category')
+                              .map((item) => item.value),
+                        }
+                        .map(
+                          (value) =>
+                              DropdownMenuEntry(value: value, label: value),
+                        )
+                        .toList(),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
@@ -619,25 +760,13 @@ class _EntryEditorState extends State<_EntryEditor> {
                 onChanged: (value) => _vehicleId = value ?? '',
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _accountId,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Konto (Kontostand automatisch aktualisieren)',
-                  prefixIcon: Icon(Icons.account_balance_rounded),
+              const ListTile(
+                contentPadding: EdgeInsets.symmetric(horizontal: 4),
+                leading: Icon(Icons.account_balance_rounded),
+                title: Text('Ausgewähltes Haushaltskonto'),
+                subtitle: Text(
+                  'Diese Buchung aktualisiert dessen Kontostand automatisch.',
                 ),
-                items: [
-                  const DropdownMenuItem(
-                    value: '',
-                    child: Text('Kein Konto verknüpfen'),
-                  ),
-                  for (final account in widget.accounts)
-                    DropdownMenuItem(
-                      value: account.id,
-                      child: Text('${account.label} · ${account.bankName}'),
-                    ),
-                ],
-                onChanged: (value) => _accountId = value ?? '',
               ),
               const SizedBox(height: 12),
               _responsiveFields([
@@ -672,6 +801,31 @@ class _EntryEditorState extends State<_EntryEditor> {
                   ),
                 ),
               ),
+              if (!_repeatMonthly) ...[
+                const SizedBox(height: 8),
+                DropdownButtonFormField<int>(
+                  initialValue: _budgetOffset,
+                  decoration: const InputDecoration(
+                    labelText: 'In welchem Budgetmonat berücksichtigen?',
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: -1,
+                      child: Text('Im vorherigen Monat'),
+                    ),
+                    DropdownMenuItem(
+                      value: 0,
+                      child: Text('Im Monat des Buchungstags'),
+                    ),
+                    DropdownMenuItem(
+                      value: 1,
+                      child: Text('Im nächsten Monat (im Voraus bezahlt)'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _budgetOffset = value ?? 0),
+                ),
+              ],
               if (widget.entry == null) ...[
                 const SizedBox(height: 8),
                 SwitchListTile.adaptive(
@@ -696,18 +850,19 @@ class _EntryEditorState extends State<_EntryEditor> {
                         ),
                         DropdownMenuItem(
                           value: 'start',
-                          child: Text('Monatsanfang'),
+                          child: Text('Monatsanfang (erster Werktag)'),
                         ),
                         DropdownMenuItem(
                           value: 'middle',
-                          child: Text('Monatsmitte'),
+                          child: Text('Monatsmitte (15.)'),
                         ),
                         DropdownMenuItem(
                           value: 'end',
-                          child: Text('Monatsende'),
+                          child: Text('Vormonat (vorletzter Werktag)'),
                         ),
                       ],
-                      onChanged: (value) => _timing = value ?? 'selected',
+                      onChanged: (value) =>
+                          setState(() => _timing = value ?? 'selected'),
                     ),
                     DropdownButtonFormField<int>(
                       initialValue: _months,
@@ -723,6 +878,22 @@ class _EntryEditorState extends State<_EntryEditor> {
                       onChanged: (value) => _months = value ?? 3,
                     ),
                   ]),
+                ],
+                if (_repeatMonthly) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Erste Kontobuchung: ' +
+                        DateFormat('dd.MM.yyyy').format(
+                          paymentDateForBudgetMonth(
+                            budgetMonth: DateTime(_date.year, _date.month),
+                            timing: _timing,
+                            selectedDay: _date.day,
+                          ),
+                        ) +
+                        ' · zählt für ' +
+                        _monthLabel(DateTime(_date.year, _date.month)),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ],
               ],
             ],
@@ -785,15 +956,27 @@ class _EntryEditorState extends State<_EntryEditor> {
     final recurrenceId = repeatCount > 1 ? const Uuid().v4() : '';
     final entries = <LedgerEntriesCompanion>[];
     for (var index = 0; index < repeatCount; index++) {
-      final date = _occurrenceDate(index);
+      final budgetMonth = _repeatMonthly
+          ? DateTime(_date.year, _date.month + index)
+          : DateTime(_date.year, _date.month + _budgetOffset);
+      final date = _repeatMonthly
+          ? paymentDateForBudgetMonth(
+              budgetMonth: budgetMonth,
+              timing: _timing,
+              selectedDay: _date.day,
+            )
+          : _date;
       entries.add(
         LedgerEntriesCompanion.insert(
           id: widget.entry?.id ?? const Uuid().v4(),
           userId: userId,
           bookingDate: date,
+          budgetMonth: Value(budgetMonth),
           amount: _parse(_amount.text) ?? 0,
           isIncome: Value(_income),
-          category: _category,
+          category: _category.text.trim().isEmpty
+              ? 'Sonstiges'
+              : _category.text.trim(),
           merchant: Value(_merchant.text.trim()),
           description: Value(_description.text.trim()),
           paymentMethod: Value(_payment.text.trim()),
@@ -813,6 +996,9 @@ class _EntryEditorState extends State<_EntryEditor> {
         entries,
         merchant: _merchant.text.trim(),
         paymentMethod: _payment.text.trim(),
+        category: _category.text.trim().isEmpty
+            ? 'Sonstiges'
+            : _category.text.trim(),
       ),
     );
   }
@@ -826,16 +1012,14 @@ class _EntryEditorState extends State<_EntryEditor> {
       )
       .toList();
 
-  DateTime _occurrenceDate(int offset) {
-    final month = DateTime(_date.year, _date.month + offset, 1);
-    final lastDay = DateTime(month.year, month.month + 1, 0).day;
-    final day = switch (_timing) {
-      'start' => 1,
-      'middle' => 15,
-      'end' => lastDay,
-      _ => _date.day.clamp(1, lastDay),
-    };
-    return DateTime(month.year, month.month, day);
+  int _initialBudgetOffset() {
+    final budgetMonth = widget.entry?.budgetMonth;
+    final bookingDate = widget.entry?.bookingDate;
+    if (budgetMonth == null || bookingDate == null) return 0;
+    return ((budgetMonth.year - bookingDate.year) * 12 +
+            budgetMonth.month -
+            bookingDate.month)
+        .clamp(-1, 1);
   }
 }
 

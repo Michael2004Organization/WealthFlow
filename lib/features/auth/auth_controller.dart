@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -108,8 +110,10 @@ final class AuthController extends StateNotifier<AuthState> {
         );
       });
       final user = await _database.userById(userId);
-      await _sessionStore.writeUserId(userId);
       state = AuthState(status: AuthStatus.signedIn, user: user);
+      unawaited(_sessionStore.writeUserId(userId));
+      unawaited(_database.seedDefaultMasterData(userId));
+      unawaited(_database.captureNetWorth(userId));
       return true;
     } catch (_) {
       state = state.copyWith(
@@ -138,9 +142,11 @@ final class AuthController extends StateNotifier<AuthState> {
         );
         return false;
       }
-      await _sessionStore.writeUserId(user.id);
-      await _database.preferencesFor(user.id);
       state = AuthState(status: AuthStatus.signedIn, user: user);
+      unawaited(_sessionStore.writeUserId(user.id));
+      unawaited(_database.preferencesFor(user.id));
+      unawaited(_database.seedDefaultMasterData(user.id));
+      unawaited(_database.captureNetWorth(user.id));
       return true;
     } catch (_) {
       state = const AuthState(

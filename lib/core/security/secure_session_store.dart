@@ -62,23 +62,4 @@ final class SecureSessionStore {
       // The in-memory session has already been removed.
     }
   }
-
-  Future<void> writeServerSecrets({
-    required String userId,
-    required String password,
-    required String apiKey,
-  }) async {
-    if (password.isNotEmpty) {
-      await _storage.write(
-        key: 'wealthflow.server.$userId.password',
-        value: password,
-      );
-    }
-    if (apiKey.isNotEmpty) {
-      await _storage.write(
-        key: 'wealthflow.server.$userId.api_key',
-        value: apiKey,
-      );
-    }
-  }
 }

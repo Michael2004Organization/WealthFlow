@@ -1,10 +1,12 @@
 import 'dart:math' as math;
 
+import 'package:drift/drift.dart' show Value;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../../core/database/app_database.dart';
 import '../../core/widgets/common_widgets.dart';
 
 class CalculatorsPage extends StatelessWidget {
@@ -85,6 +87,7 @@ class _CompoundCalculatorState extends ConsumerState<_CompoundCalculator> {
               monthly * ((math.pow(1 + rate, months) - 1) / rate);
     final paid = start + monthly * months;
     final spots = <FlSpot>[];
+    final paidSpots = <FlSpot>[];
     for (var year = 0; year <= years; year++) {
       final m = year * 12;
       final value = rate == 0
@@ -92,6 +95,7 @@ class _CompoundCalculatorState extends ConsumerState<_CompoundCalculator> {
           : start * math.pow(1 + rate, m) +
                 monthly * ((math.pow(1 + rate, m) - 1) / rate);
       spots.add(FlSpot(year.toDouble(), value.toDouble()));
+      paidSpots.add(FlSpot(year.toDouble(), start + monthly * m));
     }
     return _CalculatorScaffold(
       title: 'Zinseszinsrechner',
@@ -186,6 +190,24 @@ class _CompoundCalculatorState extends ConsumerState<_CompoundCalculator> {
                     sideTitles: SideTitles(showTitles: true, reservedSize: 28),
                   ),
                 ),
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems: (spots) => spots
+                        .map(
+                          (spot) => LineTooltipItem(
+                            (spot.barIndex == 0
+                                    ? 'Vermögen: '
+                                    : 'Einzahlungen: ') +
+                                money(spot.y),
+                            const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
                 lineBarsData: [
                   LineChartBarData(
                     spots: spots,
@@ -199,6 +221,14 @@ class _CompoundCalculatorState extends ConsumerState<_CompoundCalculator> {
                         context,
                       ).colorScheme.primary.withValues(alpha: .12),
                     ),
+                  ),
+                  LineChartBarData(
+                    spots: paidSpots,
+                    isCurved: false,
+                    color: Colors.teal,
+                    barWidth: 2,
+                    dashArray: [7, 5],
+                    dotData: const FlDotData(show: false),
                   ),
                 ],
               ),
@@ -372,6 +402,8 @@ class _FuelCalculatorState extends State<_FuelCalculator> {
     final costA = liters * _value(_price.text);
     final costB = liters * _value(_priceB.text);
     final difference = (costA - costB).abs();
+    final fixedTankA = 50 * _value(_price.text);
+    final fixedTankB = 50 * _value(_priceB.text);
     final cheaper = costA == costB
         ? 'Beide Preise sind gleich'
         : costA < costB
@@ -461,20 +493,52 @@ class _FuelCalculatorState extends State<_FuelCalculator> {
             ),
             color: Colors.orange,
           ),
+          const SizedBox(height: 28),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  const Text(
+                    'Untervergleich bei 50 l',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Preis A: ' +
+                        money(fixedTankA) +
+                        ' · Preis B: ' +
+                        money(fixedTankB),
+                  ),
+                  Text(
+                    'Differenz: ' + money((fixedTankA - fixedTankB).abs()),
+                    style: const TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _FreedomCalculator extends StatefulWidget {
+class _FreedomCalculator extends ConsumerStatefulWidget {
   const _FreedomCalculator();
 
   @override
-  State<_FreedomCalculator> createState() => _FreedomCalculatorState();
+  ConsumerState<_FreedomCalculator> createState() => _FreedomCalculatorState();
 }
 
-class _FreedomCalculatorState extends State<_FreedomCalculator> {
+class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
   final _age = TextEditingController(text: '35');
   final _start = TextEditingController(text: '50000');
   final _returnRate = TextEditingController(text: '7');
@@ -482,6 +546,8 @@ class _FreedomCalculatorState extends State<_FreedomCalculator> {
   final _payout = TextEditingController(text: '2500');
   final _dividends = TextEditingController(text: '0');
   final _withdrawalRate = TextEditingController(text: '4');
+  bool _loadedPreferences = false;
+  bool _usePortfolio = true;
 
   @override
   void dispose() {
@@ -501,8 +567,26 @@ class _FreedomCalculatorState extends State<_FreedomCalculator> {
 
   @override
   Widget build(BuildContext context) {
+    final preference = ref.watch(preferencesProvider).valueOrNull;
+    final portfolio =
+        ref
+            .watch(investmentsProvider)
+            .valueOrNull
+            ?.fold<double>(
+              0,
+              (sum, item) => sum + item.quantity * item.currentPrice,
+            ) ??
+        0;
+    if (!_loadedPreferences && preference != null) {
+      _loadedPreferences = true;
+      _age.text = preference.freedomAge.toStringAsFixed(0);
+      _start.text = preference.freedomStartCapital.toStringAsFixed(2);
+      _usePortfolio = preference.freedomUsePortfolio;
+    }
     final age = _value(_age.text).clamp(0, 100).toDouble();
-    final start = _value(_start.text).clamp(0, double.infinity).toDouble();
+    final start = (_usePortfolio ? portfolio : _value(_start.text))
+        .clamp(0, double.infinity)
+        .toDouble();
     final saving = _value(_saving.text).clamp(0, double.infinity).toDouble();
     final payout = _value(_payout.text).clamp(0, double.infinity).toDouble();
     final dividends = _value(_dividends.text).clamp(0, payout).toDouble();
@@ -519,6 +603,18 @@ class _FreedomCalculatorState extends State<_FreedomCalculator> {
     );
     final years = months.isFinite ? months / 12 : double.infinity;
     final freedomAge = years.isFinite ? age + years : double.infinity;
+    final chartYears = years.isFinite ? years.ceil().clamp(1, 80) : 40;
+    final capitalSpots = <FlSpot>[];
+    final targetSpots = <FlSpot>[];
+    for (var year = 0; year <= chartYears; year++) {
+      final count = year * 12;
+      final value = monthlyRate == 0
+          ? start + saving * count
+          : start * math.pow(1 + monthlyRate, count) +
+                saving * ((math.pow(1 + monthlyRate, count) - 1) / monthlyRate);
+      capitalSpots.add(FlSpot(year.toDouble(), value.toDouble()));
+      targetSpots.add(FlSpot(year.toDouble(), target.isFinite ? target : 0));
+    }
     return _CalculatorScaffold(
       title: 'Finanzielle Freiheit',
       subtitle:
@@ -529,14 +625,28 @@ class _FreedomCalculatorState extends State<_FreedomCalculator> {
             controller: _age,
             label: 'Heutiges Alter',
             suffix: 'Jahre',
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => _changed(preference),
           ),
           const SizedBox(height: 12),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Startkapital aus Depot lesen'),
+            subtitle: Text(
+              _usePortfolio
+                  ? 'Aktueller Depotwert: ' + money(portfolio)
+                  : 'Eigenen Startwert verwenden',
+            ),
+            value: _usePortfolio,
+            onChanged: (value) {
+              setState(() => _usePortfolio = value);
+              _saveFreedomPreference(preference);
+            },
+          ),
           _NumberField(
             controller: _start,
             label: 'Startkapital',
             suffix: '€',
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => _changed(preference),
           ),
           const SizedBox(height: 12),
           _NumberField(
@@ -576,7 +686,7 @@ class _FreedomCalculatorState extends State<_FreedomCalculator> {
         ],
       ),
       result: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Icon(
             Icons.beach_access_rounded,
@@ -618,9 +728,124 @@ class _FreedomCalculatorState extends State<_FreedomCalculator> {
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: LineChart(
+              LineChartData(
+                borderData: FlBorderData(show: false),
+                gridData: FlGridData(
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: Theme.of(
+                      context,
+                    ).dividerColor.withValues(alpha: .22),
+                  ),
+                ),
+                titlesData: const FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: true),
+                  ),
+                ),
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems: (spots) => spots
+                        .map(
+                          (spot) => LineTooltipItem(
+                            (spot.barIndex == 0 ? 'Vermögen: ' : 'Ziel: ') +
+                                money(spot.y),
+                            const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: capitalSpots,
+                    isCurved: true,
+                    barWidth: 4,
+                    color: Theme.of(context).colorScheme.primary,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: .14),
+                    ),
+                  ),
+                  if (target.isFinite)
+                    LineChartBarData(
+                      spots: targetSpots,
+                      barWidth: 2,
+                      color: Colors.orange,
+                      dashArray: [8, 5],
+                      dotData: const FlDotData(show: false),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 4,
+            runSpacing: 4,
+            children: [
+              Icon(Icons.show_chart_rounded, color: Colors.indigo),
+              Text(' Vermögen  '),
+              Icon(Icons.remove_rounded, color: Colors.orange),
+              Text(' Zielkapital'),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  void _changed(UserPreference? preference) {
+    setState(() {});
+    _saveFreedomPreference(preference);
+  }
+
+  Future<void> _saveFreedomPreference(UserPreference? preference) async {
+    if (preference == null) return;
+    await ref
+        .read(databaseProvider)
+        .savePreferences(
+          UserPreferencesCompanion.insert(
+            userId: preference.userId,
+            themeMode: Value(preference.themeMode),
+            locale: Value(preference.locale),
+            currency: Value(preference.currency),
+            dateFormat: Value(preference.dateFormat),
+            serverMode: Value(preference.serverMode),
+            serverUrl: Value(preference.serverUrl),
+            serverPort: Value(preference.serverPort),
+            serverUsername: Value(preference.serverUsername),
+            selectedHouseholdAccountId: Value(
+              preference.selectedHouseholdAccountId,
+            ),
+            dataFilePath: Value(preference.dataFilePath),
+            freedomAge: Value(_value(_age.text)),
+            freedomStartCapital: Value(_value(_start.text)),
+            freedomUsePortfolio: Value(_usePortfolio),
+            lastSyncAt: Value(preference.lastSyncAt),
+            updatedAt: DateTime.now().toUtc(),
+          ),
+        );
   }
 
   double _monthsToTarget({
@@ -683,7 +908,7 @@ class _CalculatorScaffold extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(22),
                     child: SizedBox(
-                      height: vertical ? 600 : 480,
+                      height: vertical ? 660 : 480,
                       child: result,
                     ),
                   ),

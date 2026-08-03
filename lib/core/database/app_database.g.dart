@@ -2497,6 +2497,586 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
   }
 }
 
+class $DividendSchedulesTable extends DividendSchedules
+    with TableInfo<$DividendSchedulesTable, DividendSchedule> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DividendSchedulesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES users (id)',
+    ),
+  );
+  static const VerificationMeta _investmentIdMeta = const VerificationMeta(
+    'investmentId',
+  );
+  @override
+  late final GeneratedColumn<String> investmentId = GeneratedColumn<String>(
+    'investment_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES investments (id)',
+    ),
+  );
+  static const VerificationMeta _paymentMonthMeta = const VerificationMeta(
+    'paymentMonth',
+  );
+  @override
+  late final GeneratedColumn<int> paymentMonth = GeneratedColumn<int>(
+    'payment_month',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountPerShareMeta = const VerificationMeta(
+    'amountPerShare',
+  );
+  @override
+  late final GeneratedColumn<double> amountPerShare = GeneratedColumn<double>(
+    'amount_per_share',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _exDateMeta = const VerificationMeta('exDate');
+  @override
+  late final GeneratedColumn<DateTime> exDate = GeneratedColumn<DateTime>(
+    'ex_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    investmentId,
+    paymentMonth,
+    amountPerShare,
+    exDate,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'dividend_schedules';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DividendSchedule> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('investment_id')) {
+      context.handle(
+        _investmentIdMeta,
+        investmentId.isAcceptableOrUnknown(
+          data['investment_id']!,
+          _investmentIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_investmentIdMeta);
+    }
+    if (data.containsKey('payment_month')) {
+      context.handle(
+        _paymentMonthMeta,
+        paymentMonth.isAcceptableOrUnknown(
+          data['payment_month']!,
+          _paymentMonthMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_paymentMonthMeta);
+    }
+    if (data.containsKey('amount_per_share')) {
+      context.handle(
+        _amountPerShareMeta,
+        amountPerShare.isAcceptableOrUnknown(
+          data['amount_per_share']!,
+          _amountPerShareMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountPerShareMeta);
+    }
+    if (data.containsKey('ex_date')) {
+      context.handle(
+        _exDateMeta,
+        exDate.isAcceptableOrUnknown(data['ex_date']!, _exDateMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DividendSchedule map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DividendSchedule(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      investmentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}investment_id'],
+      )!,
+      paymentMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}payment_month'],
+      )!,
+      amountPerShare: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount_per_share'],
+      )!,
+      exDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}ex_date'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $DividendSchedulesTable createAlias(String alias) {
+    return $DividendSchedulesTable(attachedDatabase, alias);
+  }
+}
+
+class DividendSchedule extends DataClass
+    implements Insertable<DividendSchedule> {
+  final String id;
+  final String userId;
+  final String investmentId;
+  final int paymentMonth;
+  final double amountPerShare;
+  final DateTime? exDate;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const DividendSchedule({
+    required this.id,
+    required this.userId,
+    required this.investmentId,
+    required this.paymentMonth,
+    required this.amountPerShare,
+    this.exDate,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['investment_id'] = Variable<String>(investmentId);
+    map['payment_month'] = Variable<int>(paymentMonth);
+    map['amount_per_share'] = Variable<double>(amountPerShare);
+    if (!nullToAbsent || exDate != null) {
+      map['ex_date'] = Variable<DateTime>(exDate);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  DividendSchedulesCompanion toCompanion(bool nullToAbsent) {
+    return DividendSchedulesCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      investmentId: Value(investmentId),
+      paymentMonth: Value(paymentMonth),
+      amountPerShare: Value(amountPerShare),
+      exDate: exDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(exDate),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory DividendSchedule.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DividendSchedule(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      investmentId: serializer.fromJson<String>(json['investmentId']),
+      paymentMonth: serializer.fromJson<int>(json['paymentMonth']),
+      amountPerShare: serializer.fromJson<double>(json['amountPerShare']),
+      exDate: serializer.fromJson<DateTime?>(json['exDate']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'investmentId': serializer.toJson<String>(investmentId),
+      'paymentMonth': serializer.toJson<int>(paymentMonth),
+      'amountPerShare': serializer.toJson<double>(amountPerShare),
+      'exDate': serializer.toJson<DateTime?>(exDate),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  DividendSchedule copyWith({
+    String? id,
+    String? userId,
+    String? investmentId,
+    int? paymentMonth,
+    double? amountPerShare,
+    Value<DateTime?> exDate = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => DividendSchedule(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    investmentId: investmentId ?? this.investmentId,
+    paymentMonth: paymentMonth ?? this.paymentMonth,
+    amountPerShare: amountPerShare ?? this.amountPerShare,
+    exDate: exDate.present ? exDate.value : this.exDate,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  DividendSchedule copyWithCompanion(DividendSchedulesCompanion data) {
+    return DividendSchedule(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      investmentId: data.investmentId.present
+          ? data.investmentId.value
+          : this.investmentId,
+      paymentMonth: data.paymentMonth.present
+          ? data.paymentMonth.value
+          : this.paymentMonth,
+      amountPerShare: data.amountPerShare.present
+          ? data.amountPerShare.value
+          : this.amountPerShare,
+      exDate: data.exDate.present ? data.exDate.value : this.exDate,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DividendSchedule(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('investmentId: $investmentId, ')
+          ..write('paymentMonth: $paymentMonth, ')
+          ..write('amountPerShare: $amountPerShare, ')
+          ..write('exDate: $exDate, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    investmentId,
+    paymentMonth,
+    amountPerShare,
+    exDate,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DividendSchedule &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.investmentId == this.investmentId &&
+          other.paymentMonth == this.paymentMonth &&
+          other.amountPerShare == this.amountPerShare &&
+          other.exDate == this.exDate &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class DividendSchedulesCompanion extends UpdateCompanion<DividendSchedule> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> investmentId;
+  final Value<int> paymentMonth;
+  final Value<double> amountPerShare;
+  final Value<DateTime?> exDate;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const DividendSchedulesCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.investmentId = const Value.absent(),
+    this.paymentMonth = const Value.absent(),
+    this.amountPerShare = const Value.absent(),
+    this.exDate = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DividendSchedulesCompanion.insert({
+    required String id,
+    required String userId,
+    required String investmentId,
+    required int paymentMonth,
+    required double amountPerShare,
+    this.exDate = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       investmentId = Value(investmentId),
+       paymentMonth = Value(paymentMonth),
+       amountPerShare = Value(amountPerShare),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<DividendSchedule> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? investmentId,
+    Expression<int>? paymentMonth,
+    Expression<double>? amountPerShare,
+    Expression<DateTime>? exDate,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (investmentId != null) 'investment_id': investmentId,
+      if (paymentMonth != null) 'payment_month': paymentMonth,
+      if (amountPerShare != null) 'amount_per_share': amountPerShare,
+      if (exDate != null) 'ex_date': exDate,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DividendSchedulesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? investmentId,
+    Value<int>? paymentMonth,
+    Value<double>? amountPerShare,
+    Value<DateTime?>? exDate,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return DividendSchedulesCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      investmentId: investmentId ?? this.investmentId,
+      paymentMonth: paymentMonth ?? this.paymentMonth,
+      amountPerShare: amountPerShare ?? this.amountPerShare,
+      exDate: exDate ?? this.exDate,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (investmentId.present) {
+      map['investment_id'] = Variable<String>(investmentId.value);
+    }
+    if (paymentMonth.present) {
+      map['payment_month'] = Variable<int>(paymentMonth.value);
+    }
+    if (amountPerShare.present) {
+      map['amount_per_share'] = Variable<double>(amountPerShare.value);
+    }
+    if (exDate.present) {
+      map['ex_date'] = Variable<DateTime>(exDate.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DividendSchedulesCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('investmentId: $investmentId, ')
+          ..write('paymentMonth: $paymentMonth, ')
+          ..write('amountPerShare: $amountPerShare, ')
+          ..write('exDate: $exDate, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $LedgerEntriesTable extends LedgerEntries
     with TableInfo<$LedgerEntriesTable, LedgerEntry> {
   @override
@@ -2534,6 +3114,17 @@ class $LedgerEntriesTable extends LedgerEntries
     false,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _budgetMonthMeta = const VerificationMeta(
+    'budgetMonth',
+  );
+  @override
+  late final GeneratedColumn<DateTime> budgetMonth = GeneratedColumn<DateTime>(
+    'budget_month',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _amountMeta = const VerificationMeta('amount');
   @override
@@ -2719,6 +3310,7 @@ class $LedgerEntriesTable extends LedgerEntries
     id,
     userId,
     bookingDate,
+    budgetMonth,
     amount,
     isIncome,
     category,
@@ -2770,6 +3362,15 @@ class $LedgerEntriesTable extends LedgerEntries
       );
     } else if (isInserting) {
       context.missing(_bookingDateMeta);
+    }
+    if (data.containsKey('budget_month')) {
+      context.handle(
+        _budgetMonthMeta,
+        budgetMonth.isAcceptableOrUnknown(
+          data['budget_month']!,
+          _budgetMonthMeta,
+        ),
+      );
     }
     if (data.containsKey('amount')) {
       context.handle(
@@ -2902,6 +3503,10 @@ class $LedgerEntriesTable extends LedgerEntries
         DriftSqlType.dateTime,
         data['${effectivePrefix}booking_date'],
       )!,
+      budgetMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}budget_month'],
+      ),
       amount: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}amount'],
@@ -2975,6 +3580,7 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
   final String id;
   final String userId;
   final DateTime bookingDate;
+  final DateTime? budgetMonth;
   final double amount;
   final bool isIncome;
   final String category;
@@ -2994,6 +3600,7 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     required this.id,
     required this.userId,
     required this.bookingDate,
+    this.budgetMonth,
     required this.amount,
     required this.isIncome,
     required this.category,
@@ -3016,6 +3623,9 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     map['id'] = Variable<String>(id);
     map['user_id'] = Variable<String>(userId);
     map['booking_date'] = Variable<DateTime>(bookingDate);
+    if (!nullToAbsent || budgetMonth != null) {
+      map['budget_month'] = Variable<DateTime>(budgetMonth);
+    }
     map['amount'] = Variable<double>(amount);
     map['is_income'] = Variable<bool>(isIncome);
     map['category'] = Variable<String>(category);
@@ -3041,6 +3651,9 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
       id: Value(id),
       userId: Value(userId),
       bookingDate: Value(bookingDate),
+      budgetMonth: budgetMonth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(budgetMonth),
       amount: Value(amount),
       isIncome: Value(isIncome),
       category: Value(category),
@@ -3070,6 +3683,7 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
       id: serializer.fromJson<String>(json['id']),
       userId: serializer.fromJson<String>(json['userId']),
       bookingDate: serializer.fromJson<DateTime>(json['bookingDate']),
+      budgetMonth: serializer.fromJson<DateTime?>(json['budgetMonth']),
       amount: serializer.fromJson<double>(json['amount']),
       isIncome: serializer.fromJson<bool>(json['isIncome']),
       category: serializer.fromJson<String>(json['category']),
@@ -3094,6 +3708,7 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
       'id': serializer.toJson<String>(id),
       'userId': serializer.toJson<String>(userId),
       'bookingDate': serializer.toJson<DateTime>(bookingDate),
+      'budgetMonth': serializer.toJson<DateTime?>(budgetMonth),
       'amount': serializer.toJson<double>(amount),
       'isIncome': serializer.toJson<bool>(isIncome),
       'category': serializer.toJson<String>(category),
@@ -3116,6 +3731,7 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     String? id,
     String? userId,
     DateTime? bookingDate,
+    Value<DateTime?> budgetMonth = const Value.absent(),
     double? amount,
     bool? isIncome,
     String? category,
@@ -3135,6 +3751,7 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     id: id ?? this.id,
     userId: userId ?? this.userId,
     bookingDate: bookingDate ?? this.bookingDate,
+    budgetMonth: budgetMonth.present ? budgetMonth.value : this.budgetMonth,
     amount: amount ?? this.amount,
     isIncome: isIncome ?? this.isIncome,
     category: category ?? this.category,
@@ -3158,6 +3775,9 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
       bookingDate: data.bookingDate.present
           ? data.bookingDate.value
           : this.bookingDate,
+      budgetMonth: data.budgetMonth.present
+          ? data.budgetMonth.value
+          : this.budgetMonth,
       amount: data.amount.present ? data.amount.value : this.amount,
       isIncome: data.isIncome.present ? data.isIncome.value : this.isIncome,
       category: data.category.present ? data.category.value : this.category,
@@ -3192,6 +3812,7 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
           ..write('id: $id, ')
           ..write('userId: $userId, ')
           ..write('bookingDate: $bookingDate, ')
+          ..write('budgetMonth: $budgetMonth, ')
           ..write('amount: $amount, ')
           ..write('isIncome: $isIncome, ')
           ..write('category: $category, ')
@@ -3216,6 +3837,7 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
     id,
     userId,
     bookingDate,
+    budgetMonth,
     amount,
     isIncome,
     category,
@@ -3239,6 +3861,7 @@ class LedgerEntry extends DataClass implements Insertable<LedgerEntry> {
           other.id == this.id &&
           other.userId == this.userId &&
           other.bookingDate == this.bookingDate &&
+          other.budgetMonth == this.budgetMonth &&
           other.amount == this.amount &&
           other.isIncome == this.isIncome &&
           other.category == this.category &&
@@ -3260,6 +3883,7 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
   final Value<String> id;
   final Value<String> userId;
   final Value<DateTime> bookingDate;
+  final Value<DateTime?> budgetMonth;
   final Value<double> amount;
   final Value<bool> isIncome;
   final Value<String> category;
@@ -3280,6 +3904,7 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     this.id = const Value.absent(),
     this.userId = const Value.absent(),
     this.bookingDate = const Value.absent(),
+    this.budgetMonth = const Value.absent(),
     this.amount = const Value.absent(),
     this.isIncome = const Value.absent(),
     this.category = const Value.absent(),
@@ -3301,6 +3926,7 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     required String id,
     required String userId,
     required DateTime bookingDate,
+    this.budgetMonth = const Value.absent(),
     required double amount,
     this.isIncome = const Value.absent(),
     required String category,
@@ -3328,6 +3954,7 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     Expression<String>? id,
     Expression<String>? userId,
     Expression<DateTime>? bookingDate,
+    Expression<DateTime>? budgetMonth,
     Expression<double>? amount,
     Expression<bool>? isIncome,
     Expression<String>? category,
@@ -3349,6 +3976,7 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
       if (id != null) 'id': id,
       if (userId != null) 'user_id': userId,
       if (bookingDate != null) 'booking_date': bookingDate,
+      if (budgetMonth != null) 'budget_month': budgetMonth,
       if (amount != null) 'amount': amount,
       if (isIncome != null) 'is_income': isIncome,
       if (category != null) 'category': category,
@@ -3372,6 +4000,7 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     Value<String>? id,
     Value<String>? userId,
     Value<DateTime>? bookingDate,
+    Value<DateTime?>? budgetMonth,
     Value<double>? amount,
     Value<bool>? isIncome,
     Value<String>? category,
@@ -3393,6 +4022,7 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       bookingDate: bookingDate ?? this.bookingDate,
+      budgetMonth: budgetMonth ?? this.budgetMonth,
       amount: amount ?? this.amount,
       isIncome: isIncome ?? this.isIncome,
       category: category ?? this.category,
@@ -3423,6 +4053,9 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
     }
     if (bookingDate.present) {
       map['booking_date'] = Variable<DateTime>(bookingDate.value);
+    }
+    if (budgetMonth.present) {
+      map['budget_month'] = Variable<DateTime>(budgetMonth.value);
     }
     if (amount.present) {
       map['amount'] = Variable<double>(amount.value);
@@ -3481,6 +4114,7 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntry> {
           ..write('id: $id, ')
           ..write('userId: $userId, ')
           ..write('bookingDate: $bookingDate, ')
+          ..write('budgetMonth: $budgetMonth, ')
           ..write('amount: $amount, ')
           ..write('isIncome: $isIncome, ')
           ..write('category: $category, ')
@@ -3558,8 +4192,38 @@ class $MasterDataTable extends MasterData
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, userId, kind, value, createdAt];
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    kind,
+    value,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -3609,6 +4273,18 @@ class $MasterDataTable extends MasterData
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -3642,6 +4318,14 @@ class $MasterDataTable extends MasterData
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
     );
   }
 
@@ -3657,12 +4341,16 @@ class MasterDataData extends DataClass implements Insertable<MasterDataData> {
   final String kind;
   final String value;
   final DateTime createdAt;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
   const MasterDataData({
     required this.id,
     required this.userId,
     required this.kind,
     required this.value,
     required this.createdAt,
+    this.updatedAt,
+    this.deletedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3672,6 +4360,12 @@ class MasterDataData extends DataClass implements Insertable<MasterDataData> {
     map['kind'] = Variable<String>(kind);
     map['value'] = Variable<String>(value);
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     return map;
   }
 
@@ -3682,6 +4376,12 @@ class MasterDataData extends DataClass implements Insertable<MasterDataData> {
       kind: Value(kind),
       value: Value(value),
       createdAt: Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
     );
   }
 
@@ -3696,6 +4396,8 @@ class MasterDataData extends DataClass implements Insertable<MasterDataData> {
       kind: serializer.fromJson<String>(json['kind']),
       value: serializer.fromJson<String>(json['value']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
     );
   }
   @override
@@ -3707,6 +4409,8 @@ class MasterDataData extends DataClass implements Insertable<MasterDataData> {
       'kind': serializer.toJson<String>(kind),
       'value': serializer.toJson<String>(value),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
     };
   }
 
@@ -3716,12 +4420,16 @@ class MasterDataData extends DataClass implements Insertable<MasterDataData> {
     String? kind,
     String? value,
     DateTime? createdAt,
+    Value<DateTime?> updatedAt = const Value.absent(),
+    Value<DateTime?> deletedAt = const Value.absent(),
   }) => MasterDataData(
     id: id ?? this.id,
     userId: userId ?? this.userId,
     kind: kind ?? this.kind,
     value: value ?? this.value,
     createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
   MasterDataData copyWithCompanion(MasterDataCompanion data) {
     return MasterDataData(
@@ -3730,6 +4438,8 @@ class MasterDataData extends DataClass implements Insertable<MasterDataData> {
       kind: data.kind.present ? data.kind.value : this.kind,
       value: data.value.present ? data.value.value : this.value,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
 
@@ -3740,13 +4450,16 @@ class MasterDataData extends DataClass implements Insertable<MasterDataData> {
           ..write('userId: $userId, ')
           ..write('kind: $kind, ')
           ..write('value: $value, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, userId, kind, value, createdAt);
+  int get hashCode =>
+      Object.hash(id, userId, kind, value, createdAt, updatedAt, deletedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3755,7 +4468,9 @@ class MasterDataData extends DataClass implements Insertable<MasterDataData> {
           other.userId == this.userId &&
           other.kind == this.kind &&
           other.value == this.value &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
 }
 
 class MasterDataCompanion extends UpdateCompanion<MasterDataData> {
@@ -3764,6 +4479,8 @@ class MasterDataCompanion extends UpdateCompanion<MasterDataData> {
   final Value<String> kind;
   final Value<String> value;
   final Value<DateTime> createdAt;
+  final Value<DateTime?> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<int> rowid;
   const MasterDataCompanion({
     this.id = const Value.absent(),
@@ -3771,6 +4488,8 @@ class MasterDataCompanion extends UpdateCompanion<MasterDataData> {
     this.kind = const Value.absent(),
     this.value = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MasterDataCompanion.insert({
@@ -3779,6 +4498,8 @@ class MasterDataCompanion extends UpdateCompanion<MasterDataData> {
     required String kind,
     required String value,
     required DateTime createdAt,
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -3791,6 +4512,8 @@ class MasterDataCompanion extends UpdateCompanion<MasterDataData> {
     Expression<String>? kind,
     Expression<String>? value,
     Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3799,6 +4522,8 @@ class MasterDataCompanion extends UpdateCompanion<MasterDataData> {
       if (kind != null) 'kind': kind,
       if (value != null) 'value': value,
       if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3809,6 +4534,8 @@ class MasterDataCompanion extends UpdateCompanion<MasterDataData> {
     Value<String>? kind,
     Value<String>? value,
     Value<DateTime>? createdAt,
+    Value<DateTime?>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<int>? rowid,
   }) {
     return MasterDataCompanion(
@@ -3817,6 +4544,8 @@ class MasterDataCompanion extends UpdateCompanion<MasterDataData> {
       kind: kind ?? this.kind,
       value: value ?? this.value,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3839,6 +4568,12 @@ class MasterDataCompanion extends UpdateCompanion<MasterDataData> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3853,6 +4588,8 @@ class MasterDataCompanion extends UpdateCompanion<MasterDataData> {
           ..write('kind: $kind, ')
           ..write('value: $value, ')
           ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5343,6 +6080,79 @@ class $UserPreferencesTable extends UserPreferences
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _selectedHouseholdAccountIdMeta =
+      const VerificationMeta('selectedHouseholdAccountId');
+  @override
+  late final GeneratedColumn<String> selectedHouseholdAccountId =
+      GeneratedColumn<String>(
+        'selected_household_account_id',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
+  static const VerificationMeta _dataFilePathMeta = const VerificationMeta(
+    'dataFilePath',
+  );
+  @override
+  late final GeneratedColumn<String> dataFilePath = GeneratedColumn<String>(
+    'data_file_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _freedomAgeMeta = const VerificationMeta(
+    'freedomAge',
+  );
+  @override
+  late final GeneratedColumn<double> freedomAge = GeneratedColumn<double>(
+    'freedom_age',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(35),
+  );
+  static const VerificationMeta _freedomStartCapitalMeta =
+      const VerificationMeta('freedomStartCapital');
+  @override
+  late final GeneratedColumn<double> freedomStartCapital =
+      GeneratedColumn<double>(
+        'freedom_start_capital',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(50000),
+      );
+  static const VerificationMeta _freedomUsePortfolioMeta =
+      const VerificationMeta('freedomUsePortfolio');
+  @override
+  late final GeneratedColumn<bool> freedomUsePortfolio = GeneratedColumn<bool>(
+    'freedom_use_portfolio',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("freedom_use_portfolio" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _lastSyncAtMeta = const VerificationMeta(
+    'lastSyncAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSyncAt = GeneratedColumn<DateTime>(
+    'last_sync_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
   );
@@ -5365,6 +6175,12 @@ class $UserPreferencesTable extends UserPreferences
     serverUrl,
     serverPort,
     serverUsername,
+    selectedHouseholdAccountId,
+    dataFilePath,
+    freedomAge,
+    freedomStartCapital,
+    freedomUsePortfolio,
+    lastSyncAt,
     updatedAt,
   ];
   @override
@@ -5438,6 +6254,57 @@ class $UserPreferencesTable extends UserPreferences
         ),
       );
     }
+    if (data.containsKey('selected_household_account_id')) {
+      context.handle(
+        _selectedHouseholdAccountIdMeta,
+        selectedHouseholdAccountId.isAcceptableOrUnknown(
+          data['selected_household_account_id']!,
+          _selectedHouseholdAccountIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('data_file_path')) {
+      context.handle(
+        _dataFilePathMeta,
+        dataFilePath.isAcceptableOrUnknown(
+          data['data_file_path']!,
+          _dataFilePathMeta,
+        ),
+      );
+    }
+    if (data.containsKey('freedom_age')) {
+      context.handle(
+        _freedomAgeMeta,
+        freedomAge.isAcceptableOrUnknown(data['freedom_age']!, _freedomAgeMeta),
+      );
+    }
+    if (data.containsKey('freedom_start_capital')) {
+      context.handle(
+        _freedomStartCapitalMeta,
+        freedomStartCapital.isAcceptableOrUnknown(
+          data['freedom_start_capital']!,
+          _freedomStartCapitalMeta,
+        ),
+      );
+    }
+    if (data.containsKey('freedom_use_portfolio')) {
+      context.handle(
+        _freedomUsePortfolioMeta,
+        freedomUsePortfolio.isAcceptableOrUnknown(
+          data['freedom_use_portfolio']!,
+          _freedomUsePortfolioMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_sync_at')) {
+      context.handle(
+        _lastSyncAtMeta,
+        lastSyncAt.isAcceptableOrUnknown(
+          data['last_sync_at']!,
+          _lastSyncAtMeta,
+        ),
+      );
+    }
     if (data.containsKey('updated_at')) {
       context.handle(
         _updatedAtMeta,
@@ -5491,6 +6358,30 @@ class $UserPreferencesTable extends UserPreferences
         DriftSqlType.string,
         data['${effectivePrefix}server_username'],
       )!,
+      selectedHouseholdAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}selected_household_account_id'],
+      )!,
+      dataFilePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data_file_path'],
+      )!,
+      freedomAge: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}freedom_age'],
+      )!,
+      freedomStartCapital: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}freedom_start_capital'],
+      )!,
+      freedomUsePortfolio: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}freedom_use_portfolio'],
+      )!,
+      lastSyncAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_sync_at'],
+      ),
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
@@ -5514,6 +6405,12 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
   final String serverUrl;
   final int serverPort;
   final String serverUsername;
+  final String selectedHouseholdAccountId;
+  final String dataFilePath;
+  final double freedomAge;
+  final double freedomStartCapital;
+  final bool freedomUsePortfolio;
+  final DateTime? lastSyncAt;
   final DateTime updatedAt;
   const UserPreference({
     required this.userId,
@@ -5525,6 +6422,12 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     required this.serverUrl,
     required this.serverPort,
     required this.serverUsername,
+    required this.selectedHouseholdAccountId,
+    required this.dataFilePath,
+    required this.freedomAge,
+    required this.freedomStartCapital,
+    required this.freedomUsePortfolio,
+    this.lastSyncAt,
     required this.updatedAt,
   });
   @override
@@ -5539,6 +6442,16 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     map['server_url'] = Variable<String>(serverUrl);
     map['server_port'] = Variable<int>(serverPort);
     map['server_username'] = Variable<String>(serverUsername);
+    map['selected_household_account_id'] = Variable<String>(
+      selectedHouseholdAccountId,
+    );
+    map['data_file_path'] = Variable<String>(dataFilePath);
+    map['freedom_age'] = Variable<double>(freedomAge);
+    map['freedom_start_capital'] = Variable<double>(freedomStartCapital);
+    map['freedom_use_portfolio'] = Variable<bool>(freedomUsePortfolio);
+    if (!nullToAbsent || lastSyncAt != null) {
+      map['last_sync_at'] = Variable<DateTime>(lastSyncAt);
+    }
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
   }
@@ -5554,6 +6467,14 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
       serverUrl: Value(serverUrl),
       serverPort: Value(serverPort),
       serverUsername: Value(serverUsername),
+      selectedHouseholdAccountId: Value(selectedHouseholdAccountId),
+      dataFilePath: Value(dataFilePath),
+      freedomAge: Value(freedomAge),
+      freedomStartCapital: Value(freedomStartCapital),
+      freedomUsePortfolio: Value(freedomUsePortfolio),
+      lastSyncAt: lastSyncAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncAt),
       updatedAt: Value(updatedAt),
     );
   }
@@ -5573,6 +6494,18 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
       serverUrl: serializer.fromJson<String>(json['serverUrl']),
       serverPort: serializer.fromJson<int>(json['serverPort']),
       serverUsername: serializer.fromJson<String>(json['serverUsername']),
+      selectedHouseholdAccountId: serializer.fromJson<String>(
+        json['selectedHouseholdAccountId'],
+      ),
+      dataFilePath: serializer.fromJson<String>(json['dataFilePath']),
+      freedomAge: serializer.fromJson<double>(json['freedomAge']),
+      freedomStartCapital: serializer.fromJson<double>(
+        json['freedomStartCapital'],
+      ),
+      freedomUsePortfolio: serializer.fromJson<bool>(
+        json['freedomUsePortfolio'],
+      ),
+      lastSyncAt: serializer.fromJson<DateTime?>(json['lastSyncAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
   }
@@ -5589,6 +6522,14 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
       'serverUrl': serializer.toJson<String>(serverUrl),
       'serverPort': serializer.toJson<int>(serverPort),
       'serverUsername': serializer.toJson<String>(serverUsername),
+      'selectedHouseholdAccountId': serializer.toJson<String>(
+        selectedHouseholdAccountId,
+      ),
+      'dataFilePath': serializer.toJson<String>(dataFilePath),
+      'freedomAge': serializer.toJson<double>(freedomAge),
+      'freedomStartCapital': serializer.toJson<double>(freedomStartCapital),
+      'freedomUsePortfolio': serializer.toJson<bool>(freedomUsePortfolio),
+      'lastSyncAt': serializer.toJson<DateTime?>(lastSyncAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
   }
@@ -5603,6 +6544,12 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     String? serverUrl,
     int? serverPort,
     String? serverUsername,
+    String? selectedHouseholdAccountId,
+    String? dataFilePath,
+    double? freedomAge,
+    double? freedomStartCapital,
+    bool? freedomUsePortfolio,
+    Value<DateTime?> lastSyncAt = const Value.absent(),
     DateTime? updatedAt,
   }) => UserPreference(
     userId: userId ?? this.userId,
@@ -5614,6 +6561,13 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     serverUrl: serverUrl ?? this.serverUrl,
     serverPort: serverPort ?? this.serverPort,
     serverUsername: serverUsername ?? this.serverUsername,
+    selectedHouseholdAccountId:
+        selectedHouseholdAccountId ?? this.selectedHouseholdAccountId,
+    dataFilePath: dataFilePath ?? this.dataFilePath,
+    freedomAge: freedomAge ?? this.freedomAge,
+    freedomStartCapital: freedomStartCapital ?? this.freedomStartCapital,
+    freedomUsePortfolio: freedomUsePortfolio ?? this.freedomUsePortfolio,
+    lastSyncAt: lastSyncAt.present ? lastSyncAt.value : this.lastSyncAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
   UserPreference copyWithCompanion(UserPreferencesCompanion data) {
@@ -5635,6 +6589,24 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
       serverUsername: data.serverUsername.present
           ? data.serverUsername.value
           : this.serverUsername,
+      selectedHouseholdAccountId: data.selectedHouseholdAccountId.present
+          ? data.selectedHouseholdAccountId.value
+          : this.selectedHouseholdAccountId,
+      dataFilePath: data.dataFilePath.present
+          ? data.dataFilePath.value
+          : this.dataFilePath,
+      freedomAge: data.freedomAge.present
+          ? data.freedomAge.value
+          : this.freedomAge,
+      freedomStartCapital: data.freedomStartCapital.present
+          ? data.freedomStartCapital.value
+          : this.freedomStartCapital,
+      freedomUsePortfolio: data.freedomUsePortfolio.present
+          ? data.freedomUsePortfolio.value
+          : this.freedomUsePortfolio,
+      lastSyncAt: data.lastSyncAt.present
+          ? data.lastSyncAt.value
+          : this.lastSyncAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
@@ -5651,6 +6623,12 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
           ..write('serverUrl: $serverUrl, ')
           ..write('serverPort: $serverPort, ')
           ..write('serverUsername: $serverUsername, ')
+          ..write('selectedHouseholdAccountId: $selectedHouseholdAccountId, ')
+          ..write('dataFilePath: $dataFilePath, ')
+          ..write('freedomAge: $freedomAge, ')
+          ..write('freedomStartCapital: $freedomStartCapital, ')
+          ..write('freedomUsePortfolio: $freedomUsePortfolio, ')
+          ..write('lastSyncAt: $lastSyncAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
@@ -5667,6 +6645,12 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     serverUrl,
     serverPort,
     serverUsername,
+    selectedHouseholdAccountId,
+    dataFilePath,
+    freedomAge,
+    freedomStartCapital,
+    freedomUsePortfolio,
+    lastSyncAt,
     updatedAt,
   );
   @override
@@ -5682,6 +6666,12 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
           other.serverUrl == this.serverUrl &&
           other.serverPort == this.serverPort &&
           other.serverUsername == this.serverUsername &&
+          other.selectedHouseholdAccountId == this.selectedHouseholdAccountId &&
+          other.dataFilePath == this.dataFilePath &&
+          other.freedomAge == this.freedomAge &&
+          other.freedomStartCapital == this.freedomStartCapital &&
+          other.freedomUsePortfolio == this.freedomUsePortfolio &&
+          other.lastSyncAt == this.lastSyncAt &&
           other.updatedAt == this.updatedAt);
 }
 
@@ -5695,6 +6685,12 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
   final Value<String> serverUrl;
   final Value<int> serverPort;
   final Value<String> serverUsername;
+  final Value<String> selectedHouseholdAccountId;
+  final Value<String> dataFilePath;
+  final Value<double> freedomAge;
+  final Value<double> freedomStartCapital;
+  final Value<bool> freedomUsePortfolio;
+  final Value<DateTime?> lastSyncAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
   const UserPreferencesCompanion({
@@ -5707,6 +6703,12 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
     this.serverUrl = const Value.absent(),
     this.serverPort = const Value.absent(),
     this.serverUsername = const Value.absent(),
+    this.selectedHouseholdAccountId = const Value.absent(),
+    this.dataFilePath = const Value.absent(),
+    this.freedomAge = const Value.absent(),
+    this.freedomStartCapital = const Value.absent(),
+    this.freedomUsePortfolio = const Value.absent(),
+    this.lastSyncAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -5720,6 +6722,12 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
     this.serverUrl = const Value.absent(),
     this.serverPort = const Value.absent(),
     this.serverUsername = const Value.absent(),
+    this.selectedHouseholdAccountId = const Value.absent(),
+    this.dataFilePath = const Value.absent(),
+    this.freedomAge = const Value.absent(),
+    this.freedomStartCapital = const Value.absent(),
+    this.freedomUsePortfolio = const Value.absent(),
+    this.lastSyncAt = const Value.absent(),
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
   }) : userId = Value(userId),
@@ -5734,6 +6742,12 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
     Expression<String>? serverUrl,
     Expression<int>? serverPort,
     Expression<String>? serverUsername,
+    Expression<String>? selectedHouseholdAccountId,
+    Expression<String>? dataFilePath,
+    Expression<double>? freedomAge,
+    Expression<double>? freedomStartCapital,
+    Expression<bool>? freedomUsePortfolio,
+    Expression<DateTime>? lastSyncAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
   }) {
@@ -5747,6 +6761,15 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
       if (serverUrl != null) 'server_url': serverUrl,
       if (serverPort != null) 'server_port': serverPort,
       if (serverUsername != null) 'server_username': serverUsername,
+      if (selectedHouseholdAccountId != null)
+        'selected_household_account_id': selectedHouseholdAccountId,
+      if (dataFilePath != null) 'data_file_path': dataFilePath,
+      if (freedomAge != null) 'freedom_age': freedomAge,
+      if (freedomStartCapital != null)
+        'freedom_start_capital': freedomStartCapital,
+      if (freedomUsePortfolio != null)
+        'freedom_use_portfolio': freedomUsePortfolio,
+      if (lastSyncAt != null) 'last_sync_at': lastSyncAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -5762,6 +6785,12 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
     Value<String>? serverUrl,
     Value<int>? serverPort,
     Value<String>? serverUsername,
+    Value<String>? selectedHouseholdAccountId,
+    Value<String>? dataFilePath,
+    Value<double>? freedomAge,
+    Value<double>? freedomStartCapital,
+    Value<bool>? freedomUsePortfolio,
+    Value<DateTime?>? lastSyncAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
   }) {
@@ -5775,6 +6804,13 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
       serverUrl: serverUrl ?? this.serverUrl,
       serverPort: serverPort ?? this.serverPort,
       serverUsername: serverUsername ?? this.serverUsername,
+      selectedHouseholdAccountId:
+          selectedHouseholdAccountId ?? this.selectedHouseholdAccountId,
+      dataFilePath: dataFilePath ?? this.dataFilePath,
+      freedomAge: freedomAge ?? this.freedomAge,
+      freedomStartCapital: freedomStartCapital ?? this.freedomStartCapital,
+      freedomUsePortfolio: freedomUsePortfolio ?? this.freedomUsePortfolio,
+      lastSyncAt: lastSyncAt ?? this.lastSyncAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -5810,6 +6846,28 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
     if (serverUsername.present) {
       map['server_username'] = Variable<String>(serverUsername.value);
     }
+    if (selectedHouseholdAccountId.present) {
+      map['selected_household_account_id'] = Variable<String>(
+        selectedHouseholdAccountId.value,
+      );
+    }
+    if (dataFilePath.present) {
+      map['data_file_path'] = Variable<String>(dataFilePath.value);
+    }
+    if (freedomAge.present) {
+      map['freedom_age'] = Variable<double>(freedomAge.value);
+    }
+    if (freedomStartCapital.present) {
+      map['freedom_start_capital'] = Variable<double>(
+        freedomStartCapital.value,
+      );
+    }
+    if (freedomUsePortfolio.present) {
+      map['freedom_use_portfolio'] = Variable<bool>(freedomUsePortfolio.value);
+    }
+    if (lastSyncAt.present) {
+      map['last_sync_at'] = Variable<DateTime>(lastSyncAt.value);
+    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
@@ -5831,7 +6889,448 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
           ..write('serverUrl: $serverUrl, ')
           ..write('serverPort: $serverPort, ')
           ..write('serverUsername: $serverUsername, ')
+          ..write('selectedHouseholdAccountId: $selectedHouseholdAccountId, ')
+          ..write('dataFilePath: $dataFilePath, ')
+          ..write('freedomAge: $freedomAge, ')
+          ..write('freedomStartCapital: $freedomStartCapital, ')
+          ..write('freedomUsePortfolio: $freedomUsePortfolio, ')
+          ..write('lastSyncAt: $lastSyncAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $NetWorthSnapshotsTable extends NetWorthSnapshots
+    with TableInfo<$NetWorthSnapshotsTable, NetWorthSnapshot> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NetWorthSnapshotsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES users (id)',
+    ),
+  );
+  static const VerificationMeta _capturedAtMeta = const VerificationMeta(
+    'capturedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> capturedAt = GeneratedColumn<DateTime>(
+    'captured_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _accountBalanceMeta = const VerificationMeta(
+    'accountBalance',
+  );
+  @override
+  late final GeneratedColumn<double> accountBalance = GeneratedColumn<double>(
+    'account_balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _portfolioValueMeta = const VerificationMeta(
+    'portfolioValue',
+  );
+  @override
+  late final GeneratedColumn<double> portfolioValue = GeneratedColumn<double>(
+    'portfolio_value',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _totalNetWorthMeta = const VerificationMeta(
+    'totalNetWorth',
+  );
+  @override
+  late final GeneratedColumn<double> totalNetWorth = GeneratedColumn<double>(
+    'total_net_worth',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    capturedAt,
+    accountBalance,
+    portfolioValue,
+    totalNetWorth,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'net_worth_snapshots';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NetWorthSnapshot> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+        _capturedAtMeta,
+        capturedAt.isAcceptableOrUnknown(data['captured_at']!, _capturedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_capturedAtMeta);
+    }
+    if (data.containsKey('account_balance')) {
+      context.handle(
+        _accountBalanceMeta,
+        accountBalance.isAcceptableOrUnknown(
+          data['account_balance']!,
+          _accountBalanceMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_accountBalanceMeta);
+    }
+    if (data.containsKey('portfolio_value')) {
+      context.handle(
+        _portfolioValueMeta,
+        portfolioValue.isAcceptableOrUnknown(
+          data['portfolio_value']!,
+          _portfolioValueMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_portfolioValueMeta);
+    }
+    if (data.containsKey('total_net_worth')) {
+      context.handle(
+        _totalNetWorthMeta,
+        totalNetWorth.isAcceptableOrUnknown(
+          data['total_net_worth']!,
+          _totalNetWorthMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_totalNetWorthMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NetWorthSnapshot map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NetWorthSnapshot(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      capturedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}captured_at'],
+      )!,
+      accountBalance: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}account_balance'],
+      )!,
+      portfolioValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}portfolio_value'],
+      )!,
+      totalNetWorth: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}total_net_worth'],
+      )!,
+    );
+  }
+
+  @override
+  $NetWorthSnapshotsTable createAlias(String alias) {
+    return $NetWorthSnapshotsTable(attachedDatabase, alias);
+  }
+}
+
+class NetWorthSnapshot extends DataClass
+    implements Insertable<NetWorthSnapshot> {
+  final String id;
+  final String userId;
+  final DateTime capturedAt;
+  final double accountBalance;
+  final double portfolioValue;
+  final double totalNetWorth;
+  const NetWorthSnapshot({
+    required this.id,
+    required this.userId,
+    required this.capturedAt,
+    required this.accountBalance,
+    required this.portfolioValue,
+    required this.totalNetWorth,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['captured_at'] = Variable<DateTime>(capturedAt);
+    map['account_balance'] = Variable<double>(accountBalance);
+    map['portfolio_value'] = Variable<double>(portfolioValue);
+    map['total_net_worth'] = Variable<double>(totalNetWorth);
+    return map;
+  }
+
+  NetWorthSnapshotsCompanion toCompanion(bool nullToAbsent) {
+    return NetWorthSnapshotsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      capturedAt: Value(capturedAt),
+      accountBalance: Value(accountBalance),
+      portfolioValue: Value(portfolioValue),
+      totalNetWorth: Value(totalNetWorth),
+    );
+  }
+
+  factory NetWorthSnapshot.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NetWorthSnapshot(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      capturedAt: serializer.fromJson<DateTime>(json['capturedAt']),
+      accountBalance: serializer.fromJson<double>(json['accountBalance']),
+      portfolioValue: serializer.fromJson<double>(json['portfolioValue']),
+      totalNetWorth: serializer.fromJson<double>(json['totalNetWorth']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'capturedAt': serializer.toJson<DateTime>(capturedAt),
+      'accountBalance': serializer.toJson<double>(accountBalance),
+      'portfolioValue': serializer.toJson<double>(portfolioValue),
+      'totalNetWorth': serializer.toJson<double>(totalNetWorth),
+    };
+  }
+
+  NetWorthSnapshot copyWith({
+    String? id,
+    String? userId,
+    DateTime? capturedAt,
+    double? accountBalance,
+    double? portfolioValue,
+    double? totalNetWorth,
+  }) => NetWorthSnapshot(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    capturedAt: capturedAt ?? this.capturedAt,
+    accountBalance: accountBalance ?? this.accountBalance,
+    portfolioValue: portfolioValue ?? this.portfolioValue,
+    totalNetWorth: totalNetWorth ?? this.totalNetWorth,
+  );
+  NetWorthSnapshot copyWithCompanion(NetWorthSnapshotsCompanion data) {
+    return NetWorthSnapshot(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      capturedAt: data.capturedAt.present
+          ? data.capturedAt.value
+          : this.capturedAt,
+      accountBalance: data.accountBalance.present
+          ? data.accountBalance.value
+          : this.accountBalance,
+      portfolioValue: data.portfolioValue.present
+          ? data.portfolioValue.value
+          : this.portfolioValue,
+      totalNetWorth: data.totalNetWorth.present
+          ? data.totalNetWorth.value
+          : this.totalNetWorth,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NetWorthSnapshot(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('accountBalance: $accountBalance, ')
+          ..write('portfolioValue: $portfolioValue, ')
+          ..write('totalNetWorth: $totalNetWorth')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    capturedAt,
+    accountBalance,
+    portfolioValue,
+    totalNetWorth,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NetWorthSnapshot &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.capturedAt == this.capturedAt &&
+          other.accountBalance == this.accountBalance &&
+          other.portfolioValue == this.portfolioValue &&
+          other.totalNetWorth == this.totalNetWorth);
+}
+
+class NetWorthSnapshotsCompanion extends UpdateCompanion<NetWorthSnapshot> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<DateTime> capturedAt;
+  final Value<double> accountBalance;
+  final Value<double> portfolioValue;
+  final Value<double> totalNetWorth;
+  final Value<int> rowid;
+  const NetWorthSnapshotsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+    this.accountBalance = const Value.absent(),
+    this.portfolioValue = const Value.absent(),
+    this.totalNetWorth = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NetWorthSnapshotsCompanion.insert({
+    required String id,
+    required String userId,
+    required DateTime capturedAt,
+    required double accountBalance,
+    required double portfolioValue,
+    required double totalNetWorth,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       capturedAt = Value(capturedAt),
+       accountBalance = Value(accountBalance),
+       portfolioValue = Value(portfolioValue),
+       totalNetWorth = Value(totalNetWorth);
+  static Insertable<NetWorthSnapshot> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<DateTime>? capturedAt,
+    Expression<double>? accountBalance,
+    Expression<double>? portfolioValue,
+    Expression<double>? totalNetWorth,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (capturedAt != null) 'captured_at': capturedAt,
+      if (accountBalance != null) 'account_balance': accountBalance,
+      if (portfolioValue != null) 'portfolio_value': portfolioValue,
+      if (totalNetWorth != null) 'total_net_worth': totalNetWorth,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NetWorthSnapshotsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<DateTime>? capturedAt,
+    Value<double>? accountBalance,
+    Value<double>? portfolioValue,
+    Value<double>? totalNetWorth,
+    Value<int>? rowid,
+  }) {
+    return NetWorthSnapshotsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      capturedAt: capturedAt ?? this.capturedAt,
+      accountBalance: accountBalance ?? this.accountBalance,
+      portfolioValue: portfolioValue ?? this.portfolioValue,
+      totalNetWorth: totalNetWorth ?? this.totalNetWorth,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<DateTime>(capturedAt.value);
+    }
+    if (accountBalance.present) {
+      map['account_balance'] = Variable<double>(accountBalance.value);
+    }
+    if (portfolioValue.present) {
+      map['portfolio_value'] = Variable<double>(portfolioValue.value);
+    }
+    if (totalNetWorth.present) {
+      map['total_net_worth'] = Variable<double>(totalNetWorth.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NetWorthSnapshotsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('accountBalance: $accountBalance, ')
+          ..write('portfolioValue: $portfolioValue, ')
+          ..write('totalNetWorth: $totalNetWorth, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5844,6 +7343,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $UsersTable users = $UsersTable(this);
   late final $AccountsTable accounts = $AccountsTable(this);
   late final $InvestmentsTable investments = $InvestmentsTable(this);
+  late final $DividendSchedulesTable dividendSchedules =
+      $DividendSchedulesTable(this);
   late final $LedgerEntriesTable ledgerEntries = $LedgerEntriesTable(this);
   late final $MasterDataTable masterData = $MasterDataTable(this);
   late final $VehiclesTable vehicles = $VehiclesTable(this);
@@ -5851,6 +7352,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $UserPreferencesTable userPreferences = $UserPreferencesTable(
     this,
   );
+  late final $NetWorthSnapshotsTable netWorthSnapshots =
+      $NetWorthSnapshotsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5859,11 +7362,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     users,
     accounts,
     investments,
+    dividendSchedules,
     ledgerEntries,
     masterData,
     vehicles,
     vehicleCosts,
     userPreferences,
+    netWorthSnapshots,
   ];
 }
 
@@ -5928,6 +7433,27 @@ final class $$UsersTableReferences
     ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_investmentsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$DividendSchedulesTable, List<DividendSchedule>>
+  _dividendSchedulesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.dividendSchedules,
+        aliasName: 'users__id__dividend_schedules__user_id',
+      );
+
+  $$DividendSchedulesTableProcessedTableManager get dividendSchedulesRefs {
+    final manager = $$DividendSchedulesTableTableManager(
+      $_db,
+      $_db.dividendSchedules,
+    ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _dividendSchedulesRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -6025,6 +7551,27 @@ final class $$UsersTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$NetWorthSnapshotsTable, List<NetWorthSnapshot>>
+  _netWorthSnapshotsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.netWorthSnapshots,
+        aliasName: 'users__id__net_worth_snapshots__user_id',
+      );
+
+  $$NetWorthSnapshotsTableProcessedTableManager get netWorthSnapshotsRefs {
+    final manager = $$NetWorthSnapshotsTableTableManager(
+      $_db,
+      $_db.netWorthSnapshots,
+    ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _netWorthSnapshotsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
@@ -6116,6 +7663,31 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
           }) => $$InvestmentsTableFilterComposer(
             $db: $db,
             $table: $db.investments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> dividendSchedulesRefs(
+    Expression<bool> Function($$DividendSchedulesTableFilterComposer f) f,
+  ) {
+    final $$DividendSchedulesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.dividendSchedules,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DividendSchedulesTableFilterComposer(
+            $db: $db,
+            $table: $db.dividendSchedules,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -6241,6 +7813,31 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
           }) => $$UserPreferencesTableFilterComposer(
             $db: $db,
             $table: $db.userPreferences,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> netWorthSnapshotsRefs(
+    Expression<bool> Function($$NetWorthSnapshotsTableFilterComposer f) f,
+  ) {
+    final $$NetWorthSnapshotsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.netWorthSnapshots,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NetWorthSnapshotsTableFilterComposer(
+            $db: $db,
+            $table: $db.netWorthSnapshots,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -6392,6 +7989,32 @@ class $$UsersTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> dividendSchedulesRefs<T extends Object>(
+    Expression<T> Function($$DividendSchedulesTableAnnotationComposer a) f,
+  ) {
+    final $$DividendSchedulesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.dividendSchedules,
+          getReferencedColumn: (t) => t.userId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$DividendSchedulesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.dividendSchedules,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
   Expression<T> ledgerEntriesRefs<T extends Object>(
     Expression<T> Function($$LedgerEntriesTableAnnotationComposer a) f,
   ) {
@@ -6516,6 +8139,32 @@ class $$UsersTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> netWorthSnapshotsRefs<T extends Object>(
+    Expression<T> Function($$NetWorthSnapshotsTableAnnotationComposer a) f,
+  ) {
+    final $$NetWorthSnapshotsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.netWorthSnapshots,
+          getReferencedColumn: (t) => t.userId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$NetWorthSnapshotsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.netWorthSnapshots,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$UsersTableTableManager
@@ -6534,11 +8183,13 @@ class $$UsersTableTableManager
           PrefetchHooks Function({
             bool accountsRefs,
             bool investmentsRefs,
+            bool dividendSchedulesRefs,
             bool ledgerEntriesRefs,
             bool masterDataRefs,
             bool vehiclesRefs,
             bool vehicleCostsRefs,
             bool userPreferencesRefs,
+            bool netWorthSnapshotsRefs,
           })
         > {
   $$UsersTableTableManager(_$AppDatabase db, $UsersTable table)
@@ -6606,22 +8257,26 @@ class $$UsersTableTableManager
               ({
                 accountsRefs = false,
                 investmentsRefs = false,
+                dividendSchedulesRefs = false,
                 ledgerEntriesRefs = false,
                 masterDataRefs = false,
                 vehiclesRefs = false,
                 vehicleCostsRefs = false,
                 userPreferencesRefs = false,
+                netWorthSnapshotsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (accountsRefs) db.accounts,
                     if (investmentsRefs) db.investments,
+                    if (dividendSchedulesRefs) db.dividendSchedules,
                     if (ledgerEntriesRefs) db.ledgerEntries,
                     if (masterDataRefs) db.masterData,
                     if (vehiclesRefs) db.vehicles,
                     if (vehicleCostsRefs) db.vehicleCosts,
                     if (userPreferencesRefs) db.userPreferences,
+                    if (netWorthSnapshotsRefs) db.netWorthSnapshots,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -6658,6 +8313,27 @@ class $$UsersTableTableManager
                                 table,
                                 p0,
                               ).investmentsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (dividendSchedulesRefs)
+                        await $_getPrefetchedData<
+                          User,
+                          $UsersTable,
+                          DividendSchedule
+                        >(
+                          currentTable: table,
+                          referencedTable: $$UsersTableReferences
+                              ._dividendSchedulesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$UsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).dividendSchedulesRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.userId == item.id,
@@ -6765,6 +8441,27 @@ class $$UsersTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (netWorthSnapshotsRefs)
+                        await $_getPrefetchedData<
+                          User,
+                          $UsersTable,
+                          NetWorthSnapshot
+                        >(
+                          currentTable: table,
+                          referencedTable: $$UsersTableReferences
+                              ._netWorthSnapshotsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$UsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).netWorthSnapshotsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -6788,11 +8485,13 @@ typedef $$UsersTableProcessedTableManager =
       PrefetchHooks Function({
         bool accountsRefs,
         bool investmentsRefs,
+        bool dividendSchedulesRefs,
         bool ledgerEntriesRefs,
         bool masterDataRefs,
         bool vehiclesRefs,
         bool vehicleCostsRefs,
         bool userPreferencesRefs,
+        bool netWorthSnapshotsRefs,
       })
     >;
 typedef $$AccountsTableCreateCompanionBuilder =
@@ -7377,6 +9076,27 @@ final class $$InvestmentsTableReferences
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
+
+  static MultiTypedResultKey<$DividendSchedulesTable, List<DividendSchedule>>
+  _dividendSchedulesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.dividendSchedules,
+        aliasName: 'investments__id__dividend_schedules__investment_id',
+      );
+
+  $$DividendSchedulesTableProcessedTableManager get dividendSchedulesRefs {
+    final manager = $$DividendSchedulesTableTableManager(
+      $_db,
+      $_db.dividendSchedules,
+    ).filter((f) => f.investmentId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _dividendSchedulesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$InvestmentsTableFilterComposer
@@ -7509,6 +9229,31 @@ class $$InvestmentsTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> dividendSchedulesRefs(
+    Expression<bool> Function($$DividendSchedulesTableFilterComposer f) f,
+  ) {
+    final $$DividendSchedulesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.dividendSchedules,
+      getReferencedColumn: (t) => t.investmentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DividendSchedulesTableFilterComposer(
+            $db: $db,
+            $table: $db.dividendSchedules,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -7746,6 +9491,32 @@ class $$InvestmentsTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> dividendSchedulesRefs<T extends Object>(
+    Expression<T> Function($$DividendSchedulesTableAnnotationComposer a) f,
+  ) {
+    final $$DividendSchedulesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.dividendSchedules,
+          getReferencedColumn: (t) => t.investmentId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$DividendSchedulesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.dividendSchedules,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$InvestmentsTableTableManager
@@ -7761,7 +9532,7 @@ class $$InvestmentsTableTableManager
           $$InvestmentsTableUpdateCompanionBuilder,
           (Investment, $$InvestmentsTableReferences),
           Investment,
-          PrefetchHooks Function({bool userId})
+          PrefetchHooks Function({bool userId, bool dividendSchedulesRefs})
         > {
   $$InvestmentsTableTableManager(_$AppDatabase db, $InvestmentsTable table)
     : super(
@@ -7878,7 +9649,519 @@ class $$InvestmentsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({userId = false}) {
+          prefetchHooksCallback:
+              ({userId = false, dividendSchedulesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (dividendSchedulesRefs) db.dividendSchedules,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (userId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.userId,
+                                    referencedTable:
+                                        $$InvestmentsTableReferences
+                                            ._userIdTable(db),
+                                    referencedColumn:
+                                        $$InvestmentsTableReferences
+                                            ._userIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (dividendSchedulesRefs)
+                        await $_getPrefetchedData<
+                          Investment,
+                          $InvestmentsTable,
+                          DividendSchedule
+                        >(
+                          currentTable: table,
+                          referencedTable: $$InvestmentsTableReferences
+                              ._dividendSchedulesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$InvestmentsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).dividendSchedulesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.investmentId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$InvestmentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $InvestmentsTable,
+      Investment,
+      $$InvestmentsTableFilterComposer,
+      $$InvestmentsTableOrderingComposer,
+      $$InvestmentsTableAnnotationComposer,
+      $$InvestmentsTableCreateCompanionBuilder,
+      $$InvestmentsTableUpdateCompanionBuilder,
+      (Investment, $$InvestmentsTableReferences),
+      Investment,
+      PrefetchHooks Function({bool userId, bool dividendSchedulesRefs})
+    >;
+typedef $$DividendSchedulesTableCreateCompanionBuilder =
+    DividendSchedulesCompanion Function({
+      required String id,
+      required String userId,
+      required String investmentId,
+      required int paymentMonth,
+      required double amountPerShare,
+      Value<DateTime?> exDate,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$DividendSchedulesTableUpdateCompanionBuilder =
+    DividendSchedulesCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> investmentId,
+      Value<int> paymentMonth,
+      Value<double> amountPerShare,
+      Value<DateTime?> exDate,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $$DividendSchedulesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $DividendSchedulesTable,
+          DividendSchedule
+        > {
+  $$DividendSchedulesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $UsersTable _userIdTable(_$AppDatabase db) =>
+      db.users.createAlias('dividend_schedules__user_id__users__id');
+
+  $$UsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$UsersTableTableManager(
+      $_db,
+      $_db.users,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $InvestmentsTable _investmentIdTable(_$AppDatabase db) => db
+      .investments
+      .createAlias('dividend_schedules__investment_id__investments__id');
+
+  $$InvestmentsTableProcessedTableManager get investmentId {
+    final $_column = $_itemColumn<String>('investment_id')!;
+
+    final manager = $$InvestmentsTableTableManager(
+      $_db,
+      $_db.investments,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_investmentIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$DividendSchedulesTableFilterComposer
+    extends Composer<_$AppDatabase, $DividendSchedulesTable> {
+  $$DividendSchedulesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get paymentMonth => $composableBuilder(
+    column: $table.paymentMonth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amountPerShare => $composableBuilder(
+    column: $table.amountPerShare,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get exDate => $composableBuilder(
+    column: $table.exDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$UsersTableFilterComposer get userId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableFilterComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$InvestmentsTableFilterComposer get investmentId {
+    final $$InvestmentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.investmentId,
+      referencedTable: $db.investments,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InvestmentsTableFilterComposer(
+            $db: $db,
+            $table: $db.investments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DividendSchedulesTableOrderingComposer
+    extends Composer<_$AppDatabase, $DividendSchedulesTable> {
+  $$DividendSchedulesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get paymentMonth => $composableBuilder(
+    column: $table.paymentMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amountPerShare => $composableBuilder(
+    column: $table.amountPerShare,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get exDate => $composableBuilder(
+    column: $table.exDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$UsersTableOrderingComposer get userId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$InvestmentsTableOrderingComposer get investmentId {
+    final $$InvestmentsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.investmentId,
+      referencedTable: $db.investments,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InvestmentsTableOrderingComposer(
+            $db: $db,
+            $table: $db.investments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DividendSchedulesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DividendSchedulesTable> {
+  $$DividendSchedulesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get paymentMonth => $composableBuilder(
+    column: $table.paymentMonth,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get amountPerShare => $composableBuilder(
+    column: $table.amountPerShare,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get exDate =>
+      $composableBuilder(column: $table.exDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$UsersTableAnnotationComposer get userId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$InvestmentsTableAnnotationComposer get investmentId {
+    final $$InvestmentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.investmentId,
+      referencedTable: $db.investments,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InvestmentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.investments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DividendSchedulesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DividendSchedulesTable,
+          DividendSchedule,
+          $$DividendSchedulesTableFilterComposer,
+          $$DividendSchedulesTableOrderingComposer,
+          $$DividendSchedulesTableAnnotationComposer,
+          $$DividendSchedulesTableCreateCompanionBuilder,
+          $$DividendSchedulesTableUpdateCompanionBuilder,
+          (DividendSchedule, $$DividendSchedulesTableReferences),
+          DividendSchedule,
+          PrefetchHooks Function({bool userId, bool investmentId})
+        > {
+  $$DividendSchedulesTableTableManager(
+    _$AppDatabase db,
+    $DividendSchedulesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DividendSchedulesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DividendSchedulesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DividendSchedulesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> investmentId = const Value.absent(),
+                Value<int> paymentMonth = const Value.absent(),
+                Value<double> amountPerShare = const Value.absent(),
+                Value<DateTime?> exDate = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DividendSchedulesCompanion(
+                id: id,
+                userId: userId,
+                investmentId: investmentId,
+                paymentMonth: paymentMonth,
+                amountPerShare: amountPerShare,
+                exDate: exDate,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String investmentId,
+                required int paymentMonth,
+                required double amountPerShare,
+                Value<DateTime?> exDate = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DividendSchedulesCompanion.insert(
+                id: id,
+                userId: userId,
+                investmentId: investmentId,
+                paymentMonth: paymentMonth,
+                amountPerShare: amountPerShare,
+                exDate: exDate,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$DividendSchedulesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({userId = false, investmentId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -7903,11 +10186,28 @@ class $$InvestmentsTableTableManager
                           state.withJoin(
                                 currentTable: table,
                                 currentColumn: table.userId,
-                                referencedTable: $$InvestmentsTableReferences
-                                    ._userIdTable(db),
-                                referencedColumn: $$InvestmentsTableReferences
-                                    ._userIdTable(db)
-                                    .id,
+                                referencedTable:
+                                    $$DividendSchedulesTableReferences
+                                        ._userIdTable(db),
+                                referencedColumn:
+                                    $$DividendSchedulesTableReferences
+                                        ._userIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (investmentId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.investmentId,
+                                referencedTable:
+                                    $$DividendSchedulesTableReferences
+                                        ._investmentIdTable(db),
+                                referencedColumn:
+                                    $$DividendSchedulesTableReferences
+                                        ._investmentIdTable(db)
+                                        .id,
                               )
                               as T;
                     }
@@ -7923,25 +10223,26 @@ class $$InvestmentsTableTableManager
       );
 }
 
-typedef $$InvestmentsTableProcessedTableManager =
+typedef $$DividendSchedulesTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $InvestmentsTable,
-      Investment,
-      $$InvestmentsTableFilterComposer,
-      $$InvestmentsTableOrderingComposer,
-      $$InvestmentsTableAnnotationComposer,
-      $$InvestmentsTableCreateCompanionBuilder,
-      $$InvestmentsTableUpdateCompanionBuilder,
-      (Investment, $$InvestmentsTableReferences),
-      Investment,
-      PrefetchHooks Function({bool userId})
+      $DividendSchedulesTable,
+      DividendSchedule,
+      $$DividendSchedulesTableFilterComposer,
+      $$DividendSchedulesTableOrderingComposer,
+      $$DividendSchedulesTableAnnotationComposer,
+      $$DividendSchedulesTableCreateCompanionBuilder,
+      $$DividendSchedulesTableUpdateCompanionBuilder,
+      (DividendSchedule, $$DividendSchedulesTableReferences),
+      DividendSchedule,
+      PrefetchHooks Function({bool userId, bool investmentId})
     >;
 typedef $$LedgerEntriesTableCreateCompanionBuilder =
     LedgerEntriesCompanion Function({
       required String id,
       required String userId,
       required DateTime bookingDate,
+      Value<DateTime?> budgetMonth,
       required double amount,
       Value<bool> isIncome,
       required String category,
@@ -7964,6 +10265,7 @@ typedef $$LedgerEntriesTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> userId,
       Value<DateTime> bookingDate,
+      Value<DateTime?> budgetMonth,
       Value<double> amount,
       Value<bool> isIncome,
       Value<String> category,
@@ -8024,6 +10326,11 @@ class $$LedgerEntriesTableFilterComposer
 
   ColumnFilters<DateTime> get bookingDate => $composableBuilder(
     column: $table.bookingDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get budgetMonth => $composableBuilder(
+    column: $table.budgetMonth,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8145,6 +10452,11 @@ class $$LedgerEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get budgetMonth => $composableBuilder(
+    column: $table.budgetMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get amount => $composableBuilder(
     column: $table.amount,
     builder: (column) => ColumnOrderings(column),
@@ -8261,6 +10573,11 @@ class $$LedgerEntriesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<DateTime> get budgetMonth => $composableBuilder(
+    column: $table.budgetMonth,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<double> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
 
@@ -8371,6 +10688,7 @@ class $$LedgerEntriesTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> userId = const Value.absent(),
                 Value<DateTime> bookingDate = const Value.absent(),
+                Value<DateTime?> budgetMonth = const Value.absent(),
                 Value<double> amount = const Value.absent(),
                 Value<bool> isIncome = const Value.absent(),
                 Value<String> category = const Value.absent(),
@@ -8391,6 +10709,7 @@ class $$LedgerEntriesTableTableManager
                 id: id,
                 userId: userId,
                 bookingDate: bookingDate,
+                budgetMonth: budgetMonth,
                 amount: amount,
                 isIncome: isIncome,
                 category: category,
@@ -8413,6 +10732,7 @@ class $$LedgerEntriesTableTableManager
                 required String id,
                 required String userId,
                 required DateTime bookingDate,
+                Value<DateTime?> budgetMonth = const Value.absent(),
                 required double amount,
                 Value<bool> isIncome = const Value.absent(),
                 required String category,
@@ -8433,6 +10753,7 @@ class $$LedgerEntriesTableTableManager
                 id: id,
                 userId: userId,
                 bookingDate: bookingDate,
+                budgetMonth: budgetMonth,
                 amount: amount,
                 isIncome: isIncome,
                 category: category,
@@ -8524,6 +10845,8 @@ typedef $$MasterDataTableCreateCompanionBuilder =
       required String kind,
       required String value,
       required DateTime createdAt,
+      Value<DateTime?> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 typedef $$MasterDataTableUpdateCompanionBuilder =
@@ -8533,6 +10856,8 @@ typedef $$MasterDataTableUpdateCompanionBuilder =
       Value<String> kind,
       Value<String> value,
       Value<DateTime> createdAt,
+      Value<DateTime?> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 
@@ -8584,6 +10909,16 @@ class $$MasterDataTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8640,6 +10975,16 @@ class $$MasterDataTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$UsersTableOrderingComposer get userId {
     final $$UsersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -8684,6 +11029,12 @@ class $$MasterDataTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   $$UsersTableAnnotationComposer get userId {
     final $$UsersTableAnnotationComposer composer = $composerBuilder(
@@ -8742,6 +11093,8 @@ class $$MasterDataTableTableManager
                 Value<String> kind = const Value.absent(),
                 Value<String> value = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MasterDataCompanion(
                 id: id,
@@ -8749,6 +11102,8 @@ class $$MasterDataTableTableManager
                 kind: kind,
                 value: value,
                 createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -8758,6 +11113,8 @@ class $$MasterDataTableTableManager
                 required String kind,
                 required String value,
                 required DateTime createdAt,
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MasterDataCompanion.insert(
                 id: id,
@@ -8765,6 +11122,8 @@ class $$MasterDataTableTableManager
                 kind: kind,
                 value: value,
                 createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -9907,6 +12266,12 @@ typedef $$UserPreferencesTableCreateCompanionBuilder =
       Value<String> serverUrl,
       Value<int> serverPort,
       Value<String> serverUsername,
+      Value<String> selectedHouseholdAccountId,
+      Value<String> dataFilePath,
+      Value<double> freedomAge,
+      Value<double> freedomStartCapital,
+      Value<bool> freedomUsePortfolio,
+      Value<DateTime?> lastSyncAt,
       required DateTime updatedAt,
       Value<int> rowid,
     });
@@ -9921,6 +12286,12 @@ typedef $$UserPreferencesTableUpdateCompanionBuilder =
       Value<String> serverUrl,
       Value<int> serverPort,
       Value<String> serverUsername,
+      Value<String> selectedHouseholdAccountId,
+      Value<String> dataFilePath,
+      Value<double> freedomAge,
+      Value<double> freedomStartCapital,
+      Value<bool> freedomUsePortfolio,
+      Value<DateTime?> lastSyncAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
     });
@@ -9998,6 +12369,36 @@ class $$UserPreferencesTableFilterComposer
 
   ColumnFilters<String> get serverUsername => $composableBuilder(
     column: $table.serverUsername,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get selectedHouseholdAccountId => $composableBuilder(
+    column: $table.selectedHouseholdAccountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dataFilePath => $composableBuilder(
+    column: $table.dataFilePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get freedomAge => $composableBuilder(
+    column: $table.freedomAge,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get freedomStartCapital => $composableBuilder(
+    column: $table.freedomStartCapital,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get freedomUsePortfolio => $composableBuilder(
+    column: $table.freedomUsePortfolio,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSyncAt => $composableBuilder(
+    column: $table.lastSyncAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10079,6 +12480,36 @@ class $$UserPreferencesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get selectedHouseholdAccountId => $composableBuilder(
+    column: $table.selectedHouseholdAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dataFilePath => $composableBuilder(
+    column: $table.dataFilePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get freedomAge => $composableBuilder(
+    column: $table.freedomAge,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get freedomStartCapital => $composableBuilder(
+    column: $table.freedomStartCapital,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get freedomUsePortfolio => $composableBuilder(
+    column: $table.freedomUsePortfolio,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSyncAt => $composableBuilder(
+    column: $table.lastSyncAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
@@ -10149,6 +12580,36 @@ class $$UserPreferencesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get selectedHouseholdAccountId => $composableBuilder(
+    column: $table.selectedHouseholdAccountId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get dataFilePath => $composableBuilder(
+    column: $table.dataFilePath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get freedomAge => $composableBuilder(
+    column: $table.freedomAge,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get freedomStartCapital => $composableBuilder(
+    column: $table.freedomStartCapital,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get freedomUsePortfolio => $composableBuilder(
+    column: $table.freedomUsePortfolio,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastSyncAt => $composableBuilder(
+    column: $table.lastSyncAt,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
@@ -10215,6 +12676,12 @@ class $$UserPreferencesTableTableManager
                 Value<String> serverUrl = const Value.absent(),
                 Value<int> serverPort = const Value.absent(),
                 Value<String> serverUsername = const Value.absent(),
+                Value<String> selectedHouseholdAccountId = const Value.absent(),
+                Value<String> dataFilePath = const Value.absent(),
+                Value<double> freedomAge = const Value.absent(),
+                Value<double> freedomStartCapital = const Value.absent(),
+                Value<bool> freedomUsePortfolio = const Value.absent(),
+                Value<DateTime?> lastSyncAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => UserPreferencesCompanion(
@@ -10227,6 +12694,12 @@ class $$UserPreferencesTableTableManager
                 serverUrl: serverUrl,
                 serverPort: serverPort,
                 serverUsername: serverUsername,
+                selectedHouseholdAccountId: selectedHouseholdAccountId,
+                dataFilePath: dataFilePath,
+                freedomAge: freedomAge,
+                freedomStartCapital: freedomStartCapital,
+                freedomUsePortfolio: freedomUsePortfolio,
+                lastSyncAt: lastSyncAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
               ),
@@ -10241,6 +12714,12 @@ class $$UserPreferencesTableTableManager
                 Value<String> serverUrl = const Value.absent(),
                 Value<int> serverPort = const Value.absent(),
                 Value<String> serverUsername = const Value.absent(),
+                Value<String> selectedHouseholdAccountId = const Value.absent(),
+                Value<String> dataFilePath = const Value.absent(),
+                Value<double> freedomAge = const Value.absent(),
+                Value<double> freedomStartCapital = const Value.absent(),
+                Value<bool> freedomUsePortfolio = const Value.absent(),
+                Value<DateTime?> lastSyncAt = const Value.absent(),
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
               }) => UserPreferencesCompanion.insert(
@@ -10253,6 +12732,12 @@ class $$UserPreferencesTableTableManager
                 serverUrl: serverUrl,
                 serverPort: serverPort,
                 serverUsername: serverUsername,
+                selectedHouseholdAccountId: selectedHouseholdAccountId,
+                dataFilePath: dataFilePath,
+                freedomAge: freedomAge,
+                freedomStartCapital: freedomStartCapital,
+                freedomUsePortfolio: freedomUsePortfolio,
+                lastSyncAt: lastSyncAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
               ),
@@ -10325,6 +12810,366 @@ typedef $$UserPreferencesTableProcessedTableManager =
       UserPreference,
       PrefetchHooks Function({bool userId})
     >;
+typedef $$NetWorthSnapshotsTableCreateCompanionBuilder =
+    NetWorthSnapshotsCompanion Function({
+      required String id,
+      required String userId,
+      required DateTime capturedAt,
+      required double accountBalance,
+      required double portfolioValue,
+      required double totalNetWorth,
+      Value<int> rowid,
+    });
+typedef $$NetWorthSnapshotsTableUpdateCompanionBuilder =
+    NetWorthSnapshotsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<DateTime> capturedAt,
+      Value<double> accountBalance,
+      Value<double> portfolioValue,
+      Value<double> totalNetWorth,
+      Value<int> rowid,
+    });
+
+final class $$NetWorthSnapshotsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $NetWorthSnapshotsTable,
+          NetWorthSnapshot
+        > {
+  $$NetWorthSnapshotsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $UsersTable _userIdTable(_$AppDatabase db) =>
+      db.users.createAlias('net_worth_snapshots__user_id__users__id');
+
+  $$UsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$UsersTableTableManager(
+      $_db,
+      $_db.users,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$NetWorthSnapshotsTableFilterComposer
+    extends Composer<_$AppDatabase, $NetWorthSnapshotsTable> {
+  $$NetWorthSnapshotsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get accountBalance => $composableBuilder(
+    column: $table.accountBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get portfolioValue => $composableBuilder(
+    column: $table.portfolioValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get totalNetWorth => $composableBuilder(
+    column: $table.totalNetWorth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$UsersTableFilterComposer get userId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableFilterComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NetWorthSnapshotsTableOrderingComposer
+    extends Composer<_$AppDatabase, $NetWorthSnapshotsTable> {
+  $$NetWorthSnapshotsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get accountBalance => $composableBuilder(
+    column: $table.accountBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get portfolioValue => $composableBuilder(
+    column: $table.portfolioValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get totalNetWorth => $composableBuilder(
+    column: $table.totalNetWorth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$UsersTableOrderingComposer get userId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NetWorthSnapshotsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NetWorthSnapshotsTable> {
+  $$NetWorthSnapshotsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get accountBalance => $composableBuilder(
+    column: $table.accountBalance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get portfolioValue => $composableBuilder(
+    column: $table.portfolioValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get totalNetWorth => $composableBuilder(
+    column: $table.totalNetWorth,
+    builder: (column) => column,
+  );
+
+  $$UsersTableAnnotationComposer get userId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NetWorthSnapshotsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NetWorthSnapshotsTable,
+          NetWorthSnapshot,
+          $$NetWorthSnapshotsTableFilterComposer,
+          $$NetWorthSnapshotsTableOrderingComposer,
+          $$NetWorthSnapshotsTableAnnotationComposer,
+          $$NetWorthSnapshotsTableCreateCompanionBuilder,
+          $$NetWorthSnapshotsTableUpdateCompanionBuilder,
+          (NetWorthSnapshot, $$NetWorthSnapshotsTableReferences),
+          NetWorthSnapshot,
+          PrefetchHooks Function({bool userId})
+        > {
+  $$NetWorthSnapshotsTableTableManager(
+    _$AppDatabase db,
+    $NetWorthSnapshotsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NetWorthSnapshotsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NetWorthSnapshotsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NetWorthSnapshotsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<DateTime> capturedAt = const Value.absent(),
+                Value<double> accountBalance = const Value.absent(),
+                Value<double> portfolioValue = const Value.absent(),
+                Value<double> totalNetWorth = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NetWorthSnapshotsCompanion(
+                id: id,
+                userId: userId,
+                capturedAt: capturedAt,
+                accountBalance: accountBalance,
+                portfolioValue: portfolioValue,
+                totalNetWorth: totalNetWorth,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required DateTime capturedAt,
+                required double accountBalance,
+                required double portfolioValue,
+                required double totalNetWorth,
+                Value<int> rowid = const Value.absent(),
+              }) => NetWorthSnapshotsCompanion.insert(
+                id: id,
+                userId: userId,
+                capturedAt: capturedAt,
+                accountBalance: accountBalance,
+                portfolioValue: portfolioValue,
+                totalNetWorth: totalNetWorth,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$NetWorthSnapshotsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({userId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (userId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.userId,
+                                referencedTable:
+                                    $$NetWorthSnapshotsTableReferences
+                                        ._userIdTable(db),
+                                referencedColumn:
+                                    $$NetWorthSnapshotsTableReferences
+                                        ._userIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$NetWorthSnapshotsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NetWorthSnapshotsTable,
+      NetWorthSnapshot,
+      $$NetWorthSnapshotsTableFilterComposer,
+      $$NetWorthSnapshotsTableOrderingComposer,
+      $$NetWorthSnapshotsTableAnnotationComposer,
+      $$NetWorthSnapshotsTableCreateCompanionBuilder,
+      $$NetWorthSnapshotsTableUpdateCompanionBuilder,
+      (NetWorthSnapshot, $$NetWorthSnapshotsTableReferences),
+      NetWorthSnapshot,
+      PrefetchHooks Function({bool userId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -10335,6 +13180,8 @@ class $AppDatabaseManager {
       $$AccountsTableTableManager(_db, _db.accounts);
   $$InvestmentsTableTableManager get investments =>
       $$InvestmentsTableTableManager(_db, _db.investments);
+  $$DividendSchedulesTableTableManager get dividendSchedules =>
+      $$DividendSchedulesTableTableManager(_db, _db.dividendSchedules);
   $$LedgerEntriesTableTableManager get ledgerEntries =>
       $$LedgerEntriesTableTableManager(_db, _db.ledgerEntries);
   $$MasterDataTableTableManager get masterData =>
@@ -10345,4 +13192,6 @@ class $AppDatabaseManager {
       $$VehicleCostsTableTableManager(_db, _db.vehicleCosts);
   $$UserPreferencesTableTableManager get userPreferences =>
       $$UserPreferencesTableTableManager(_db, _db.userPreferences);
+  $$NetWorthSnapshotsTableTableManager get netWorthSnapshots =>
+      $$NetWorthSnapshotsTableTableManager(_db, _db.netWorthSnapshots);
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/finance/budget_period.dart';
 import '../../core/finance/dividend_math.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -18,6 +19,9 @@ class DashboardPage extends ConsumerWidget {
         ref.watch(investmentsProvider).valueOrNull ?? const <Investment>[];
     final entries =
         ref.watch(ledgerEntriesProvider).valueOrNull ?? const <LedgerEntry>[];
+    final snapshots =
+        ref.watch(netWorthSnapshotsProvider).valueOrNull ??
+        const <NetWorthSnapshot>[];
     final user = ref.watch(authControllerProvider).user;
     final accountBalance = accounts.fold<double>(
       0,
@@ -32,11 +36,10 @@ class DashboardPage extends ConsumerWidget {
       (sum, item) => sum + item.quantity * item.purchasePrice + item.fees,
     );
     final now = DateTime.now();
-    final thisMonth = entries.where(
-      (entry) =>
-          entry.bookingDate.year == now.year &&
-          entry.bookingDate.month == now.month,
-    );
+    final thisMonth = entries.where((entry) {
+      final period = budgetMonthOf(entry.bookingDate, entry.budgetMonth);
+      return period.year == now.year && period.month == now.month;
+    });
     final income = thisMonth
         .where((entry) => entry.isIncome)
         .fold<double>(0, (sum, entry) => sum + entry.amount);
@@ -144,6 +147,8 @@ class DashboardPage extends ConsumerWidget {
                 },
               ),
               const SizedBox(height: 16),
+              _NetWorthChart(snapshots: snapshots),
+              const SizedBox(height: 16),
               _MonthlyChart(entries: entries),
             ],
           ),
@@ -164,12 +169,12 @@ class _MonthlyChart extends StatelessWidget {
     for (var index = 0; index < 6; index++) {
       final date = DateTime(now.year, now.month - (5 - index));
       totals[index] = entries
-          .where(
-            (entry) =>
-                !entry.isIncome &&
-                entry.bookingDate.year == date.year &&
-                entry.bookingDate.month == date.month,
-          )
+          .where((entry) {
+            final period = budgetMonthOf(entry.bookingDate, entry.budgetMonth);
+            return !entry.isIncome &&
+                period.year == date.year &&
+                period.month == date.month;
+          })
           .fold<double>(0, (sum, entry) => sum + entry.amount);
     }
     final maxValue = totals.fold<double>(
@@ -198,7 +203,19 @@ class _MonthlyChart extends StatelessWidget {
                   maxY: maxValue <= 0 ? 100 : maxValue * 1.2,
                   borderData: FlBorderData(show: false),
                   gridData: const FlGridData(show: false),
-                  barTouchData: BarTouchData(enabled: true),
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) =>
+                          BarTooltipItem(
+                            money(rod.toY),
+                            const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                    ),
+                  ),
                   titlesData: FlTitlesData(
                     topTitles: const AxisTitles(
                       sideTitles: SideTitles(showTitles: false),
@@ -256,6 +273,120 @@ class _MonthlyChart extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NetWorthChart extends StatelessWidget {
+  const _NetWorthChart({required this.snapshots});
+
+  final List<NetWorthSnapshot> snapshots;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = snapshots.length > 60
+        ? snapshots.sublist(snapshots.length - 60)
+        : snapshots;
+    final totalSpots = visible.indexed
+        .map((item) => FlSpot(item.$1.toDouble(), item.$2.totalNetWorth))
+        .toList();
+    final accountSpots = visible.indexed
+        .map((item) => FlSpot(item.$1.toDouble(), item.$2.accountBalance))
+        .toList();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Vermögensverlauf',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            const Text('Gesamtvermögen und Kontostand bei jeder Wertänderung'),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 260,
+              child: visible.length < 2
+                  ? const Center(
+                      child: Text(
+                        'Der Verlauf erscheint nach der nächsten Wertänderung.',
+                      ),
+                    )
+                  : LineChart(
+                      LineChartData(
+                        borderData: FlBorderData(show: false),
+                        gridData: FlGridData(
+                          drawVerticalLine: false,
+                          getDrawingHorizontalLine: (_) => FlLine(
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withValues(alpha: .22),
+                          ),
+                        ),
+                        titlesData: const FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          topTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          rightTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                        ),
+                        lineTouchData: LineTouchData(
+                          touchTooltipData: LineTouchTooltipData(
+                            getTooltipItems: (spots) => spots
+                                .map(
+                                  (spot) => LineTooltipItem(
+                                    (spot.barIndex == 0
+                                            ? 'Gesamt: '
+                                            : 'Konten: ') +
+                                        money(spot.y),
+                                    const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ),
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: totalSpots,
+                            isCurved: true,
+                            barWidth: 4,
+                            color: Theme.of(context).colorScheme.primary,
+                            dotData: const FlDotData(show: false),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: .12),
+                            ),
+                          ),
+                          LineChartBarData(
+                            spots: accountSpots,
+                            isCurved: true,
+                            barWidth: 3,
+                            color: Colors.teal,
+                            dotData: const FlDotData(show: false),
+                          ),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),

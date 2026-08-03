@@ -42,6 +42,13 @@ final investmentsProvider = StreamProvider<List<Investment>>((ref) {
       : ref.watch(databaseProvider).watchInvestments(userId);
 });
 
+final dividendSchedulesProvider = StreamProvider<List<DividendSchedule>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <DividendSchedule>[])
+      : ref.watch(databaseProvider).watchDividendSchedules(userId);
+});
+
 final ledgerEntriesProvider = StreamProvider<List<LedgerEntry>>((ref) {
   final userId = ref.watch(currentUserIdProvider);
   return userId == null
@@ -75,6 +82,13 @@ final preferencesProvider = StreamProvider<UserPreference?>((ref) {
   return userId == null
       ? Stream.value(null)
       : ref.watch(databaseProvider).watchPreferences(userId);
+});
+
+final netWorthSnapshotsProvider = StreamProvider<List<NetWorthSnapshot>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <NetWorthSnapshot>[])
+      : ref.watch(databaseProvider).watchNetWorthSnapshots(userId);
 });
 
 final themeModeProvider = Provider<ThemeMode>((ref) {

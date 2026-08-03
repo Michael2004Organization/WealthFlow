@@ -112,43 +112,13 @@ class SettingsPage extends ConsumerWidget {
                 title: 'Datenspeicherung',
                 icon: Icons.storage_rounded,
                 children: [
-                  SwitchListTile(
-                    secondary: Icon(
-                      preference.serverMode
-                          ? Icons.cloud_done_rounded
-                          : Icons.smartphone_rounded,
-                    ),
-                    title: Text(
-                      preference.serverMode ? 'Servermodus' : 'Lokaler Modus',
-                    ),
+                  const ListTile(
+                    leading: Icon(Icons.smartphone_rounded),
+                    title: Text('Lokale Datenbank'),
                     subtitle: Text(
-                      preference.serverMode
-                          ? 'Die Verbindungseinstellungen für den kompatiblen Server sind hinterlegt.'
-                          : 'Alle Daten liegen ausschließlich auf diesem Gerät.',
+                      'Es findet keine Remote-Übertragung statt. SQLite und die optionale Datendatei bleiben unter deiner Kontrolle.',
                     ),
-                    value: preference.serverMode,
-                    onChanged: (value) async {
-                      if (value) {
-                        await _configureServer(context, ref, preference);
-                      } else {
-                        await _savePreference(
-                          ref,
-                          preference,
-                          serverMode: false,
-                        );
-                      }
-                    },
                   ),
-                  if (preference.serverMode)
-                    ListTile(
-                      leading: const Icon(Icons.dns_rounded),
-                      title: Text(preference.serverUrl),
-                      subtitle: Text(
-                        '${preference.serverUsername} · Port ${preference.serverPort}',
-                      ),
-                      trailing: const Icon(Icons.edit_rounded),
-                      onTap: () => _configureServer(context, ref, preference),
-                    ),
                   const ListTile(
                     leading: Icon(Icons.shield_rounded),
                     title: Text('Sichere lokale Speicherung'),
@@ -157,10 +127,30 @@ class SettingsPage extends ConsumerWidget {
                     ),
                   ),
                   ListTile(
+                    leading: const Icon(Icons.folder_open_rounded),
+                    title: const Text('Datendatei festlegen'),
+                    subtitle: Text(
+                      preference.dataFilePath.isEmpty
+                          ? 'Noch kein externer Speicherort ausgewählt'
+                          : preference.dataFilePath,
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _chooseDataFile(context, ref, preference),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.merge_type_rounded),
+                    title: const Text('Datendatei zusammenführen'),
+                    subtitle: const Text(
+                      'Neuere Datensätze übernehmen, ohne lokale Daten zu löschen',
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _importDataFile(context, ref, preference),
+                  ),
+                  ListTile(
                     leading: const Icon(Icons.visibility_outlined),
                     title: const Text('Lokale Daten schreibgeschützt ansehen'),
                     subtitle: const Text(
-                      'Benutzerbezogener JSON-Export ohne Passwörter und Server-Geheimnisse',
+                      'Benutzerbezogener JSON-Export ohne Passwörter',
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _showLocalData(context, ref, user.id),
@@ -176,7 +166,7 @@ class SettingsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'WealthFlow 1.0.0 · Lokale Datenbankversion 4',
+                'WealthFlow 1.0.0 · Lokale Datenbankversion 5',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -273,6 +263,12 @@ class SettingsPage extends ConsumerWidget {
     String? serverUrl,
     int? serverPort,
     String? serverUsername,
+    String? selectedHouseholdAccountId,
+    String? dataFilePath,
+    double? freedomAge,
+    double? freedomStartCapital,
+    bool? freedomUsePortfolio,
+    DateTime? lastSyncAt,
   }) {
     return ref
         .read(databaseProvider)
@@ -287,9 +283,91 @@ class SettingsPage extends ConsumerWidget {
             serverUrl: Value(serverUrl ?? current.serverUrl),
             serverPort: Value(serverPort ?? current.serverPort),
             serverUsername: Value(serverUsername ?? current.serverUsername),
+            selectedHouseholdAccountId: Value(
+              selectedHouseholdAccountId ?? current.selectedHouseholdAccountId,
+            ),
+            dataFilePath: Value(dataFilePath ?? current.dataFilePath),
+            freedomAge: Value(freedomAge ?? current.freedomAge),
+            freedomStartCapital: Value(
+              freedomStartCapital ?? current.freedomStartCapital,
+            ),
+            freedomUsePortfolio: Value(
+              freedomUsePortfolio ?? current.freedomUsePortfolio,
+            ),
+            lastSyncAt: Value(lastSyncAt ?? current.lastSyncAt),
             updatedAt: DateTime.now().toUtc(),
           ),
         );
+  }
+
+  Future<void> _chooseDataFile(
+    BuildContext context,
+    WidgetRef ref,
+    UserPreference preference,
+  ) async {
+    final path = await chooseDataFilePath('wealthflow-data.json');
+    if (path == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Im Browser verhindert die Sicherheitsumgebung einen dauerhaft beschreibbaren Dateipfad. Nutze dort den JSON-Download.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    await _savePreference(ref, preference, dataFilePath: path);
+    final saved = await ref
+        .read(databaseProvider)
+        .persistUserFile(preference.userId);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            saved
+                ? 'Datendatei gespeichert und automatische Aktualisierung aktiviert.'
+                : 'Der Speicherort konnte nicht beschrieben werden.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _importDataFile(
+    BuildContext context,
+    WidgetRef ref,
+    UserPreference preference,
+  ) async {
+    try {
+      final content = await chooseDataImport();
+      if (content == null) return;
+      final decoded = jsonDecode(content);
+      if (decoded is! Map) throw const FormatException();
+      await ref
+          .read(databaseProvider)
+          .mergeUserData(preference.userId, Map<String, dynamic>.from(decoded));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Datendatei wurde verlustarm mit den lokalen Daten zusammengeführt.',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Die gewählte Datei ist kein gültiger WealthFlow-Export.',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _changePassword(BuildContext context, WidgetRef ref) async {
@@ -379,128 +457,6 @@ class SettingsPage extends ConsumerWidget {
     current.dispose();
     replacement.dispose();
     confirm.dispose();
-  }
-
-  Future<void> _configureServer(
-    BuildContext context,
-    WidgetRef ref,
-    UserPreference current,
-  ) async {
-    final url = TextEditingController(
-      text: current.serverUrl.isEmpty ? 'https://' : current.serverUrl,
-    );
-    final port = TextEditingController(text: current.serverPort.toString());
-    final username = TextEditingController(text: current.serverUsername);
-    final password = TextEditingController();
-    final apiKey = TextEditingController();
-    final key = GlobalKey<FormState>();
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Server konfigurieren'),
-        content: SizedBox(
-          width: 520,
-          child: Form(
-            key: key,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: url,
-                    decoration: const InputDecoration(
-                      labelText: 'Serveradresse',
-                    ),
-                    validator: (value) {
-                      final uri = Uri.tryParse(value ?? '');
-                      return uri == null ||
-                              uri.scheme != 'https' ||
-                              uri.host.isEmpty
-                          ? 'Eine gültige HTTPS-Adresse ist erforderlich.'
-                          : null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: port,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Port'),
-                    validator: (value) {
-                      final number = int.tryParse(value ?? '');
-                      return number == null || number < 1 || number > 65535
-                          ? 'Port 1–65535'
-                          : null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: username,
-                    decoration: const InputDecoration(
-                      labelText: 'Benutzername',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: password,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Passwort',
-                      helperText:
-                          'Leer lassen, um das gespeicherte Passwort beizubehalten.',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: apiKey,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'API-Key',
-                      helperText:
-                          'Wird ausschließlich im sicheren Schlüsselspeicher abgelegt.',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (key.currentState?.validate() ?? false) {
-                Navigator.pop(context, true);
-              }
-            },
-            child: const Text('Sicher speichern'),
-          ),
-        ],
-      ),
-    );
-    if (result == true) {
-      await ref
-          .read(secureSessionStoreProvider)
-          .writeServerSecrets(
-            userId: current.userId,
-            password: password.text,
-            apiKey: apiKey.text,
-          );
-      await _savePreference(
-        ref,
-        current,
-        serverMode: true,
-        serverUrl: url.text.trim(),
-        serverPort: int.parse(port.text),
-        serverUsername: username.text.trim(),
-      );
-    }
-    url.dispose();
-    port.dispose();
-    username.dispose();
-    password.dispose();
-    apiKey.dispose();
   }
 }
 

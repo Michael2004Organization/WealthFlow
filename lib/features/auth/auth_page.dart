@@ -226,8 +226,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                     content: Text(
                       'Im lokalen Modus gibt es aus Sicherheitsgründen keine '
                       'Hintertür. Stelle ein verschlüsseltes Backup wieder her '
-                      'oder nutze im Servermodus die dort konfigurierte '
-                      'Kontowiederherstellung.',
+                      'oder lege ein neues lokales Profil an.',
                     ),
                   ),
                 ),

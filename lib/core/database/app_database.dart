@@ -1,5 +1,10 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:uuid/uuid.dart';
+
+import '../storage/data_export.dart';
 
 part 'app_database.g.dart';
 
@@ -68,11 +73,29 @@ class Investments extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class DividendSchedules extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text().references(Users, #id)();
+  TextColumn get investmentId => text().references(Investments, #id)();
+  IntColumn get paymentMonth => integer()();
+  RealColumn get amountPerShare => real()();
+  DateTimeColumn get exDate => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 @DataClassName('LedgerEntry')
 class LedgerEntries extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text().references(Users, #id)();
   DateTimeColumn get bookingDate => dateTime()();
+  // The month this payment economically belongs to. This can differ from the
+  // booking month, e.g. August salary paid at the end of July.
+  DateTimeColumn get budgetMonth => dateTime().nullable()();
   RealColumn get amount => real()();
   BoolColumn get isIncome => boolean().withDefault(const Constant(false))();
   TextColumn get category => text()();
@@ -100,6 +123,8 @@ class MasterData extends Table {
   TextColumn get kind => text()();
   TextColumn get value => text()();
   DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -156,10 +181,31 @@ class UserPreferences extends Table {
   TextColumn get serverUrl => text().withDefault(const Constant(''))();
   IntColumn get serverPort => integer().withDefault(const Constant(443))();
   TextColumn get serverUsername => text().withDefault(const Constant(''))();
+  TextColumn get selectedHouseholdAccountId =>
+      text().withDefault(const Constant(''))();
+  TextColumn get dataFilePath => text().withDefault(const Constant(''))();
+  RealColumn get freedomAge => real().withDefault(const Constant(35))();
+  RealColumn get freedomStartCapital =>
+      real().withDefault(const Constant(50000))();
+  BoolColumn get freedomUsePortfolio =>
+      boolean().withDefault(const Constant(true))();
+  DateTimeColumn get lastSyncAt => dateTime().nullable()();
   DateTimeColumn get updatedAt => dateTime()();
 
   @override
   Set<Column<Object>> get primaryKey => {userId};
+}
+
+class NetWorthSnapshots extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text().references(Users, #id)();
+  DateTimeColumn get capturedAt => dateTime()();
+  RealColumn get accountBalance => real()();
+  RealColumn get portfolioValue => real()();
+  RealColumn get totalNetWorth => real()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
 }
 
 @DriftDatabase(
@@ -167,14 +213,17 @@ class UserPreferences extends Table {
     Users,
     Accounts,
     Investments,
+    DividendSchedules,
     LedgerEntries,
     MasterData,
     Vehicles,
     VehicleCosts,
     UserPreferences,
+    NetWorthSnapshots,
   ],
 )
 final class AppDatabase extends _$AppDatabase {
+  static const _uuid = Uuid();
   AppDatabase()
     : super(
         driftDatabase(
@@ -190,7 +239,7 @@ final class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -208,6 +257,28 @@ final class AppDatabase extends _$AppDatabase {
       }
       if (from < 4) {
         await migrator.addColumn(ledgerEntries, ledgerEntries.accountApplied);
+      }
+      if (from < 5) {
+        await migrator.addColumn(ledgerEntries, ledgerEntries.budgetMonth);
+        await migrator.addColumn(masterData, masterData.updatedAt);
+        await migrator.addColumn(masterData, masterData.deletedAt);
+        await migrator.addColumn(
+          userPreferences,
+          userPreferences.selectedHouseholdAccountId,
+        );
+        await migrator.addColumn(userPreferences, userPreferences.dataFilePath);
+        await migrator.addColumn(userPreferences, userPreferences.freedomAge);
+        await migrator.addColumn(
+          userPreferences,
+          userPreferences.freedomStartCapital,
+        );
+        await migrator.addColumn(
+          userPreferences,
+          userPreferences.freedomUsePortfolio,
+        );
+        await migrator.addColumn(userPreferences, userPreferences.lastSyncAt);
+        await migrator.createTable(dividendSchedules);
+        await migrator.createTable(netWorthSnapshots);
       }
     },
   );
@@ -231,25 +302,31 @@ final class AppDatabase extends _$AppDatabase {
       );
 
   Stream<List<Account>> watchAccounts(String userId) async* {
-    await _applyDueLedgerEntries(userId);
+    if (await _applyDueLedgerEntries(userId)) {
+      await captureNetWorth(userId);
+    }
     yield* (select(accounts)
           ..where((row) => row.userId.equals(userId) & row.deletedAt.isNull())
           ..orderBy([(row) => OrderingTerm.asc(row.label)]))
         .watch();
   }
 
-  Future<void> saveAccount(AccountsCompanion value) =>
-      into(accounts).insertOnConflictUpdate(value);
+  Future<void> saveAccount(AccountsCompanion value) async {
+    await into(accounts).insertOnConflictUpdate(value);
+    await captureNetWorth(value.userId.value);
+  }
 
-  Future<void> deleteAccount(String id, String userId) =>
-      (update(
-        accounts,
-      )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
-        AccountsCompanion(
-          deletedAt: Value(DateTime.now().toUtc()),
-          updatedAt: Value(DateTime.now().toUtc()),
-        ),
-      );
+  Future<void> deleteAccount(String id, String userId) async {
+    await (update(
+      accounts,
+    )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+      AccountsCompanion(
+        deletedAt: Value(DateTime.now().toUtc()),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    await captureNetWorth(userId);
+  }
 
   Stream<List<Investment>> watchInvestments(String userId) =>
       (select(investments)
@@ -257,18 +334,48 @@ final class AppDatabase extends _$AppDatabase {
             ..orderBy([(row) => OrderingTerm.asc(row.name)]))
           .watch();
 
-  Future<void> saveInvestment(InvestmentsCompanion value) =>
-      into(investments).insertOnConflictUpdate(value);
+  Future<void> saveInvestment(InvestmentsCompanion value) async {
+    await into(investments).insertOnConflictUpdate(value);
+    await captureNetWorth(value.userId.value);
+  }
 
-  Future<void> deleteInvestment(String id, String userId) =>
-      (update(
-        investments,
-      )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
-        InvestmentsCompanion(
-          deletedAt: Value(DateTime.now().toUtc()),
-          updatedAt: Value(DateTime.now().toUtc()),
-        ),
-      );
+  Future<void> deleteInvestment(String id, String userId) async {
+    await (update(
+      investments,
+    )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+      InvestmentsCompanion(
+        deletedAt: Value(DateTime.now().toUtc()),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    await captureNetWorth(userId);
+  }
+
+  Stream<List<DividendSchedule>> watchDividendSchedules(String userId) =>
+      (select(dividendSchedules)
+            ..where((row) => row.userId.equals(userId) & row.deletedAt.isNull())
+            ..orderBy([
+              (row) => OrderingTerm.asc(row.paymentMonth),
+              (row) => OrderingTerm.asc(row.investmentId),
+            ]))
+          .watch();
+
+  Future<void> saveDividendSchedule(DividendSchedulesCompanion value) async {
+    await into(dividendSchedules).insertOnConflictUpdate(value);
+    await persistUserFile(value.userId.value);
+  }
+
+  Future<void> deleteDividendSchedule(String id, String userId) async {
+    await (update(
+      dividendSchedules,
+    )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+      DividendSchedulesCompanion(
+        deletedAt: Value(DateTime.now().toUtc()),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    await persistUserFile(userId);
+  }
 
   Stream<List<LedgerEntry>> watchLedgerEntries(String userId) =>
       (select(ledgerEntries)
@@ -278,85 +385,106 @@ final class AppDatabase extends _$AppDatabase {
 
   Stream<List<MasterDataData>> watchMasterData(String userId) =>
       (select(masterData)
-            ..where((row) => row.userId.equals(userId))
+            ..where((row) => row.userId.equals(userId) & row.deletedAt.isNull())
             ..orderBy([
               (row) => OrderingTerm.asc(row.kind),
               (row) => OrderingTerm.asc(row.value),
             ]))
           .watch();
 
-  Future<void> saveMasterDatum(MasterDataCompanion value) =>
-      into(masterData).insert(value, mode: InsertMode.insertOrIgnore);
+  Future<void> saveMasterDatum(MasterDataCompanion value) async {
+    await into(masterData).insert(value, mode: InsertMode.insertOrIgnore);
+    await persistUserFile(value.userId.value);
+  }
 
-  Future<void> deleteMasterDatum(String id, String userId) => (delete(
-    masterData,
-  )..where((row) => row.id.equals(id) & row.userId.equals(userId))).go();
+  Future<void> deleteMasterDatum(String id, String userId) async {
+    await (update(
+      masterData,
+    )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+      MasterDataCompanion(
+        deletedAt: Value(DateTime.now().toUtc()),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    await persistUserFile(userId);
+  }
 
   Future<void> saveLedgerEntry(LedgerEntriesCompanion value) =>
       saveLedgerEntries([value]);
 
-  Future<void> saveLedgerEntries(Iterable<LedgerEntriesCompanion> values) =>
-      transaction(() async {
-        for (final value in values) {
-          final old = await (select(
-            ledgerEntries,
-          )..where((row) => row.id.equals(value.id.value))).getSingleOrNull();
-          if (old != null) await _applyLedgerToAccount(old, reverse: true);
-          await into(ledgerEntries).insertOnConflictUpdate(value);
-          final saved = await (select(
-            ledgerEntries,
-          )..where((row) => row.id.equals(value.id.value))).getSingle();
-          await _applyLedgerToAccount(saved);
-        }
-      });
-
-  Future<void> deleteLedgerEntry(String id, String userId) =>
-      transaction(() async {
-        final entry =
-            await (select(ledgerEntries)..where(
-                  (row) =>
-                      row.id.equals(id) &
-                      row.userId.equals(userId) &
-                      row.deletedAt.isNull(),
-                ))
-                .getSingleOrNull();
-        if (entry == null) return;
-        await _applyLedgerToAccount(entry, reverse: true);
-        await (update(
+  Future<void> saveLedgerEntries(
+    Iterable<LedgerEntriesCompanion> values,
+  ) async {
+    final entriesToSave = values.toList();
+    await transaction(() async {
+      for (final value in entriesToSave) {
+        final old = await (select(
           ledgerEntries,
-        )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
-          LedgerEntriesCompanion(
-            deletedAt: Value(DateTime.now().toUtc()),
-            updatedAt: Value(DateTime.now().toUtc()),
-          ),
-        );
-      });
+        )..where((row) => row.id.equals(value.id.value))).getSingleOrNull();
+        if (old != null) await _applyLedgerToAccount(old, reverse: true);
+        await into(ledgerEntries).insertOnConflictUpdate(value);
+        final saved = await (select(
+          ledgerEntries,
+        )..where((row) => row.id.equals(value.id.value))).getSingle();
+        await _applyLedgerToAccount(saved);
+      }
+    });
+    for (final userId in entriesToSave.map((e) => e.userId.value).toSet()) {
+      await captureNetWorth(userId);
+    }
+  }
 
-  Future<void> deleteLedgerSeries(String recurrenceId, String userId) =>
-      transaction(() async {
-        final entries =
-            await (select(ledgerEntries)..where(
-                  (row) =>
-                      row.recurrenceId.equals(recurrenceId) &
-                      row.userId.equals(userId) &
-                      row.deletedAt.isNull(),
-                ))
-                .get();
-        for (final entry in entries) {
-          await _applyLedgerToAccount(entry, reverse: true);
-        }
-        await (update(ledgerEntries)..where(
-              (row) =>
-                  row.recurrenceId.equals(recurrenceId) &
-                  row.userId.equals(userId),
-            ))
-            .write(
-              LedgerEntriesCompanion(
-                deletedAt: Value(DateTime.now().toUtc()),
-                updatedAt: Value(DateTime.now().toUtc()),
-              ),
-            );
-      });
+  Future<void> deleteLedgerEntry(String id, String userId) async {
+    await transaction(() async {
+      final entry =
+          await (select(ledgerEntries)..where(
+                (row) =>
+                    row.id.equals(id) &
+                    row.userId.equals(userId) &
+                    row.deletedAt.isNull(),
+              ))
+              .getSingleOrNull();
+      if (entry == null) return;
+      await _applyLedgerToAccount(entry, reverse: true);
+      await (update(
+        ledgerEntries,
+      )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+        LedgerEntriesCompanion(
+          deletedAt: Value(DateTime.now().toUtc()),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+    });
+    await captureNetWorth(userId);
+  }
+
+  Future<void> deleteLedgerSeries(String recurrenceId, String userId) async {
+    await transaction(() async {
+      final entries =
+          await (select(ledgerEntries)..where(
+                (row) =>
+                    row.recurrenceId.equals(recurrenceId) &
+                    row.userId.equals(userId) &
+                    row.deletedAt.isNull(),
+              ))
+              .get();
+      for (final entry in entries) {
+        await _applyLedgerToAccount(entry, reverse: true);
+      }
+      await (update(ledgerEntries)..where(
+            (row) =>
+                row.recurrenceId.equals(recurrenceId) &
+                row.userId.equals(userId),
+          ))
+          .write(
+            LedgerEntriesCompanion(
+              deletedAt: Value(DateTime.now().toUtc()),
+              updatedAt: Value(DateTime.now().toUtc()),
+            ),
+          );
+    });
+    await captureNetWorth(userId);
+  }
 
   Future<void> _applyLedgerToAccount(
     LedgerEntry entry, {
@@ -395,7 +523,7 @@ final class AppDatabase extends _$AppDatabase {
         .write(LedgerEntriesCompanion(accountApplied: Value(!reverse)));
   }
 
-  Future<void> _applyDueLedgerEntries(String userId) => transaction(() async {
+  Future<bool> _applyDueLedgerEntries(String userId) => transaction(() async {
     final now = DateTime.now();
     final tomorrow = DateTime(now.year, now.month, now.day + 1);
     final due =
@@ -411,6 +539,7 @@ final class AppDatabase extends _$AppDatabase {
     for (final entry in due) {
       await _applyLedgerToAccount(entry);
     }
+    return due.isNotEmpty;
   });
 
   Future<Map<String, Object?>> exportUserData(String userId) async {
@@ -420,6 +549,9 @@ final class AppDatabase extends _$AppDatabase {
     )..where((r) => r.userId.equals(userId))).get();
     final investmentRows = await (select(
       investments,
+    )..where((r) => r.userId.equals(userId))).get();
+    final dividendRows = await (select(
+      dividendSchedules,
     )..where((r) => r.userId.equals(userId))).get();
     final ledgerRows = await (select(
       ledgerEntries,
@@ -433,6 +565,12 @@ final class AppDatabase extends _$AppDatabase {
     final masterRows = await (select(
       masterData,
     )..where((r) => r.userId.equals(userId))).get();
+    final snapshotRows = await (select(
+      netWorthSnapshots,
+    )..where((r) => r.userId.equals(userId))).get();
+    final preferences = await (select(
+      userPreferences,
+    )..where((r) => r.userId.equals(userId))).getSingleOrNull();
     return {
       'format': 'WealthFlow readonly export',
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
@@ -445,11 +583,256 @@ final class AppDatabase extends _$AppDatabase {
             },
       'accounts': accountRows.map((e) => e.toJson()).toList(),
       'investments': investmentRows.map((e) => e.toJson()).toList(),
+      'dividendSchedules': dividendRows.map((e) => e.toJson()).toList(),
       'ledgerEntries': ledgerRows.map((e) => e.toJson()).toList(),
       'vehicles': vehicleRows.map((e) => e.toJson()).toList(),
       'vehicleCosts': costRows.map((e) => e.toJson()).toList(),
       'masterData': masterRows.map((e) => e.toJson()).toList(),
+      'netWorthSnapshots': snapshotRows.map((e) => e.toJson()).toList(),
+      'preferences': preferences?.toJson(),
     };
+  }
+
+  Future<void> mergeUserData(String userId, Map<String, dynamic> data) async {
+    List<Map<String, dynamic>> rows(String key) =>
+        (data[key] as List<dynamic>? ?? const [])
+            .whereType<Map>()
+            .map((row) => Map<String, dynamic>.from(row))
+            .toList();
+
+    await transaction(() async {
+      for (final json in rows('accounts')) {
+        final remote = Account.fromJson(json);
+        if (remote.userId != userId) continue;
+        final local = await (select(
+          accounts,
+        )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+        if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
+          await into(
+            accounts,
+          ).insertOnConflictUpdate(remote.toCompanion(false));
+        }
+      }
+      for (final json in rows('investments')) {
+        final remote = Investment.fromJson(json);
+        if (remote.userId != userId) continue;
+        final local = await (select(
+          investments,
+        )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+        if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
+          await into(
+            investments,
+          ).insertOnConflictUpdate(remote.toCompanion(false));
+        }
+      }
+      for (final json in rows('dividendSchedules')) {
+        final remote = DividendSchedule.fromJson(json);
+        if (remote.userId != userId) continue;
+        final local = await (select(
+          dividendSchedules,
+        )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+        if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
+          await into(
+            dividendSchedules,
+          ).insertOnConflictUpdate(remote.toCompanion(false));
+        }
+      }
+      for (final json in rows('ledgerEntries')) {
+        final remote = LedgerEntry.fromJson(json);
+        if (remote.userId != userId) continue;
+        final local = await (select(
+          ledgerEntries,
+        )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+        if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
+          await into(
+            ledgerEntries,
+          ).insertOnConflictUpdate(remote.toCompanion(false));
+        }
+      }
+      for (final json in rows('masterData')) {
+        final remote = MasterDataData.fromJson(json);
+        if (remote.userId != userId) continue;
+        final local = await (select(
+          masterData,
+        )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+        final remoteChanged = remote.updatedAt ?? remote.createdAt;
+        final localChanged = local?.updatedAt ?? local?.createdAt;
+        if (local == null || remoteChanged.isAfter(localChanged!)) {
+          await into(
+            masterData,
+          ).insertOnConflictUpdate(remote.toCompanion(false));
+        }
+      }
+      for (final json in rows('vehicles')) {
+        final remote = Vehicle.fromJson(json);
+        if (remote.userId != userId) continue;
+        final local = await (select(
+          vehicles,
+        )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+        if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
+          await into(
+            vehicles,
+          ).insertOnConflictUpdate(remote.toCompanion(false));
+        }
+      }
+      for (final json in rows('vehicleCosts')) {
+        final remote = VehicleCost.fromJson(json);
+        if (remote.userId != userId) continue;
+        final local = await (select(
+          vehicleCosts,
+        )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+        if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
+          await into(
+            vehicleCosts,
+          ).insertOnConflictUpdate(remote.toCompanion(false));
+        }
+      }
+      for (final json in rows('netWorthSnapshots')) {
+        final remote = NetWorthSnapshot.fromJson(json);
+        if (remote.userId != userId) continue;
+        await into(
+          netWorthSnapshots,
+        ).insert(remote.toCompanion(false), mode: InsertMode.insertOrIgnore);
+      }
+    });
+    await _applyDueLedgerEntries(userId);
+    await captureNetWorth(userId);
+  }
+
+  Stream<List<NetWorthSnapshot>> watchNetWorthSnapshots(String userId) =>
+      (select(netWorthSnapshots)
+            ..where((row) => row.userId.equals(userId))
+            ..orderBy([(row) => OrderingTerm.asc(row.capturedAt)]))
+          .watch();
+
+  Future<void> captureNetWorth(String userId) async {
+    final accountRows =
+        await (select(accounts)..where(
+              (row) => row.userId.equals(userId) & row.deletedAt.isNull(),
+            ))
+            .get();
+    final investmentRows =
+        await (select(investments)..where(
+              (row) => row.userId.equals(userId) & row.deletedAt.isNull(),
+            ))
+            .get();
+    final accountBalance = accountRows.fold<double>(
+      0,
+      (sum, row) => sum + row.balance,
+    );
+    final portfolioValue = investmentRows.fold<double>(
+      0,
+      (sum, row) => sum + row.quantity * row.currentPrice,
+    );
+    final last =
+        await (select(netWorthSnapshots)
+              ..where((row) => row.userId.equals(userId))
+              ..orderBy([(row) => OrderingTerm.desc(row.capturedAt)])
+              ..limit(1))
+            .getSingleOrNull();
+    if (last != null &&
+        last.accountBalance == accountBalance &&
+        last.portfolioValue == portfolioValue) {
+      await persistUserFile(userId);
+      return;
+    }
+    await into(netWorthSnapshots).insert(
+      NetWorthSnapshotsCompanion.insert(
+        id: _uuid.v4(),
+        userId: userId,
+        capturedAt: DateTime.now().toUtc(),
+        accountBalance: accountBalance,
+        portfolioValue: portfolioValue,
+        totalNetWorth: accountBalance + portfolioValue,
+      ),
+    );
+    await persistUserFile(userId);
+  }
+
+  Future<bool> persistUserFile(String userId) async {
+    try {
+      final preference = await (select(
+        userPreferences,
+      )..where((row) => row.userId.equals(userId))).getSingleOrNull();
+      final path = preference?.dataFilePath ?? '';
+      if (path.isEmpty) return false;
+      final data = await exportUserData(userId);
+      final json = const JsonEncoder.withIndent('  ').convert(data);
+      return writeDataFile(json, path);
+    } catch (_) {
+      // Local database writes must never fail just because an external backup
+      // location is temporarily unavailable.
+      return false;
+    }
+  }
+
+  Future<void> seedDefaultMasterData(String userId) async {
+    const defaults = <String, List<String>>{
+      'category': [
+        'Einkaufen',
+        'Wohnen',
+        'Auto',
+        'Motorrad',
+        'Tanken',
+        'Laden',
+        'Streaming',
+        'Versicherungen',
+        'Freizeit',
+        'Urlaub',
+        'Gesundheit',
+        'Gehalt',
+        'Dividende',
+        'Sonstiges',
+      ],
+      'paymentMethod': ['Lastschrift', 'Überweisung', 'Karte', 'Bar'],
+      'country': [
+        'Deutschland',
+        'Österreich',
+        'Schweiz',
+        'Frankreich',
+        'Niederlande',
+        'Vereinigtes Königreich',
+        'USA',
+        'Kanada',
+        'Japan',
+        'China',
+        'Australien',
+      ],
+      'sector': [
+        'Technologie',
+        'Finanzen',
+        'Gesundheit',
+        'Industrie',
+        'Basiskonsumgüter',
+        'Nicht-Basiskonsumgüter',
+        'Energie',
+        'Versorger',
+        'Immobilien',
+        'Kommunikation',
+      ],
+    };
+    final now = DateTime.now().toUtc();
+    await batch((batch) {
+      for (final kind in defaults.entries) {
+        for (final value in kind.value) {
+          batch.insert(
+            masterData,
+            MasterDataCompanion.insert(
+              id: _uuid.v5(
+                Namespace.url.value,
+                '$userId:' + kind.key + ':$value',
+              ),
+              userId: userId,
+              kind: kind.key,
+              value: value,
+              createdAt: now,
+              updatedAt: Value(now),
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+        }
+      }
+    });
   }
 
   Stream<List<Vehicle>> watchVehicles(String userId) =>
@@ -458,8 +841,10 @@ final class AppDatabase extends _$AppDatabase {
             ..orderBy([(row) => OrderingTerm.asc(row.make)]))
           .watch();
 
-  Future<void> saveVehicle(VehiclesCompanion value) =>
-      into(vehicles).insertOnConflictUpdate(value);
+  Future<void> saveVehicle(VehiclesCompanion value) async {
+    await into(vehicles).insertOnConflictUpdate(value);
+    await persistUserFile(value.userId.value);
+  }
 
   Future<void> deleteVehicle(String id, String userId) async {
     final now = DateTime.now().toUtc();
@@ -488,6 +873,7 @@ final class AppDatabase extends _$AppDatabase {
             ),
           );
     });
+    await persistUserFile(userId);
   }
 
   Stream<List<VehicleCost>> watchVehicleCosts(String userId) =>
@@ -496,16 +882,18 @@ final class AppDatabase extends _$AppDatabase {
             ..orderBy([(row) => OrderingTerm.desc(row.bookingDate)]))
           .watch();
 
-  Future<void> saveVehicleCost(VehicleCostsCompanion value) =>
-      into(vehicleCosts).insertOnConflictUpdate(value);
+  Future<void> saveVehicleCost(VehicleCostsCompanion value) async {
+    await into(vehicleCosts).insertOnConflictUpdate(value);
+    await persistUserFile(value.userId.value);
+  }
 
   Future<void> saveVehicleCostWithLedger(
     VehicleCostsCompanion cost,
     LedgerEntriesCompanion ledger,
-  ) => transaction(() async {
+  ) async {
     await into(vehicleCosts).insertOnConflictUpdate(cost);
-    await into(ledgerEntries).insertOnConflictUpdate(ledger);
-  });
+    await saveLedgerEntry(ledger);
+  }
 
   Stream<UserPreference?> watchPreferences(String userId) => (select(
     userPreferences,
@@ -525,6 +913,8 @@ final class AppDatabase extends _$AppDatabase {
     )..where((row) => row.userId.equals(userId))).getSingle();
   }
 
-  Future<void> savePreferences(UserPreferencesCompanion value) =>
-      into(userPreferences).insertOnConflictUpdate(value);
+  Future<void> savePreferences(UserPreferencesCompanion value) async {
+    await into(userPreferences).insertOnConflictUpdate(value);
+    await persistUserFile(value.userId.value);
+  }
 }
