@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
@@ -126,10 +127,17 @@ class _AccountCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final color = Theme.of(context).colorScheme;
+    final entries =
+        ref.watch(ledgerEntriesProvider).valueOrNull ?? const <LedgerEntry>[];
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
-        onTap: () => showAccountEditor(context, ref, account: account),
+        onTap: () => _showAccountActivity(
+          context,
+          ref,
+          account,
+          entries.where((entry) => entry.accountId == account.id).toList(),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -160,7 +168,16 @@ class _AccountCard extends ConsumerWidget {
                   ),
                   PopupMenuButton<String>(
                     onSelected: (value) async {
-                      if (value == 'edit') {
+                      if (value == 'activity') {
+                        await _showAccountActivity(
+                          context,
+                          ref,
+                          account,
+                          entries
+                              .where((entry) => entry.accountId == account.id)
+                              .toList(),
+                        );
+                      } else if (value == 'edit') {
                         await showAccountEditor(context, ref, account: account);
                       } else if (value == 'delete' &&
                           await confirmDelete(
@@ -178,6 +195,10 @@ class _AccountCard extends ConsumerWidget {
                       }
                     },
                     itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'activity',
+                        child: Text('Buchungen anzeigen'),
+                      ),
                       PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
                       PopupMenuItem(value: 'delete', child: Text('Löschen')),
                     ],
@@ -215,6 +236,189 @@ class _AccountCard extends ConsumerWidget {
     return '${compact.substring(0, 4)} •••• •••• ${compact.substring(compact.length - 4)}';
   }
 }
+
+Future<void> _showAccountActivity(
+  BuildContext context,
+  WidgetRef ref,
+  Account account,
+  List<LedgerEntry> entries,
+) => showDialog<void>(
+  context: context,
+  builder: (context) => _AccountActivityDialog(
+    account: account,
+    entries: entries,
+    onEdit: () {
+      Navigator.pop(context);
+      showAccountEditor(context, ref, account: account);
+    },
+  ),
+);
+
+class _AccountActivityDialog extends StatefulWidget {
+  const _AccountActivityDialog({
+    required this.account,
+    required this.entries,
+    required this.onEdit,
+  });
+
+  final Account account;
+  final List<LedgerEntry> entries;
+  final VoidCallback onEdit;
+
+  @override
+  State<_AccountActivityDialog> createState() => _AccountActivityDialogState();
+}
+
+class _AccountActivityDialogState extends State<_AccountActivityDialog> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final items = widget.entries.where((entry) {
+      final text = [
+        entry.merchant,
+        entry.description,
+        entry.category,
+        entry.paymentMethod,
+      ].join(' ').toLowerCase();
+      return text.contains(_query);
+    }).toList()..sort((a, b) => b.bookingDate.compareTo(a.bookingDate));
+    return AlertDialog(
+      insetPadding: const EdgeInsets.all(16),
+      title: Row(
+        children: [
+          const Icon(Icons.account_balance_rounded),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(widget.account.label),
+                Text(
+                  money(
+                    widget.account.balance,
+                    currency: widget.account.currency,
+                  ),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Konto bearbeiten',
+            onPressed: widget.onEdit,
+            icon: const Icon(Icons.edit_outlined),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: (MediaQuery.sizeOf(context).width - 64).clamp(280, 720),
+        height: (MediaQuery.sizeOf(context).height - 220).clamp(280, 620),
+        child: Column(
+          children: [
+            TextField(
+              autofocus: false,
+              onChanged: (value) =>
+                  setState(() => _query = value.trim().toLowerCase()),
+              decoration: const InputDecoration(
+                labelText: 'Buchungen durchsuchen',
+                prefixIcon: Icon(Icons.search_rounded),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: items.isEmpty
+                  ? const Center(child: Text('Keine passenden Buchungen'))
+                  : ListView.builder(
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final entry = items[index];
+                        final previous = index == 0 ? null : items[index - 1];
+                        final showMonth =
+                            previous == null ||
+                            previous.bookingDate.year !=
+                                entry.bookingDate.year ||
+                            previous.bookingDate.month !=
+                                entry.bookingDate.month;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (showMonth)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(8, 14, 8, 6),
+                                child: Text(
+                                  _accountMonthNames[entry.bookingDate.month -
+                                          1] +
+                                      ' ' +
+                                      entry.bookingDate.year.toString(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ListTile(
+                              leading: CircleAvatar(
+                                child: Icon(
+                                  entry.isIncome
+                                      ? Icons.south_west_rounded
+                                      : Icons.north_east_rounded,
+                                ),
+                              ),
+                              title: Text(
+                                entry.merchant.isEmpty
+                                    ? entry.category
+                                    : entry.merchant,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Text(
+                                DateFormat(
+                                      'dd.MM.yyyy',
+                                    ).format(entry.bookingDate) +
+                                    ' · ' +
+                                    entry.category,
+                              ),
+                              trailing: Text(
+                                (entry.isIncome ? '+' : '−') +
+                                    money(entry.amount),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: entry.isIncome ? Colors.green : null,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Schließen'),
+        ),
+      ],
+    );
+  }
+}
+
+const _accountMonthNames = [
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
+];
 
 Future<void> showAccountEditor(
   BuildContext context,

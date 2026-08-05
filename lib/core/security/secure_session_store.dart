@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,8 +13,10 @@ final class SecureSessionStore {
           );
 
   static const _userKey = 'wealthflow.current_user_id';
+  static const _dataKeyPrefix = 'wealthflow.data_key.';
   final FlutterSecureStorage _storage;
   static String? _memoryUserId;
+  static final Map<String, List<int>> _memoryDataKeys = {};
 
   Future<String?> readUserId() async {
     try {
@@ -61,5 +66,32 @@ final class SecureSessionStore {
     } catch (_) {
       // The in-memory session has already been removed.
     }
+  }
+
+  Future<List<int>> dataKeyForUser(String userId) async {
+    final memory = _memoryDataKeys[userId];
+    if (memory != null) return memory;
+    try {
+      final encoded = await _storage.read(key: _dataKeyPrefix + userId);
+      if (encoded != null) {
+        final value = base64Decode(encoded);
+        _memoryDataKeys[userId] = value;
+        return value;
+      }
+    } catch (_) {
+      // A fresh in-memory key keeps encryption available for this session.
+    }
+    final random = Random.secure();
+    final created = List<int>.generate(32, (_) => random.nextInt(256));
+    _memoryDataKeys[userId] = created;
+    try {
+      await _storage.write(
+        key: _dataKeyPrefix + userId,
+        value: base64Encode(created),
+      );
+    } catch (_) {
+      // Never place encryption keys in the unencrypted preferences fallback.
+    }
+    return created;
   }
 }

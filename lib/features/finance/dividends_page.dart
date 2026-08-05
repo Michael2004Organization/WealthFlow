@@ -284,24 +284,10 @@ class _DividendChart extends StatelessWidget {
 double _annualDividend(
   Investment investment,
   List<DividendSchedule> schedules,
-) {
-  final exact = schedules
-      .where((row) => row.investmentId == investment.id)
-      .toList();
-  if (exact.isNotEmpty) {
-    return exact.fold<double>(
-      0,
-      (sum, row) => sum + row.amountPerShare * investment.quantity,
-    );
-  }
-  return dividendPerYearFromMonth(
-    dividendPerMonth(
-      investment.annualDividend,
-      investment.quantity,
-      investment.dividendFrequency,
-    ),
-  );
-}
+) => List.generate(
+  12,
+  (index) => _dividendForMonth(investment, schedules, index + 1),
+).fold<double>(0, (sum, value) => sum + value);
 
 double _dividendForMonth(
   Investment investment,
@@ -311,13 +297,14 @@ double _dividendForMonth(
   final exact = schedules
       .where((row) => row.investmentId == investment.id)
       .toList();
-  if (exact.isNotEmpty) {
-    return exact
-        .where((row) => row.paymentMonth == month)
-        .fold<double>(
-          0,
-          (sum, row) => sum + row.amountPerShare * investment.quantity,
-        );
+  final exactForMonth = exact
+      .where((row) => row.paymentMonth == month)
+      .toList();
+  if (exactForMonth.isNotEmpty) {
+    return exactForMonth.fold<double>(
+      0,
+      (sum, row) => sum + row.amountPerShare * investment.quantity,
+    );
   }
   final paymentMonths = switch (investment.dividendFrequency) {
     'monatlich' => List<int>.generate(12, (index) => index + 1),
@@ -572,10 +559,25 @@ Future<void> _showScheduleEditor(
   required Investment investment,
   DividendSchedule? schedule,
 }) async {
+  final existing =
+      (ref.read(dividendSchedulesProvider).valueOrNull ??
+              const <DividendSchedule>[])
+          .where((row) => row.investmentId == investment.id)
+          .toList();
   final amount = TextEditingController(
-    text: schedule?.amountPerShare.toString() ?? '',
+    text:
+        schedule?.amountPerShare.toString() ??
+        (investment.annualDividend > 0
+            ? investment.annualDividend.toString()
+            : ''),
   );
-  var month = schedule?.paymentMonth ?? DateTime.now().month;
+  var startMonth =
+      schedule?.paymentMonth ?? existing.firstOrNull?.paymentMonth ?? 1;
+  var months = schedule != null
+      ? <int>{schedule.paymentMonth}
+      : existing.isNotEmpty
+      ? existing.map((row) => row.paymentMonth).toSet()
+      : _paymentMonthsFromStart(investment.dividendFrequency, startMonth);
   var exDate = schedule?.exDate;
   final key = GlobalKey<FormState>();
   final result = await showDialog<bool>(
@@ -584,65 +586,126 @@ Future<void> _showScheduleEditor(
       builder: (context, setDialogState) => AlertDialog(
         title: Text('Auszahlung für ' + investment.name),
         content: SizedBox(
-          width: 460,
+          width: (MediaQuery.sizeOf(context).width - 64).clamp(280, 560),
           child: Form(
             key: key,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<int>(
-                  initialValue: month,
-                  decoration: const InputDecoration(labelText: 'Zahlungsmonat'),
-                  items: List.generate(
-                    12,
-                    (index) => DropdownMenuItem(
-                      value: index + 1,
-                      child: Text(_monthNames[index]),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (schedule == null) ...[
+                    DropdownButtonFormField<int>(
+                      initialValue: startMonth,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Startmonat des Rhythmus',
+                      ),
+                      items: List.generate(
+                        12,
+                        (index) => DropdownMenuItem(
+                          value: index + 1,
+                          child: Text(_monthNames[index]),
+                        ),
+                      ),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setDialogState(() {
+                          startMonth = value;
+                          months = _paymentMonthsFromStart(
+                            investment.dividendFrequency,
+                            startMonth,
+                          );
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Text(
+                    schedule == null
+                        ? 'Auszahlungsmonate'
+                        : 'Abweichende Auszahlung',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  onChanged: (value) => month = value ?? month,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: amount,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (var month = 1; month <= 12; month++)
+                        FilterChip(
+                          label: Text(_monthNames[month - 1].substring(0, 3)),
+                          selected: months.contains(month),
+                          onSelected: schedule != null
+                              ? null
+                              : (selected) => setDialogState(() {
+                                  if (selected) {
+                                    months.add(month);
+                                  } else {
+                                    months.remove(month);
+                                  }
+                                }),
+                        ),
+                    ],
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Dividende je Aktie',
-                    suffixText: '€',
+                  if (months.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Wähle mindestens einen Auszahlungsmonat.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: amount,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Dividende je Aktie und Auszahlung',
+                      suffixText: '€',
+                    ),
+                    validator: (value) {
+                      final parsed = double.tryParse(
+                        (value ?? '').replaceAll(',', '.'),
+                      );
+                      return parsed == null || parsed <= 0
+                          ? 'Bitte einen positiven Betrag eingeben.'
+                          : null;
+                    },
                   ),
-                  validator: (value) {
-                    final parsed = double.tryParse(
-                      (value ?? '').replaceAll(',', '.'),
-                    );
-                    return parsed == null || parsed <= 0
-                        ? 'Bitte einen positiven Betrag eingeben.'
-                        : null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    final selected = await showDatePicker(
-                      context: context,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                      initialDate: exDate ?? DateTime.now(),
-                    );
-                    if (selected != null) {
-                      setDialogState(() => exDate = selected);
-                    }
-                  },
-                  icon: const Icon(Icons.event_rounded),
-                  label: Text(
-                    exDate == null
-                        ? 'Ex-Datum auswählen'
-                        : 'Ex-Datum ' +
-                              DateFormat('dd.MM.yyyy').format(exDate!),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: months.length == 1
+                        ? () async {
+                            final selected = await showDatePicker(
+                              context: context,
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                              initialDate: exDate ?? DateTime.now(),
+                            );
+                            if (selected != null) {
+                              setDialogState(() => exDate = selected);
+                            }
+                          }
+                        : null,
+                    icon: const Icon(Icons.event_rounded),
+                    label: Text(
+                      months.length > 1
+                          ? 'Ex-Datum bei Bedarf je Monat bearbeiten'
+                          : exDate == null
+                          ? 'Ex-Datum auswählen'
+                          : 'Ex-Datum ' +
+                                DateFormat('dd.MM.yyyy').format(exDate!),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -653,7 +716,8 @@ Future<void> _showScheduleEditor(
           ),
           FilledButton(
             onPressed: () {
-              if (key.currentState?.validate() ?? false) {
+              if (months.isNotEmpty &&
+                  (key.currentState?.validate() ?? false)) {
                 Navigator.pop(dialogContext, true);
               }
             },
@@ -667,23 +731,48 @@ Future<void> _showScheduleEditor(
     final userId = ref.read(currentUserIdProvider);
     if (userId != null) {
       final now = DateTime.now().toUtc();
-      await ref
-          .read(databaseProvider)
-          .saveDividendSchedule(
-            DividendSchedulesCompanion.insert(
-              id: schedule?.id ?? const Uuid().v4(),
-              userId: userId,
-              investmentId: investment.id,
-              paymentMonth: month,
-              amountPerShare: double.parse(amount.text.replaceAll(',', '.')),
-              exDate: Value(exDate),
-              createdAt: schedule?.createdAt ?? now,
-              updatedAt: now,
-            ),
-          );
+      final database = ref.read(databaseProvider);
+      if (schedule == null) {
+        for (final row in existing.where(
+          (row) => !months.contains(row.paymentMonth),
+        )) {
+          await database.deleteDividendSchedule(row.id, userId);
+        }
+      }
+      for (final month in months) {
+        final old = existing
+            .where((row) => row.paymentMonth == month)
+            .firstOrNull;
+        await database.saveDividendSchedule(
+          DividendSchedulesCompanion.insert(
+            id: old?.id ?? const Uuid().v4(),
+            userId: userId,
+            investmentId: investment.id,
+            paymentMonth: month,
+            amountPerShare: double.parse(amount.text.replaceAll(',', '.')),
+            exDate: Value(months.length == 1 ? exDate : old?.exDate),
+            createdAt: old?.createdAt ?? now,
+            updatedAt: now,
+          ),
+        );
+      }
     }
   }
   amount.dispose();
+}
+
+Set<int> _paymentMonthsFromStart(String frequency, int startMonth) {
+  final interval = switch (frequency) {
+    'monatlich' => 1,
+    'vierteljährlich' => 3,
+    'halbjährlich' => 6,
+    _ => 12,
+  };
+  final count = 12 ~/ interval;
+  return {
+    for (var index = 0; index < count; index++)
+      ((startMonth - 1 + index * interval) % 12) + 1,
+  };
 }
 
 Future<void> _deleteSchedule(

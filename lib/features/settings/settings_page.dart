@@ -123,15 +123,15 @@ class SettingsPage extends ConsumerWidget {
                     leading: Icon(Icons.shield_rounded),
                     title: Text('Sichere lokale Speicherung'),
                     subtitle: Text(
-                      'Finanzdaten liegen lokal in SQLite beziehungsweise im Web-Speicher. Die Sitzung nutzt den Plattform-Schlüsselspeicher mit lokalem Cache als Fallback.',
+                      'Die App-Datenbank liegt im privaten App-Speicher. Die optionale .wflow-Datei wird zusätzlich mit AES-256-GCM verschlüsselt; Sitzung und Dateischlüssel nutzen den Plattform-Schlüsselspeicher.',
                     ),
                   ),
                   ListTile(
                     leading: const Icon(Icons.folder_open_rounded),
-                    title: const Text('Datendatei festlegen'),
+                    title: const Text('Ordner für Datendatei festlegen'),
                     subtitle: Text(
                       preference.dataFilePath.isEmpty
-                          ? 'Noch kein externer Speicherort ausgewählt'
+                          ? 'Noch kein Ordner ausgewählt'
                           : preference.dataFilePath,
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded),
@@ -141,7 +141,7 @@ class SettingsPage extends ConsumerWidget {
                     leading: const Icon(Icons.merge_type_rounded),
                     title: const Text('Datendatei zusammenführen'),
                     subtitle: const Text(
-                      'Neuere Datensätze übernehmen, ohne lokale Daten zu löschen',
+                      'Verschlüsselte .wflow- oder ältere JSON-Datei importieren',
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _importDataFile(context, ref, preference),
@@ -305,7 +305,7 @@ class SettingsPage extends ConsumerWidget {
     WidgetRef ref,
     UserPreference preference,
   ) async {
-    final path = await chooseDataFilePath('wealthflow-data.json');
+    final path = await chooseDataFilePath('wealthflow-data.wflow');
     if (path == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -327,7 +327,7 @@ class SettingsPage extends ConsumerWidget {
         SnackBar(
           content: Text(
             saved
-                ? 'Datendatei gespeichert und automatische Aktualisierung aktiviert.'
+                ? 'Verschlüsselte Datendatei im gewählten Ordner gespeichert.'
                 : 'Der Speicherort konnte nicht beschrieben werden.',
           ),
         ),
@@ -343,11 +343,12 @@ class SettingsPage extends ConsumerWidget {
     try {
       final content = await chooseDataImport();
       if (content == null) return;
-      final decoded = jsonDecode(content);
-      if (decoded is! Map) throw const FormatException();
+      final decoded = await ref
+          .read(databaseProvider)
+          .decodeUserDataFile(preference.userId, content);
       await ref
           .read(databaseProvider)
-          .mergeUserData(preference.userId, Map<String, dynamic>.from(decoded));
+          .mergeUserData(preference.userId, decoded);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

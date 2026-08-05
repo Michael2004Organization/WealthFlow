@@ -42,6 +42,15 @@ final investmentsProvider = StreamProvider<List<Investment>>((ref) {
       : ref.watch(databaseProvider).watchInvestments(userId);
 });
 
+final investmentPurchasesProvider = StreamProvider<List<InvestmentPurchase>>((
+  ref,
+) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const [])
+      : ref.watch(databaseProvider).watchInvestmentPurchases(userId);
+});
+
 final dividendSchedulesProvider = StreamProvider<List<DividendSchedule>>((ref) {
   final userId = ref.watch(currentUserIdProvider);
   return userId == null

@@ -5,6 +5,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../storage/data_export.dart';
+import '../security/data_cipher.dart';
 
 part 'app_database.g.dart';
 
@@ -68,6 +69,20 @@ class Investments extends Table {
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class InvestmentPurchases extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text().references(Users, #id)();
+  TextColumn get investmentId => text().references(Investments, #id)();
+  DateTimeColumn get purchaseDate => dateTime()();
+  RealColumn get purchasePrice => real()();
+  RealColumn get quantity => real()();
+  RealColumn get fees => real().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -213,6 +228,7 @@ class NetWorthSnapshots extends Table {
     Users,
     Accounts,
     Investments,
+    InvestmentPurchases,
     DividendSchedules,
     LedgerEntries,
     MasterData,
@@ -224,6 +240,7 @@ class NetWorthSnapshots extends Table {
 )
 final class AppDatabase extends _$AppDatabase {
   static const _uuid = Uuid();
+  final Map<String, List<int>> _dataFileKeys = {};
   AppDatabase()
     : super(
         driftDatabase(
@@ -238,8 +255,27 @@ final class AppDatabase extends _$AppDatabase {
 
   AppDatabase.forTesting(super.executor);
 
+  void setDataFileKey(String userId, List<int> key) {
+    _dataFileKeys[userId] = List<int>.unmodifiable(key);
+  }
+
+  void clearDataFileKey(String userId) => _dataFileKeys.remove(userId);
+
+  Future<Map<String, dynamic>> decodeUserDataFile(
+    String userId,
+    String content,
+  ) async {
+    final key = _dataFileKeys[userId];
+    final clear = key == null
+        ? content
+        : await DataCipher.decrypt(content, key);
+    final decoded = jsonDecode(clear);
+    if (decoded is! Map) throw const FormatException('Ungültige Datendatei');
+    return Map<String, dynamic>.from(decoded);
+  }
+
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -279,6 +315,15 @@ final class AppDatabase extends _$AppDatabase {
         await migrator.addColumn(userPreferences, userPreferences.lastSyncAt);
         await migrator.createTable(dividendSchedules);
         await migrator.createTable(netWorthSnapshots);
+      }
+      if (from < 6) {
+        await migrator.createTable(investmentPurchases);
+        await customStatement(
+          'INSERT INTO investment_purchases '
+          '(id, user_id, investment_id, purchase_date, purchase_price, quantity, fees, created_at) '
+          "SELECT id || '-initial', user_id, id, purchase_date, purchase_price, quantity, fees, created_at "
+          'FROM investments WHERE deleted_at IS NULL',
+        );
       }
     },
   );
@@ -333,6 +378,19 @@ final class AppDatabase extends _$AppDatabase {
             ..where((row) => row.userId.equals(userId) & row.deletedAt.isNull())
             ..orderBy([(row) => OrderingTerm.asc(row.name)]))
           .watch();
+
+  Stream<List<InvestmentPurchase>> watchInvestmentPurchases(String userId) =>
+      (select(investmentPurchases)
+            ..where((row) => row.userId.equals(userId))
+            ..orderBy([(row) => OrderingTerm.desc(row.purchaseDate)]))
+          .watch();
+
+  Future<void> saveInvestmentPurchase(
+    InvestmentPurchasesCompanion value,
+  ) async {
+    await into(investmentPurchases).insertOnConflictUpdate(value);
+    await persistUserFile(value.userId.value);
+  }
 
   Future<void> saveInvestment(InvestmentsCompanion value) async {
     await into(investments).insertOnConflictUpdate(value);
@@ -458,6 +516,36 @@ final class AppDatabase extends _$AppDatabase {
     await captureNetWorth(userId);
   }
 
+  Future<void> deleteLinkedLedgerEntries(String sourceId, String userId) async {
+    if (sourceId.isEmpty) return;
+    await transaction(() async {
+      final entries =
+          await (select(ledgerEntries)..where(
+                (row) =>
+                    row.sourceId.equals(sourceId) &
+                    row.userId.equals(userId) &
+                    row.deletedAt.isNull(),
+              ))
+              .get();
+      for (final entry in entries) {
+        await _applyLedgerToAccount(entry, reverse: true);
+      }
+      await (update(ledgerEntries)..where(
+            (row) =>
+                row.sourceId.equals(sourceId) &
+                row.userId.equals(userId) &
+                row.deletedAt.isNull(),
+          ))
+          .write(
+            LedgerEntriesCompanion(
+              deletedAt: Value(DateTime.now().toUtc()),
+              updatedAt: Value(DateTime.now().toUtc()),
+            ),
+          );
+    });
+    await captureNetWorth(userId);
+  }
+
   Future<void> deleteLedgerSeries(String recurrenceId, String userId) async {
     await transaction(() async {
       final entries =
@@ -550,6 +638,9 @@ final class AppDatabase extends _$AppDatabase {
     final investmentRows = await (select(
       investments,
     )..where((r) => r.userId.equals(userId))).get();
+    final purchaseRows = await (select(
+      investmentPurchases,
+    )..where((r) => r.userId.equals(userId))).get();
     final dividendRows = await (select(
       dividendSchedules,
     )..where((r) => r.userId.equals(userId))).get();
@@ -583,6 +674,7 @@ final class AppDatabase extends _$AppDatabase {
             },
       'accounts': accountRows.map((e) => e.toJson()).toList(),
       'investments': investmentRows.map((e) => e.toJson()).toList(),
+      'investmentPurchases': purchaseRows.map((e) => e.toJson()).toList(),
       'dividendSchedules': dividendRows.map((e) => e.toJson()).toList(),
       'ledgerEntries': ledgerRows.map((e) => e.toJson()).toList(),
       'vehicles': vehicleRows.map((e) => e.toJson()).toList(),
@@ -624,6 +716,13 @@ final class AppDatabase extends _$AppDatabase {
             investments,
           ).insertOnConflictUpdate(remote.toCompanion(false));
         }
+      }
+      for (final json in rows('investmentPurchases')) {
+        final remote = InvestmentPurchase.fromJson(json);
+        if (remote.userId != userId) continue;
+        await into(
+          investmentPurchases,
+        ).insertOnConflictUpdate(remote.toCompanion(false));
       }
       for (final json in rows('dividendSchedules')) {
         final remote = DividendSchedule.fromJson(json);
@@ -758,7 +857,10 @@ final class AppDatabase extends _$AppDatabase {
       if (path.isEmpty) return false;
       final data = await exportUserData(userId);
       final json = const JsonEncoder.withIndent('  ').convert(data);
-      return writeDataFile(json, path);
+      final key = _dataFileKeys[userId];
+      if (key == null) return false;
+      final encrypted = await DataCipher.encrypt(json, key);
+      return writeDataFile(encrypted, path);
     } catch (_) {
       // Local database writes must never fail just because an external backup
       // location is temporarily unavailable.

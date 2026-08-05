@@ -31,4 +31,72 @@ flutter test
 flutter build web
 ```
 
+## Release-Builds
+
+Vor dem ersten Build beziehungsweise nach Änderungen an Abhängigkeiten:
+
+```bash
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+```
+
+### Android
+
+Eine universelle APK:
+
+```bash
+flutter build apk --release
+```
+
+Kleinere, getrennte APKs je Prozessorarchitektur:
+
+```bash
+flutter build apk --split-per-abi
+```
+
+Die Ergebnisse liegen anschließend unter `build/app/outputs/flutter-apk/`.
+
+### Windows
+
+Falls die Windows-Plattformdateien in einer Kopie des Projekts fehlen:
+
+```bash
+flutter create --platforms=windows .
+```
+
+Release erstellen:
+
+```bash
+flutter build windows --release
+```
+
+Das Programm liegt anschließend unter `build/windows/x64/runner/Release/`.
+
+### Web
+
+Falls die Web-Plattformdateien in einer Kopie des Projekts fehlen:
+
+```bash
+flutter create --platforms=web .
+```
+
+Release erstellen:
+
+```bash
+flutter build web --release
+```
+
+Die auszuliefernden Dateien liegen anschließend unter `build/web/`. Für die
+Web-Version ist ein HTTPS-Webserver erforderlich; öffne `index.html` nicht
+direkt als lokale Datei.
+
+## Datenschutz und Datendatei
+
+Die Arbeitsdaten bleiben lokal. In den Einstellungen kann ein Ordner gewählt
+werden, in dem WealthFlow automatisch `wealthflow-data.wflow` pflegt. Diese
+Datei ist mit AES-256-GCM verschlüsselt; der Schlüssel wird im
+Plattform-Schlüsselspeicher abgelegt und nicht in unverschlüsselten
+Einstellungen gespeichert. Nach der Anmeldung können die eigenen Daten
+weiterhin vollständig lesbar angezeigt oder bewusst als JSON exportiert werden.
+
 Die technischen Konzepte und Diagramme stehen in [`docs/architecture.md`](docs/architecture.md).

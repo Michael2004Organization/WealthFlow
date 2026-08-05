@@ -4,19 +4,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/finance/budget_period.dart';
-import '../../core/finance/dividend_math.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
-class DashboardPage extends ConsumerWidget {
+class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends ConsumerState<DashboardPage> {
+  late DateTime _selectedMonth = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+  );
+
+  @override
+  Widget build(BuildContext context) {
     final accounts =
         ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
     final investments =
         ref.watch(investmentsProvider).valueOrNull ?? const <Investment>[];
+    final schedules =
+        ref.watch(dividendSchedulesProvider).valueOrNull ??
+        const <DividendSchedule>[];
     final entries =
         ref.watch(ledgerEntriesProvider).valueOrNull ?? const <LedgerEntry>[];
     final snapshots =
@@ -35,10 +47,12 @@ class DashboardPage extends ConsumerWidget {
       0,
       (sum, item) => sum + item.quantity * item.purchasePrice + item.fees,
     );
-    final now = DateTime.now();
     final thisMonth = entries.where((entry) {
       final period = budgetMonthOf(entry.bookingDate, entry.budgetMonth);
-      return period.year == now.year && period.month == now.month;
+      return period.year == _selectedMonth.year &&
+          period.month == _selectedMonth.month &&
+          entry.sourceType != 'transfer' &&
+          entry.sourceType != 'saving';
     });
     final income = thisMonth
         .where((entry) => entry.isIncome)
@@ -46,16 +60,16 @@ class DashboardPage extends ConsumerWidget {
     final expenses = thisMonth
         .where((entry) => !entry.isIncome)
         .fold<double>(0, (sum, entry) => sum + entry.amount);
-    final monthlyDividend = investments.fold<double>(
+    final yearlyDividend = investments.fold<double>(
       0,
       (sum, item) =>
           sum +
-          dividendPerMonth(
-            item.annualDividend,
-            item.quantity,
-            item.dividendFrequency,
-          ),
+          List.generate(
+            12,
+            (index) => _dashboardDividendForMonth(item, schedules, index + 1),
+          ).fold<double>(0, (total, value) => total + value),
     );
+    final monthlyDividend = yearlyDividend / 12;
     final colors = Theme.of(context).colorScheme;
 
     return SingleChildScrollView(
@@ -67,8 +81,54 @@ class DashboardPage extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               PageHeader(
-                title: 'Hallo, ${user?.displayName.split(' ').first ?? 'du'}',
-                subtitle: 'Dein finanzieller Überblick für heute.',
+                title: 'Hallo, ' + (user?.displayName.split(' ').first ?? 'du'),
+                subtitle:
+                    'Finanzieller Überblick für ' +
+                    _dashboardMonthLabel(_selectedMonth) +
+                    '.',
+                action: Card(
+                  margin: EdgeInsets.zero,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Vorheriger Monat',
+                        onPressed: () => setState(
+                          () => _selectedMonth = DateTime(
+                            _selectedMonth.year,
+                            _selectedMonth.month - 1,
+                          ),
+                        ),
+                        icon: const Icon(Icons.chevron_left_rounded),
+                      ),
+                      Text(
+                        _dashboardMonthLabel(_selectedMonth),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      IconButton(
+                        tooltip: 'Nächster Monat',
+                        onPressed: () => setState(
+                          () => _selectedMonth = DateTime(
+                            _selectedMonth.year,
+                            _selectedMonth.month + 1,
+                          ),
+                        ),
+                        icon: const Icon(Icons.chevron_right_rounded),
+                      ),
+                      IconButton(
+                        tooltip: 'Aktueller Monat',
+                        onPressed: () {
+                          final now = DateTime.now();
+                          setState(
+                            () =>
+                                _selectedMonth = DateTime(now.year, now.month),
+                          );
+                        },
+                        icon: const Icon(Icons.today_rounded),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               LayoutBuilder(
                 builder: (context, constraints) {
@@ -120,7 +180,7 @@ class DashboardPage extends ConsumerWidget {
                     ),
                     MetricCard(
                       title: 'Dividenden p. a.',
-                      value: money(dividendPerYearFromMonth(monthlyDividend)),
+                      value: money(yearlyDividend),
                       caption: '${money(monthlyDividend)} pro Monat',
                       icon: Icons.payments_rounded,
                       color: Colors.green,
@@ -149,7 +209,7 @@ class DashboardPage extends ConsumerWidget {
               const SizedBox(height: 16),
               _NetWorthChart(snapshots: snapshots),
               const SizedBox(height: 16),
-              _MonthlyChart(entries: entries),
+              _MonthlyChart(entries: entries, selectedMonth: _selectedMonth),
             ],
           ),
         ),
@@ -158,20 +218,68 @@ class DashboardPage extends ConsumerWidget {
   }
 }
 
+double _dashboardDividendForMonth(
+  Investment investment,
+  List<DividendSchedule> schedules,
+  int month,
+) {
+  final exact = schedules.where(
+    (row) => row.investmentId == investment.id && row.paymentMonth == month,
+  );
+  if (exact.isNotEmpty) {
+    return exact.fold<double>(
+      0,
+      (sum, row) => sum + row.amountPerShare * investment.quantity,
+    );
+  }
+  final paymentMonths = switch (investment.dividendFrequency) {
+    'monatlich' => List<int>.generate(12, (index) => index + 1),
+    'vierteljährlich' => const [3, 6, 9, 12],
+    'halbjährlich' => const [6, 12],
+    _ => const [12],
+  };
+  return paymentMonths.contains(month)
+      ? investment.annualDividend * investment.quantity
+      : 0;
+}
+
+String _dashboardMonthLabel(DateTime date) =>
+    _dashboardMonths[date.month - 1] + ' ' + date.year.toString();
+
+const _dashboardMonths = [
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
+];
+
 class _MonthlyChart extends StatelessWidget {
-  const _MonthlyChart({required this.entries});
+  const _MonthlyChart({required this.entries, required this.selectedMonth});
   final List<LedgerEntry> entries;
+  final DateTime selectedMonth;
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
     final totals = List<double>.filled(6, 0);
     for (var index = 0; index < 6; index++) {
-      final date = DateTime(now.year, now.month - (5 - index));
+      final date = DateTime(
+        selectedMonth.year,
+        selectedMonth.month - (5 - index),
+      );
       totals[index] = entries
           .where((entry) {
             final period = budgetMonthOf(entry.bookingDate, entry.budgetMonth);
             return !entry.isIncome &&
+                entry.sourceType != 'transfer' &&
+                entry.sourceType != 'saving' &&
                 period.year == date.year &&
                 period.month == date.month;
           })
@@ -231,8 +339,8 @@ class _MonthlyChart extends StatelessWidget {
                         showTitles: true,
                         getTitlesWidget: (value, meta) {
                           final date = DateTime(
-                            now.year,
-                            now.month - (5 - value.toInt()),
+                            selectedMonth.year,
+                            selectedMonth.month - (5 - value.toInt()),
                           );
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),

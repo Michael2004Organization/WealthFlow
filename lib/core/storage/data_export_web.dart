@@ -19,7 +19,7 @@ Future<bool> writeDataFile(String json, String path) async => false;
 
 Future<String?> chooseDataImport() async {
   final input = html.FileUploadInputElement()
-    ..accept = '.json,application/json';
+    ..accept = '.json,.wflow,application/json,application/octet-stream';
   final completer = Completer<String?>();
   input.onChange.first.then((_) {
     final file = input.files?.firstOrNull;

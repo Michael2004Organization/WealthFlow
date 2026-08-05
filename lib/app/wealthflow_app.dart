@@ -36,6 +36,42 @@ class _AppLoading extends StatelessWidget {
   const _AppLoading({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: CircularProgressIndicator()));
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 340),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  size: 38,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'WealthFlow',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text('Sichere lokale Daten werden geladen …'),
+              const SizedBox(height: 20),
+              const LinearProgressIndicator(),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }

@@ -260,7 +260,10 @@ class _CashflowChart extends StatelessWidget {
       final date = DateTime(now.year, now.month - 5 + index);
       for (final entry in entries.where((e) {
         final period = budgetMonthOf(e.bookingDate, e.budgetMonth);
-        return period.year == date.year && period.month == date.month;
+        return period.year == date.year &&
+            period.month == date.month &&
+            e.sourceType != 'transfer' &&
+            e.sourceType != 'saving';
       })) {
         (entry.isIncome ? income : expense)[index] += entry.amount;
       }

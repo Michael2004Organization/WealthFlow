@@ -56,32 +56,46 @@ class _CompoundCalculatorState extends ConsumerState<_CompoundCalculator> {
   final _rate = TextEditingController(text: '7');
   final _years = TextEditingController(text: '20');
   bool _usedPortfolio = false;
+  bool _advanced = false;
+  final Set<String> _selectedInvestments = {};
+  final Map<String, TextEditingController> _assetSavings = {};
+  final Map<String, TextEditingController> _assetRates = {};
   @override
   void dispose() {
     _start.dispose();
     _monthly.dispose();
     _rate.dispose();
     _years.dispose();
+    for (final controller in [..._assetSavings.values, ..._assetRates.values]) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final portfolio =
-        ref
-            .watch(investmentsProvider)
-            .valueOrNull
-            ?.fold<double>(
-              0,
-              (sum, item) => sum + item.quantity * item.currentPrice,
-            ) ??
-        0;
-    final start = _value(_start.text);
-    final monthly = _value(_monthly.text);
+    final investments =
+        ref.watch(investmentsProvider).valueOrNull ?? const <Investment>[];
+    final portfolio = investments.fold<double>(
+      0,
+      (sum, item) => sum + item.quantity * item.currentPrice,
+    );
+    final start = _advanced ? 0.0 : _value(_start.text);
+    final selected = investments
+        .where((item) => _selectedInvestments.contains(item.id))
+        .toList();
+    final monthly = _advanced
+        ? selected.fold<double>(
+            0,
+            (sum, item) => sum + _value(_savingFor(item).text),
+          )
+        : _value(_monthly.text);
     final rate = _value(_rate.text) / 100 / 12;
     final years = _value(_years.text).round().clamp(1, 80);
     final months = years * 12;
-    final end = rate == 0
+    final end = _advanced
+        ? _advancedValue(selected, months)
+        : rate == 0
         ? start + monthly * months
         : start * math.pow(1 + rate, months) +
               monthly * ((math.pow(1 + rate, months) - 1) / rate);
@@ -90,7 +104,9 @@ class _CompoundCalculatorState extends ConsumerState<_CompoundCalculator> {
     final paidSpots = <FlSpot>[];
     for (var year = 0; year <= years; year++) {
       final m = year * 12;
-      final value = rate == 0
+      final value = _advanced
+          ? _advancedValue(selected, m)
+          : rate == 0
           ? start + monthly * m
           : start * math.pow(1 + rate, m) +
                 monthly * ((math.pow(1 + rate, m) - 1) / rate);
@@ -102,41 +118,147 @@ class _CompoundCalculatorState extends ConsumerState<_CompoundCalculator> {
       subtitle: 'Berechne, wie Sparrate und Rendite dein Vermögen entwickeln.',
       input: Column(
         children: [
-          _NumberField(
-            controller: _start,
-            label: 'Startkapital',
-            suffix: '€',
-            onChanged: (_) => setState(() {}),
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(
+                value: false,
+                icon: Icon(Icons.calculate_outlined),
+                label: Text('Einfach'),
+              ),
+              ButtonSegment(
+                value: true,
+                icon: Icon(Icons.tune_rounded),
+                label: Text('Erweitert'),
+              ),
+            ],
+            selected: {_advanced},
+            onSelectionChanged: (value) =>
+                setState(() => _advanced = value.first),
           ),
-          if (portfolio > 0)
-            TextButton.icon(
-              onPressed: () {
-                setState(() {
-                  _start.text = portfolio.toStringAsFixed(2);
-                  _usedPortfolio = true;
-                });
-              },
-              icon: const Icon(Icons.auto_awesome_rounded),
-              label: Text(
-                _usedPortfolio
-                    ? 'Aktueller Depotwert übernommen'
-                    : 'Aktuellen Depotwert übernehmen',
+          const SizedBox(height: 16),
+          if (!_advanced) ...[
+            _NumberField(
+              controller: _start,
+              label: 'Startkapital',
+              suffix: '€',
+              onChanged: (_) => setState(() {}),
+            ),
+            if (portfolio > 0)
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _start.text = portfolio.toStringAsFixed(2);
+                    _usedPortfolio = true;
+                  });
+                },
+                icon: const Icon(Icons.auto_awesome_rounded),
+                label: Text(
+                  _usedPortfolio
+                      ? 'Aktueller Depotwert übernommen'
+                      : 'Aktuellen Depotwert übernehmen',
+                ),
+              ),
+            const SizedBox(height: 12),
+            _NumberField(
+              controller: _monthly,
+              label: 'Monatliche Sparrate',
+              suffix: '€',
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            _NumberField(
+              controller: _rate,
+              label: 'Rendite p. a.',
+              suffix: '%',
+              onChanged: (_) => setState(() {}),
+            ),
+          ] else ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Wähle Positionen und plane jede Sparrate einzeln',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
               ),
             ),
-          const SizedBox(height: 12),
-          _NumberField(
-            controller: _monthly,
-            label: 'Monatliche Sparrate',
-            suffix: '€',
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 12),
-          _NumberField(
-            controller: _rate,
-            label: 'Rendite p. a.',
-            suffix: '%',
-            onChanged: (_) => setState(() {}),
-          ),
+            const SizedBox(height: 8),
+            if (investments.isEmpty)
+              const Text('Lege zuerst eine Position im Portfolio an.')
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final item in investments)
+                    FilterChip(
+                      label: Text(
+                        item.symbol.isEmpty ? item.name : item.symbol,
+                      ),
+                      selected: _selectedInvestments.contains(item.id),
+                      onSelected: (value) => setState(() {
+                        if (value) {
+                          _selectedInvestments.add(item.id);
+                        } else {
+                          _selectedInvestments.remove(item.id);
+                        }
+                      }),
+                    ),
+                ],
+              ),
+            const SizedBox(height: 12),
+            for (final item in selected) ...[
+              Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        item.name,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 10),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final fields = [
+                            _NumberField(
+                              controller: _savingFor(item),
+                              label: 'Sparrate',
+                              suffix: '€/Monat',
+                              onChanged: (_) => setState(() {}),
+                            ),
+                            _NumberField(
+                              controller: _rateFor(item),
+                              label: 'Rendite p. a.',
+                              suffix: '%',
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ];
+                          return constraints.maxWidth < 420
+                              ? Column(
+                                  children: [
+                                    fields.first,
+                                    const SizedBox(height: 10),
+                                    fields.last,
+                                  ],
+                                )
+                              : Row(
+                                  children: [
+                                    Expanded(child: fields.first),
+                                    const SizedBox(width: 10),
+                                    Expanded(child: fields.last),
+                                  ],
+                                );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
           const SizedBox(height: 12),
           _NumberField(
             controller: _years,
@@ -238,6 +360,22 @@ class _CompoundCalculatorState extends ConsumerState<_CompoundCalculator> {
       ),
     );
   }
+
+  TextEditingController _savingFor(Investment item) => _assetSavings
+      .putIfAbsent(item.id, () => TextEditingController(text: '100'));
+
+  TextEditingController _rateFor(Investment item) =>
+      _assetRates.putIfAbsent(item.id, () => TextEditingController(text: '7'));
+
+  double _advancedValue(List<Investment> items, int months) =>
+      items.fold<double>(0, (sum, item) {
+        final monthly = _value(_savingFor(item).text);
+        final rate = _value(_rateFor(item).text) / 100 / 12;
+        final value = rate == 0
+            ? monthly * months
+            : monthly * ((math.pow(1 + rate, months) - 1) / rate);
+        return sum + value;
+      });
 }
 
 class _WithdrawalCalculator extends StatefulWidget {
@@ -402,8 +540,9 @@ class _FuelCalculatorState extends State<_FuelCalculator> {
     final costA = liters * _value(_price.text);
     final costB = liters * _value(_priceB.text);
     final difference = (costA - costB).abs();
-    final fixedTankA = 50 * _value(_price.text);
-    final fixedTankB = 50 * _value(_priceB.text);
+    final annualDifference = _mode == 'trip'
+        ? difference * _value(_trips.text) * 52
+        : difference;
     final cheaper = costA == costB
         ? 'Beide Preise sind gleich'
         : costA < costB
@@ -471,64 +610,128 @@ class _FuelCalculatorState extends State<_FuelCalculator> {
       ),
       result: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             cheaper,
+            textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
               color: Theme.of(context).colorScheme.primary,
             ),
           ),
           const SizedBox(height: 20),
-          _Result(label: 'Kosten Preis A', value: money(costA)),
-          const SizedBox(height: 16),
-          _Result(label: 'Kosten Preis B', value: money(costB)),
-          const SizedBox(height: 16),
-          _Result(
-            label: _mode == 'trip' ? 'Ersparnis pro Jahr' : 'Ersparnis',
-            value: money(
-              _mode == 'trip'
-                  ? difference * _value(_trips.text) * 52
-                  : difference,
-            ),
-            color: Colors.orange,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cards = [
+                _FuelPriceCard(
+                  label: 'PREIS A',
+                  fuelPrice: _value(_price.text),
+                  cost: costA,
+                  color: Colors.indigo,
+                ),
+                _FuelPriceCard(
+                  label: 'PREIS B',
+                  fuelPrice: _value(_priceB.text),
+                  cost: costB,
+                  color: Colors.teal,
+                ),
+              ];
+              return constraints.maxWidth < 520
+                  ? Column(
+                      children: [
+                        cards.first,
+                        const SizedBox(height: 12),
+                        cards.last,
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: cards.first),
+                        const SizedBox(width: 16),
+                        Expanded(child: cards.last),
+                      ],
+                    );
+            },
           ),
-          const SizedBox(height: 28),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  const Text(
-                    'Untervergleich bei 50 l',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Preis A: ' +
-                        money(fixedTankA) +
-                        ' · Preis B: ' +
-                        money(fixedTankB),
-                  ),
-                  Text(
-                    'Differenz: ' + money((fixedTankA - fixedTankB).abs()),
-                    style: const TextStyle(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+          const SizedBox(height: 22),
+          Wrap(
+            alignment: WrapAlignment.spaceEvenly,
+            spacing: 28,
+            runSpacing: 18,
+            children: [
+              _Result(
+                label: _mode == 'trip'
+                    ? 'Ersparnis pro Jahr'
+                    : 'Ersparnis je Tankfüllung',
+                value: money(annualDifference),
+                color: Colors.orange,
               ),
-            ),
+              _Result(
+                label: 'Direkte Differenz',
+                value: money(difference),
+                color: Colors.deepOrange,
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+}
+
+class _FuelPriceCard extends StatelessWidget {
+  const _FuelPriceCard({
+    required this.label,
+    required this.fuelPrice,
+    required this.cost,
+    required this.color,
+  });
+
+  final String label;
+  final double fuelPrice;
+  final double cost;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .12),
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: color.withValues(alpha: .35)),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            fuelPrice.toStringAsFixed(3).replaceAll('.', ',') + ' €/l',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            money(cost),
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
+          Text('Kosten im gewählten Vergleich'),
+        ],
+      ),
+    ),
+  );
 }
 
 class _FreedomCalculator extends ConsumerStatefulWidget {
@@ -546,8 +749,13 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
   final _payout = TextEditingController(text: '2500');
   final _dividends = TextEditingController(text: '0');
   final _withdrawalRate = TextEditingController(text: '4');
+  final _inflation = TextEditingController(text: '2');
+  final _taxRate = TextEditingController(text: '26,375');
   bool _loadedPreferences = false;
   bool _usePortfolio = true;
+  bool _considerTaxes = true;
+  bool _considerInflation = true;
+  bool _showDefinitions = false;
 
   @override
   void dispose() {
@@ -559,6 +767,8 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
       _payout,
       _dividends,
       _withdrawalRate,
+      _inflation,
+      _taxRate,
     ]) {
       controller.dispose();
     }
@@ -590,11 +800,19 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
     final saving = _value(_saving.text).clamp(0, double.infinity).toDouble();
     final payout = _value(_payout.text).clamp(0, double.infinity).toDouble();
     final dividends = _value(_dividends.text).clamp(0, payout).toDouble();
+    final taxRate = (_value(_taxRate.text) / 100).clamp(0, .99).toDouble();
+    final netDividends = _considerTaxes ? dividends * (1 - taxRate) : dividends;
     final withdrawalRate = _value(_withdrawalRate.text) / 100;
     final target = withdrawalRate <= 0
         ? double.infinity
-        : (payout - dividends) * 12 / withdrawalRate;
-    final monthlyRate = _value(_returnRate.text) / 100 / 12;
+        : (payout - netDividends) * 12 / withdrawalRate;
+    final grossReturn = _value(_returnRate.text) / 100;
+    final afterTaxReturn = _considerTaxes
+        ? grossReturn * (1 - taxRate)
+        : grossReturn;
+    final inflation = _considerInflation ? _value(_inflation.text) / 100 : 0.0;
+    final realAnnualReturn = (1 + afterTaxReturn) / (1 + inflation) - 1;
+    final monthlyRate = realAnnualReturn / 12;
     final months = _monthsToTarget(
       start: start,
       monthlySaving: saving,
@@ -619,6 +837,8 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
       title: 'Finanzielle Freiheit',
       subtitle:
           'Berechne Zielkapital und Alter, ab dem passive Einnahmen deinen Wunschbetrag decken.',
+      resultHeight: 560,
+      verticalResultHeight: 760,
       input: Column(
         children: [
           _NumberField(
@@ -642,6 +862,7 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
               _saveFreedomPreference(preference);
             },
           ),
+          const SizedBox(height: 12),
           _NumberField(
             controller: _start,
             label: 'Startkapital',
@@ -654,6 +875,82 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
             label: 'Erwartete Rendite p. a.',
             suffix: '%',
             onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Deutsche Kapitalertragsteuer'),
+                    subtitle: Text(
+                      _considerTaxes
+                          ? 'Steuersatz wird auf Erträge und Dividenden angewendet'
+                          : 'Modellrechnung ohne Steuern',
+                    ),
+                    value: _considerTaxes,
+                    onChanged: (value) =>
+                        setState(() => _considerTaxes = value),
+                  ),
+                  if (_considerTaxes)
+                    _NumberField(
+                      controller: _taxRate,
+                      label: 'Effektiver Steuersatz',
+                      suffix: '%',
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Inflation berücksichtigen'),
+                    subtitle: Text(
+                      _considerInflation
+                          ? 'Ergebnisse werden in heutiger Kaufkraft gerechnet'
+                          : 'Nominale Modellrechnung ohne Inflation',
+                    ),
+                    value: _considerInflation,
+                    onChanged: (value) =>
+                        setState(() => _considerInflation = value),
+                  ),
+                  if (_considerInflation)
+                    _NumberField(
+                      controller: _inflation,
+                      label: 'Erwartete Inflation p. a.',
+                      suffix: '%',
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () =>
+                          setState(() => _showDefinitions = !_showDefinitions),
+                      icon: Icon(
+                        _showDefinitions
+                            ? Icons.expand_less_rounded
+                            : Icons.info_outline_rounded,
+                      ),
+                      label: Text(
+                        _showDefinitions
+                            ? 'Definitionen ausblenden'
+                            : 'Kurze Definitionen einblenden',
+                      ),
+                    ),
+                  ),
+                  if (_showDefinitions)
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Rendite: angenommener jährlicher Wertzuwachs vor Abzügen.\n'
+                        'Kapitalertragsteuer: vereinfachter effektiver Abzug auf Erträge; Freibeträge und individuelle Kirchensteuer sind nicht automatisch enthalten.\n'
+                        'Inflation: jährlicher Kaufkraftverlust. Mit aktivierter Inflation zeigt das Modell Werte in heutiger Kaufkraft.\n'
+                        'Entnahmerate: Anteil des Zielkapitals, der pro Jahr entnommen werden soll.',
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           _NumberField(
@@ -718,13 +1015,21 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
               ),
               _Result(
                 label: 'Durch Kapital zu decken',
-                value: '${money(payout - dividends)}/Monat',
+                value: money(payout - netDividends) + '/Monat',
               ),
             ],
           ),
           const SizedBox(height: 18),
           Text(
-            'Modellrechnung mit konstanter Rendite und Entnahmerate. Steuern, Inflation und Kursschwankungen sind nicht enthalten.',
+            'Modellrechnung Deutschland · effektive Rendite ' +
+                (realAnnualReturn * 100).toStringAsFixed(2) +
+                ' % p. a. ' +
+                (_considerTaxes ? 'nach Steuer' : 'ohne Steuer') +
+                ' · ' +
+                (_considerInflation
+                    ? 'in heutiger Kaufkraft'
+                    : 'ohne Inflation') +
+                '. Kursschwankungen und Freibeträge werden nicht simuliert.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
@@ -880,11 +1185,15 @@ class _CalculatorScaffold extends StatelessWidget {
     required this.subtitle,
     required this.input,
     required this.result,
+    this.resultHeight = 480,
+    this.verticalResultHeight = 660,
   });
   final String title;
   final String subtitle;
   final Widget input;
   final Widget result;
+  final double resultHeight;
+  final double verticalResultHeight;
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
     padding: const EdgeInsets.all(24),
@@ -908,7 +1217,7 @@ class _CalculatorScaffold extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(22),
                     child: SizedBox(
-                      height: vertical ? 660 : 480,
+                      height: vertical ? verticalResultHeight : resultHeight,
                       child: result,
                     ),
                   ),

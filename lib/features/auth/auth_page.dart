@@ -188,6 +188,18 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 ),
               ),
             ],
+            if (busy) ...[
+              const SizedBox(height: 18),
+              const LinearProgressIndicator(),
+              const SizedBox(height: 6),
+              Text(
+                _register
+                    ? 'Lokales Konto wird sicher eingerichtet …'
+                    : 'Anmeldung und Daten werden vorbereitet …',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: busy ? null : _submit,

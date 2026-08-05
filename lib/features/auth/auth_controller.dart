@@ -60,6 +60,12 @@ final class AuthController extends StateNotifier<AuthState> {
     try {
       final userId = await _sessionStore.readUserId();
       final user = userId == null ? null : await _database.userById(userId);
+      if (user != null) {
+        _database.setDataFileKey(
+          user.id,
+          await _sessionStore.dataKeyForUser(user.id),
+        );
+      }
       state = AuthState(
         status: user == null ? AuthStatus.signedOut : AuthStatus.signedIn,
         user: user,
@@ -110,6 +116,10 @@ final class AuthController extends StateNotifier<AuthState> {
         );
       });
       final user = await _database.userById(userId);
+      _database.setDataFileKey(
+        userId,
+        await _sessionStore.dataKeyForUser(userId),
+      );
       state = AuthState(status: AuthStatus.signedIn, user: user);
       unawaited(_sessionStore.writeUserId(userId));
       unawaited(_database.seedDefaultMasterData(userId));
@@ -142,6 +152,10 @@ final class AuthController extends StateNotifier<AuthState> {
         );
         return false;
       }
+      _database.setDataFileKey(
+        user.id,
+        await _sessionStore.dataKeyForUser(user.id),
+      );
       state = AuthState(status: AuthStatus.signedIn, user: user);
       unawaited(_sessionStore.writeUserId(user.id));
       unawaited(_database.preferencesFor(user.id));
@@ -185,7 +199,9 @@ final class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    final userId = state.user?.id;
     await _sessionStore.clear();
+    if (userId != null) _database.clearDataFileKey(userId);
     state = const AuthState(status: AuthStatus.signedOut);
   }
 

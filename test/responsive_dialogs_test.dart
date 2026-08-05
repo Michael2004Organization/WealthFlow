@@ -8,6 +8,7 @@ import 'package:wealthflow/features/auth/auth_page.dart';
 import 'package:wealthflow/features/calculators/calculators_page.dart';
 import 'package:wealthflow/features/finance/accounts_page.dart';
 import 'package:wealthflow/features/finance/investments_page.dart';
+import 'package:wealthflow/features/household/household_page.dart';
 import 'package:wealthflow/features/vehicles/vehicles_page.dart';
 
 void main() {
@@ -131,5 +132,50 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: 'Tab $tab');
     }
+  });
+
+  testWidgets('monthly household booking fits a narrow dialog', (tester) async {
+    final now = DateTime.now();
+    final account = Account(
+      id: 'giro',
+      userId: 'responsive-user',
+      bankName: 'Testbank',
+      label: 'Haushaltskonto mit langem Namen',
+      holder: '',
+      iban: '',
+      bic: '',
+      accountNumber: '',
+      currency: 'EUR',
+      balance: 1234.56,
+      availableBalance: 1234.56,
+      notes: '',
+      createdAt: now,
+      updatedAt: now,
+    );
+    await pumpPage(
+      tester,
+      const HouseholdPage(),
+      overrides: [
+        accountsProvider.overrideWith((_) => Stream.value([account])),
+        ledgerEntriesProvider.overrideWith(
+          (_) => Stream.value(const <LedgerEntry>[]),
+        ),
+        vehiclesProvider.overrideWith((_) => Stream.value(const <Vehicle>[])),
+        masterDataProvider.overrideWith(
+          (_) => Stream.value(const <MasterDataData>[]),
+        ),
+        preferencesProvider.overrideWith((_) => const Stream.empty()),
+      ],
+    );
+
+    await tester.tap(find.text('Buchung').first);
+    await tester.pumpAndSettle();
+    final recurring = find.text('Automatisch monatlich buchen');
+    await tester.ensureVisible(recurring);
+    await tester.tap(recurring);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Laufzeit'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

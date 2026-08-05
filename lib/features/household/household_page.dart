@@ -118,6 +118,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                     width: 210,
                     child: DropdownButtonFormField<String>(
                       initialValue: _category,
+                      isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Kategorie'),
                       items: ['Alle', ...categories]
                           .map(
@@ -148,14 +149,34 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                         .where((entry) => _matches(entry, selectedAccountId))
                         .toList();
                     final income = entries
-                        .where((entry) => entry.isIncome)
+                        .where(
+                          (entry) =>
+                              entry.isIncome &&
+                              entry.sourceType != 'transfer' &&
+                              entry.sourceType != 'saving',
+                        )
                         .fold<double>(0, (sum, entry) => sum + entry.amount);
                     final expense = entries
-                        .where((entry) => !entry.isIncome)
+                        .where(
+                          (entry) =>
+                              !entry.isIncome &&
+                              entry.sourceType != 'transfer' &&
+                              entry.sourceType != 'saving',
+                        )
+                        .fold<double>(0, (sum, entry) => sum + entry.amount);
+                    final saved = entries
+                        .where(
+                          (entry) =>
+                              !entry.isIncome && entry.sourceType == 'saving',
+                        )
                         .fold<double>(0, (sum, entry) => sum + entry.amount);
                     return ListView(
                       children: [
-                        _MonthSummary(income: income, expense: expense),
+                        _MonthSummary(
+                          income: income,
+                          expense: expense,
+                          saved: saved,
+                        ),
                         const SizedBox(height: 16),
                         if (entries.isEmpty)
                           SizedBox(
@@ -359,10 +380,15 @@ class _MonthButton extends StatelessWidget {
 }
 
 class _MonthSummary extends StatelessWidget {
-  const _MonthSummary({required this.income, required this.expense});
+  const _MonthSummary({
+    required this.income,
+    required this.expense,
+    required this.saved,
+  });
 
   final double income;
   final double expense;
+  final double saved;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -370,7 +396,9 @@ class _MonthSummary extends StatelessWidget {
       final width = constraints.maxWidth < 700
           ? constraints.maxWidth
           : (constraints.maxWidth - 48) / 4;
-      final savingsRate = income <= 0 ? 0 : (income - expense) / income * 100;
+      final savingsRate = income <= 0
+          ? 0
+          : (income - expense).clamp(0, double.infinity) / income * 100;
       return Wrap(
         spacing: 16,
         runSpacing: 16,
@@ -407,11 +435,11 @@ class _MonthSummary extends StatelessWidget {
           SizedBox(
             width: width,
             child: Tooltip(
-              message:
-                  'Überschuss geteilt durch Einnahmen: ' +
-                  money(income - expense) +
-                  ' / ' +
-                  money(income),
+              message: saved > 0
+                  ? money(saved) +
+                        ' wurden als Sparen/Investieren markiert. '
+                            'Umbuchungen senken die Sparquote nicht.'
+                  : 'Umbuchungen zwischen eigenen Konten werden nicht als Ausgabe gewertet.',
               child: MetricCard(
                 title: 'Sparquote',
                 value: income <= 0
@@ -457,9 +485,11 @@ class _EntryTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final positive = entry.isIncome;
     final recurring = entry.recurrenceId.isNotEmpty;
+    final linked =
+        entry.sourceType == 'transfer' || entry.sourceType == 'saving';
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      onTap: entry.sourceType == 'vehicle'
+      onTap: entry.sourceType == 'vehicle' || linked
           ? null
           : () => showEntryEditor(context, ref, entry: entry),
       leading: CircleAvatar(
@@ -469,6 +499,10 @@ class _EntryTile extends ConsumerWidget {
         child: Icon(
           entry.sourceType == 'vehicle'
               ? Icons.directions_car_rounded
+              : linked
+              ? entry.sourceType == 'saving'
+                    ? Icons.savings_rounded
+                    : Icons.swap_horiz_rounded
               : positive
               ? Icons.south_west_rounded
               : Icons.north_east_rounded,
@@ -516,7 +550,7 @@ class _EntryTile extends ConsumerWidget {
           PopupMenuButton<String>(
             onSelected: (value) => _handleAction(context, ref, value),
             itemBuilder: (_) => [
-              if (entry.sourceType != 'vehicle')
+              if (entry.sourceType != 'vehicle' && !linked)
                 const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
               const PopupMenuItem(value: 'delete', child: Text('Löschen')),
               if (recurring)
@@ -546,6 +580,8 @@ class _EntryTile extends ConsumerWidget {
       title: series ? 'Ganze Serie löschen?' : 'Buchung löschen?',
       message: series
           ? 'Alle geplanten Buchungen dieser Monatsserie werden entfernt.'
+          : entry.sourceType == 'transfer' || entry.sourceType == 'saving'
+          ? 'Beide Seiten der Umbuchung werden entfernt und beide Kontostände korrigiert.'
           : 'Diese Buchung wird aus allen Auswertungen entfernt.',
     );
     if (!confirmed || !context.mounted) return;
@@ -555,6 +591,12 @@ class _EntryTile extends ConsumerWidget {
       await ref
           .read(databaseProvider)
           .deleteLedgerSeries(entry.recurrenceId, userId);
+    } else if ((entry.sourceType == 'transfer' ||
+            entry.sourceType == 'saving') &&
+        entry.sourceId.isNotEmpty) {
+      await ref
+          .read(databaseProvider)
+          .deleteLinkedLedgerEntries(entry.sourceId, userId);
     } else {
       await ref.read(databaseProvider).deleteLedgerEntry(entry.id, userId);
     }
@@ -569,6 +611,7 @@ Future<void> showEntryEditor(
   String? defaultAccountId,
 }) async {
   final vehicles = ref.read(vehiclesProvider).valueOrNull ?? const <Vehicle>[];
+  final accounts = ref.read(accountsProvider).valueOrNull ?? const <Account>[];
   final masterData =
       ref.read(masterDataProvider).valueOrNull ?? const <MasterDataData>[];
   final result = await showDialog<_EntrySubmission>(
@@ -577,6 +620,7 @@ Future<void> showEntryEditor(
       entry: entry,
       initialDate: initialDate,
       vehicles: vehicles,
+      accounts: accounts,
       defaultAccountId: defaultAccountId,
       masterData: masterData,
     ),
@@ -622,6 +666,7 @@ class _EntrySubmission {
 class _EntryEditor extends StatefulWidget {
   const _EntryEditor({
     required this.vehicles,
+    required this.accounts,
     required this.defaultAccountId,
     required this.masterData,
     this.entry,
@@ -631,6 +676,7 @@ class _EntryEditor extends StatefulWidget {
   final LedgerEntry? entry;
   final DateTime? initialDate;
   final List<Vehicle> vehicles;
+  final List<Account> accounts;
   final String? defaultAccountId;
   final List<MasterDataData> masterData;
 
@@ -659,6 +705,12 @@ class _EntryEditorState extends State<_EntryEditor> {
   late String _vehicleId = widget.entry?.vehicleId ?? '';
   late final String _accountId =
       widget.entry?.accountId ?? widget.defaultAccountId ?? '';
+  late String _bookingKind = switch (widget.entry?.sourceType) {
+    'transfer' => 'transfer',
+    'saving' => 'saving',
+    _ => 'standard',
+  };
+  String _targetAccountId = '';
   late int _budgetOffset = _initialBudgetOffset();
   bool _repeatMonthly = false;
   String _timing = 'selected';
@@ -705,6 +757,35 @@ class _EntryEditorState extends State<_EntryEditor> {
                     setState(() => _income = value.first),
               ),
               const SizedBox(height: 16),
+              if (widget.entry == null) ...[
+                DropdownButtonFormField<String>(
+                  initialValue: _bookingKind,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Buchungsart',
+                    prefixIcon: Icon(Icons.swap_horiz_rounded),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'standard',
+                      child: Text('Einnahme oder Ausgabe'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'transfer',
+                      child: Text('Auf eigenes Konto verschieben'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'saving',
+                      child: Text('Sparen / Investieren'),
+                    ),
+                  ],
+                  onChanged: (value) => setState(() {
+                    _bookingKind = value ?? 'standard';
+                    if (_bookingKind != 'standard') _income = false;
+                  }),
+                ),
+                const SizedBox(height: 12),
+              ],
               TextFormField(
                 controller: _amount,
                 keyboardType: const TextInputType.numberWithOptions(
@@ -719,24 +800,15 @@ class _EntryEditorState extends State<_EntryEditor> {
                     : null,
               ),
               const SizedBox(height: 12),
-              DropdownMenu<String>(
+              _EditableSuggestionField(
                 controller: _category,
-                enableFilter: true,
-                requestFocusOnTap: true,
-                label: const Text('Kategorie'),
-                helperText: 'Auswählen oder neue Kategorie eingeben',
-                dropdownMenuEntries:
-                    {
-                          ..._categories.skip(1),
-                          ...widget.masterData
-                              .where((item) => item.kind == 'category')
-                              .map((item) => item.value),
-                        }
-                        .map(
-                          (value) =>
-                              DropdownMenuEntry(value: value, label: value),
-                        )
-                        .toList(),
+                label: 'Kategorie',
+                suggestions: {
+                  ..._categories.skip(1),
+                  ...widget.masterData
+                      .where((item) => item.kind == 'category')
+                      .map((item) => item.value),
+                }.toList(),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
@@ -760,27 +832,69 @@ class _EntryEditorState extends State<_EntryEditor> {
                 onChanged: (value) => _vehicleId = value ?? '',
               ),
               const SizedBox(height: 12),
-              const ListTile(
-                contentPadding: EdgeInsets.symmetric(horizontal: 4),
-                leading: Icon(Icons.account_balance_rounded),
-                title: Text('Ausgewähltes Haushaltskonto'),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                leading: const Icon(Icons.account_balance_rounded),
+                title: Text(_selectedAccount?.label ?? 'Kein Haushaltskonto'),
                 subtitle: Text(
-                  'Diese Buchung aktualisiert dessen Kontostand automatisch.',
+                  _selectedAccount == null
+                      ? 'Bitte zuerst ein Haushaltskonto auswählen.'
+                      : 'Aktueller Kontostand: ' +
+                            money(
+                              _selectedAccount!.balance,
+                              currency: _selectedAccount!.currency,
+                            ),
                 ),
               ),
+              if (widget.entry == null && _bookingKind != 'standard') ...[
+                const SizedBox(height: 4),
+                DropdownButtonFormField<String>(
+                  initialValue: _targetAccountId.isEmpty
+                      ? null
+                      : _targetAccountId,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: _bookingKind == 'saving'
+                        ? 'Zielkonto / Investkonto'
+                        : 'Zielkonto',
+                    prefixIcon: const Icon(Icons.redo_rounded),
+                  ),
+                  items: widget.accounts
+                      .where((account) => account.id != _accountId)
+                      .map(
+                        (account) => DropdownMenuItem(
+                          value: account.id,
+                          child: Text(
+                            account.label +
+                                ' · ' +
+                                money(
+                                  account.balance,
+                                  currency: account.currency,
+                                ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  validator: (value) =>
+                      _bookingKind != 'standard' &&
+                          (value == null || value.isEmpty)
+                      ? 'Bitte ein Zielkonto auswählen.'
+                      : null,
+                  onChanged: (value) => _targetAccountId = value ?? '',
+                ),
+              ],
               const SizedBox(height: 12),
               _responsiveFields([
-                DropdownMenu<String>(
+                _EditableSuggestionField(
                   controller: _merchant,
-                  enableFilter: true,
-                  label: const Text('Händler / Quelle'),
-                  dropdownMenuEntries: _masterEntries('merchant'),
+                  label: 'Händler / Quelle',
+                  suggestions: _masterEntries('merchant'),
                 ),
-                DropdownMenu<String>(
+                _EditableSuggestionField(
                   controller: _payment,
-                  enableFilter: true,
-                  label: const Text('Zahlungsmethode'),
-                  dropdownMenuEntries: _masterEntries('paymentMethod'),
+                  label: 'Zahlungsmethode',
+                  suggestions: _masterEntries('paymentMethod'),
                 ),
               ]),
               const SizedBox(height: 12),
@@ -805,6 +919,7 @@ class _EntryEditorState extends State<_EntryEditor> {
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
                   initialValue: _budgetOffset,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'In welchem Budgetmonat berücksichtigen?',
                   ),
@@ -842,6 +957,7 @@ class _EntryEditorState extends State<_EntryEditor> {
                   _responsiveFields([
                     DropdownButtonFormField<String>(
                       initialValue: _timing,
+                      isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Zeitpunkt'),
                       items: const [
                         DropdownMenuItem(
@@ -866,6 +982,7 @@ class _EntryEditorState extends State<_EntryEditor> {
                     ),
                     DropdownButtonFormField<int>(
                       initialValue: _months,
+                      isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Laufzeit'),
                       items: const [1, 2, 3, 6, 12, 24, 36, 60]
                           .map(
@@ -910,26 +1027,31 @@ class _EntryEditorState extends State<_EntryEditor> {
     ],
   );
 
-  Widget _responsiveFields(List<Widget> fields) {
-    if (MediaQuery.sizeOf(context).width < 620) {
-      return Column(
+  Widget _responsiveFields(List<Widget> fields) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth < 560) {
+        return Column(
+          children: [
+            for (var index = 0; index < fields.length; index++) ...[
+              fields[index],
+              if (index < fields.length - 1) const SizedBox(height: 12),
+            ],
+          ],
+        );
+      }
+      return Row(
         children: [
           for (var index = 0; index < fields.length; index++) ...[
-            fields[index],
-            if (index < fields.length - 1) const SizedBox(height: 12),
+            Expanded(child: fields[index]),
+            if (index < fields.length - 1) const SizedBox(width: 12),
           ],
         ],
       );
-    }
-    return Row(
-      children: [
-        for (var index = 0; index < fields.length; index++) ...[
-          Expanded(child: fields[index]),
-          if (index < fields.length - 1) const SizedBox(width: 12),
-        ],
-      ],
-    );
-  }
+    },
+  );
+
+  Account? get _selectedAccount =>
+      widget.accounts.where((account) => account.id == _accountId).firstOrNull;
 
   double? _parse(String? value) =>
       double.tryParse((value ?? '').replaceAll(',', '.'));
@@ -956,6 +1078,7 @@ class _EntryEditorState extends State<_EntryEditor> {
     final recurrenceId = repeatCount > 1 ? const Uuid().v4() : '';
     final entries = <LedgerEntriesCompanion>[];
     for (var index = 0; index < repeatCount; index++) {
+      final transferId = _bookingKind == 'standard' ? '' : const Uuid().v4();
       final budgetMonth = _repeatMonthly
           ? DateTime(_date.year, _date.month + index)
           : DateTime(_date.year, _date.month + _budgetOffset);
@@ -981,14 +1104,41 @@ class _EntryEditorState extends State<_EntryEditor> {
           description: Value(_description.text.trim()),
           paymentMethod: Value(_payment.text.trim()),
           recurrenceId: Value(widget.entry?.recurrenceId ?? recurrenceId),
-          sourceType: Value(widget.entry?.sourceType ?? 'manual'),
-          sourceId: Value(widget.entry?.sourceId ?? ''),
+          sourceType: Value(
+            widget.entry?.sourceType ??
+                (_bookingKind == 'standard' ? 'manual' : _bookingKind),
+          ),
+          sourceId: Value(widget.entry?.sourceId ?? transferId),
           vehicleId: Value(_vehicleId),
           accountId: Value(_accountId),
           createdAt: widget.entry?.createdAt ?? now,
           updatedAt: now,
         ),
       );
+      if (widget.entry == null && _bookingKind != 'standard') {
+        entries.add(
+          LedgerEntriesCompanion.insert(
+            id: const Uuid().v4(),
+            userId: userId,
+            bookingDate: date,
+            budgetMonth: Value(budgetMonth),
+            amount: _parse(_amount.text) ?? 0,
+            isIncome: const Value(true),
+            category: _bookingKind == 'saving'
+                ? 'Sparen / Investieren'
+                : 'Umbuchung',
+            merchant: Value(_merchant.text.trim()),
+            description: Value(_description.text.trim()),
+            paymentMethod: Value(_payment.text.trim()),
+            recurrenceId: Value(recurrenceId),
+            sourceType: Value(_bookingKind),
+            sourceId: Value(transferId),
+            accountId: Value(_targetAccountId),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+      }
     }
     Navigator.pop(
       context,
@@ -1003,13 +1153,9 @@ class _EntryEditorState extends State<_EntryEditor> {
     );
   }
 
-  List<DropdownMenuEntry<String>> _masterEntries(String kind) => widget
-      .masterData
+  List<String> _masterEntries(String kind) => widget.masterData
       .where((item) => item.kind == kind)
-      .map(
-        (item) =>
-            DropdownMenuEntry<String>(value: item.value, label: item.value),
-      )
+      .map((item) => item.value)
       .toList();
 
   int _initialBudgetOffset() {
@@ -1021,6 +1167,43 @@ class _EntryEditorState extends State<_EntryEditor> {
             bookingDate.month)
         .clamp(-1, 1);
   }
+}
+
+class _EditableSuggestionField extends StatelessWidget {
+  const _EditableSuggestionField({
+    required this.controller,
+    required this.label,
+    required this.suggestions,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final List<String> suggestions;
+
+  @override
+  Widget build(BuildContext context) => TextFormField(
+    controller: controller,
+    decoration: InputDecoration(
+      labelText: label,
+      suffixIcon: suggestions.isEmpty
+          ? null
+          : PopupMenuButton<String>(
+              tooltip: 'Vorhandene Werte anzeigen',
+              icon: const Icon(Icons.arrow_drop_down_rounded),
+              onSelected: (value) {
+                controller
+                  ..text = value
+                  ..selection = TextSelection.collapsed(offset: value.length);
+              },
+              itemBuilder: (context) => suggestions
+                  .map(
+                    (value) =>
+                        PopupMenuItem<String>(value: value, child: Text(value)),
+                  )
+                  .toList(),
+            ),
+    ),
+  );
 }
 
 DateTime _month(DateTime value) => DateTime(value.year, value.month);
