@@ -499,12 +499,15 @@ Future<void> showInvestmentEditor(
       ref.read(masterDataProvider).valueOrNull ?? const <MasterDataData>[];
   final existingItems =
       ref.read(investmentsProvider).valueOrNull ?? const <Investment>[];
+  final stockMasters =
+      ref.read(stockMastersProvider).valueOrNull ?? const <StockMaster>[];
   final result = await showDialog<InvestmentsCompanion>(
     context: context,
     builder: (_) => _InvestmentEditor(
       investment: investment,
       masterData: masterData,
       existingItems: existingItems,
+      stockMasters: stockMasters,
     ),
   );
   if (result != null) {
@@ -538,6 +541,7 @@ Future<void> showInvestmentEditor(
           InvestmentsCompanion.insert(
             id: duplicate.id,
             userId: duplicate.userId,
+            stockId: result.stockId,
             name: result.name.value,
             symbol: result.symbol,
             isin: result.isin,
@@ -599,11 +603,13 @@ class _InvestmentEditor extends StatefulWidget {
   const _InvestmentEditor({
     required this.masterData,
     required this.existingItems,
+    required this.stockMasters,
     this.investment,
   });
   final Investment? investment;
   final List<MasterDataData> masterData;
   final List<Investment> existingItems;
+  final List<StockMaster> stockMasters;
   @override
   State<_InvestmentEditor> createState() => _InvestmentEditorState();
 }
@@ -637,6 +643,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
   late String _frequency = widget.investment?.dividendFrequency ?? 'jährlich';
   late DateTime _date = widget.investment?.purchaseDate ?? DateTime.now();
   String? _selectedExistingId;
+  late String? _selectedStockId = widget.investment?.stockId;
 
   @override
   void dispose() {
@@ -674,6 +681,41 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
           child: SingleChildScrollView(
             child: Column(
               children: [
+                if (widget.investment == null) ...[
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedStockId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Aktie aus Stammdaten',
+                      prefixIcon: Icon(Icons.search_rounded),
+                      helperText:
+                          'Suche über den Namen – keine Ticker-Eingabe nötig.',
+                    ),
+                    items: widget.stockMasters
+                        .map(
+                          (stock) => DropdownMenuItem(
+                            value: stock.id,
+                            child: Text(
+                              '${stock.name} · ${stock.symbol}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    validator: (value) => value == null
+                        ? 'Bitte eine Aktie aus den Stammdaten wählen.'
+                        : null,
+                    onChanged: _selectStock,
+                  ),
+                  if (widget.stockMasters.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Ein Administrator muss zuerst eine Aktie im zentralen Katalog anlegen.',
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                ],
                 if (widget.investment == null &&
                     widget.existingItems.isNotEmpty) ...[
                   DropdownButtonFormField<String>(
@@ -906,6 +948,19 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     });
   }
 
+  void _selectStock(String? id) {
+    if (id == null) return;
+    final stock = widget.stockMasters.firstWhere((item) => item.id == id);
+    setState(() {
+      _selectedStockId = id;
+      _name.text = stock.name;
+      _symbol.text = stock.symbol;
+      _isin.text = stock.isin;
+      _country.text = stock.country;
+      _sector.text = stock.sector;
+    });
+  }
+
   double? _number(String? value) =>
       double.tryParse((value ?? '').replaceAll(',', '.'));
 
@@ -932,6 +987,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       InvestmentsCompanion.insert(
         id: widget.investment?.id ?? const Uuid().v4(),
         userId: userId,
+        stockId: Value(_selectedStockId),
         name: _name.text.trim(),
         symbol: Value(_symbol.text.trim().toUpperCase()),
         isin: Value(_isin.text.trim().toUpperCase()),

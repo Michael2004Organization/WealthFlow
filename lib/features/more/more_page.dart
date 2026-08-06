@@ -7,6 +7,7 @@ import '../calculators/calculators_page.dart';
 import '../search/search_page.dart';
 import '../settings/settings_page.dart';
 import '../settings/master_data_page.dart';
+import '../settings/administration_page.dart';
 import '../vehicles/vehicles_page.dart';
 
 class MorePage extends ConsumerStatefulWidget {
@@ -57,13 +58,25 @@ class _MorePageState extends ConsumerState<MorePage> {
       Colors.orange,
       SettingsPage(),
     ),
+    _MoreDestination(
+      'administration',
+      'Administration',
+      'Benutzerrollen und Aktien-Stammdaten',
+      Icons.admin_panel_settings_rounded,
+      Colors.redAccent,
+      AdministrationPage(),
+      adminOnly: true,
+    ),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final isAdmin = ref.watch(isAdminProvider);
     final selectedKey = ref.watch(moreDestinationProvider);
     _MoreDestination? selected;
-    for (final destination in _destinations) {
+    for (final destination in _destinations.where(
+      (destination) => !destination.adminOnly || isAdmin,
+    )) {
       if (destination.key == selectedKey) selected = destination;
     }
     if (selected != null) {
@@ -91,7 +104,9 @@ class _MorePageState extends ConsumerState<MorePage> {
         ],
       );
     }
-    final destinations = _destinations;
+    final destinations = _destinations
+        .where((destination) => !destination.adminOnly || isAdmin)
+        .toList();
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -189,12 +204,14 @@ class _MoreDestination {
     this.subtitle,
     this.icon,
     this.color,
-    this.page,
-  );
+    this.page, {
+    this.adminOnly = false,
+  });
   final String key;
   final String label;
   final String subtitle;
   final IconData icon;
   final Color color;
   final Widget page;
+  final bool adminOnly;
 }

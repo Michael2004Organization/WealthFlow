@@ -293,4 +293,66 @@ void main() {
       500,
     );
   });
+
+  test('advance salary changes balance only in its budget month', () async {
+    final now = DateTime.now();
+    final currentMonth = DateTime(now.year, now.month);
+    final nextMonth = DateTime(now.year, now.month + 1);
+    final previousMonthEnd = DateTime(now.year, now.month, 0);
+    await database.createUser(
+      UsersCompanion.insert(
+        id: 'budget-owner',
+        email: 'budget@example.test',
+        displayName: 'Budget',
+        passwordHash: 'hash',
+        passwordSalt: 'salt',
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await database.saveAccount(
+      AccountsCompanion.insert(
+        id: 'budget-giro',
+        userId: 'budget-owner',
+        bankName: 'Bank',
+        label: 'Giro',
+        balance: const Value(500),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await database.saveLedgerEntry(
+      LedgerEntriesCompanion.insert(
+        id: 'current-salary',
+        userId: 'budget-owner',
+        bookingDate: previousMonthEnd,
+        budgetMonth: Value(currentMonth),
+        amount: 1000,
+        isIncome: const Value(true),
+        category: 'Gehalt',
+        accountId: const Value('budget-giro'),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await database.saveLedgerEntry(
+      LedgerEntriesCompanion.insert(
+        id: 'next-salary',
+        userId: 'budget-owner',
+        bookingDate: previousMonthEnd,
+        budgetMonth: Value(nextMonth),
+        amount: 2000,
+        isIncome: const Value(true),
+        category: 'Gehalt',
+        accountId: const Value('budget-giro'),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    expect(
+      (await database.watchAccounts('budget-owner').first).single.balance,
+      1500,
+    );
+  });
 }

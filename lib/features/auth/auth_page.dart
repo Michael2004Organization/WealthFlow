@@ -17,6 +17,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   final _passwordController = TextEditingController();
   bool _register = false;
   bool _obscure = true;
+  bool _createInitialAdmin = true;
 
   @override
   void dispose() {
@@ -133,6 +134,23 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 validator: (value) => (value?.trim().length ?? 0) < 2
                     ? 'Bitte gib deinen Namen ein.'
                     : null,
+              ),
+              const SizedBox(height: 14),
+              FutureBuilder<int>(
+                future: ref.read(databaseProvider).userCount(),
+                builder: (context, snapshot) => snapshot.data == 0
+                    ? CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Erstes Konto als Administrator'),
+                        subtitle: const Text(
+                          'Verwaltet später Benutzerrollen und globale Aktien-Stammdaten.',
+                        ),
+                        value: _createInitialAdmin,
+                        onChanged: (value) => setState(
+                          () => _createInitialAdmin = value ?? false,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
               const SizedBox(height: 14),
             ],
@@ -259,6 +277,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         displayName: _nameController.text,
         email: _emailController.text,
         password: _passwordController.text,
+        createInitialAdmin: _createInitialAdmin,
       );
     } else {
       await controller.login(_emailController.text, _passwordController.text);

@@ -106,6 +106,17 @@ POST /v1/sync/batch
 
 Änderungen tragen `entityId`, `entityType`, `revision`, `changedAt`, `deletedAt` und eine idempotente `operationId`. Zugriffstoken sind kurzlebig; Refresh-Tokens rotieren und werden ausschließlich sicher gespeichert. Serveradresse und Port werden validiert, HTTP ist außerhalb lokaler Entwicklung unzulässig.
 
+### Marktdaten
+
+Aktien werden global in `StockMasters` gepflegt und von Benutzer-Portfolios nur
+referenziert. Dadurch entstehen Kursabfragen nicht pro Benutzer. Der
+providerneutrale `MarketDataCoordinator` plant höchstens eine Batch-Abfrage je
+Zeitfenster (10:00, 15:00 und 19:00 Uhr), prüft vorher den lokalen Cache und
+führt ein hartes Tagesbudget von 250 Requests. Kurse, Abrufzeitpunkte sowie
+jahresweise Dividendenhistorien werden lokal gespeichert. Der API-Key liegt
+ausschließlich im Plattform-Schlüsselspeicher. Ohne Key oder konkreten
+HTTP-Adapter werden keine Requests ausgelöst.
+
 ## 10. Lokale Datenbank
 
 Drift erzeugt parametrisierte SQL-Abfragen und verhindert Stringverkettung. Indizes liegen auf Besitzer, Datum, Typ und Änderungszeit. Listen werden reaktiv gestreamt; große Tabellen erhalten Cursor-Pagination. Schemaänderungen laufen ausschließlich über versionierte Migrationen.
@@ -123,5 +134,6 @@ Ein Outbox-Verfahren überträgt nur geänderte Zeilen. Nach erfolgreichem Batch
 - Eingaben: Längen-, Typ- und Bereichsvalidierung; parametrisierte SQL-Abfragen
 - Web: CSP, HSTS, SameSite/HttpOnly-Cookies falls Cookie-Auth, CSRF-Token; keine Tokens in Logs oder URLs
 - Backups: authentifizierte Verschlüsselung, Integritätsprüfung und benutzerinitiierte Wiederherstellung
+- Rollen: Mitglieder verwalten ihre eigenen Finanzdaten; nur Administratoren verwalten Benutzerrollen und den globalen Aktienkatalog. Das erste lokale Konto kann bei der Registrierung ausdrücklich als Admin angelegt werden.
 
 Der lokale Modus schützt Anmeldedaten und Sitzungsschlüssel. Eine vollständige Datenbankverschlüsselung benötigt pro Plattform einen geprüften SQLCipher-Build und Schlüsselrotation; sie darf nicht durch einen fest einkompilierten Schlüssel vorgetäuscht werden.

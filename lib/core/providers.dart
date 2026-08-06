@@ -100,6 +100,32 @@ final netWorthSnapshotsProvider = StreamProvider<List<NetWorthSnapshot>>((ref) {
       : ref.watch(databaseProvider).watchNetWorthSnapshots(userId);
 });
 
+final usersProvider = StreamProvider<List<User>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <User>[])
+      : ref.watch(databaseProvider).watchUsers();
+});
+
+final stockMastersProvider = StreamProvider<List<StockMaster>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <StockMaster>[])
+      : ref.watch(databaseProvider).watchStockMasters();
+});
+
+final currentRoleProvider = Provider<String>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  final users = ref.watch(usersProvider).valueOrNull;
+  return users?.where((user) => user.id == userId).firstOrNull?.role ??
+      ref.watch(authControllerProvider).user?.role ??
+      'member';
+});
+
+final isAdminProvider = Provider<bool>(
+  (ref) => ref.watch(currentRoleProvider) == 'admin',
+);
+
 final themeModeProvider = Provider<ThemeMode>((ref) {
   final preference = ref.watch(preferencesProvider).valueOrNull;
   return switch (preference?.themeMode) {

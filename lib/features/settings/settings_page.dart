@@ -109,6 +109,43 @@ class SettingsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               _Section(
+                title: 'Marktdaten-API',
+                icon: Icons.key_rounded,
+                children: [
+                  FutureBuilder<String?>(
+                    future: ref
+                        .read(secureSessionStoreProvider)
+                        .readMarketApiKey(user.id),
+                    builder: (context, snapshot) {
+                      final configured = snapshot.data?.isNotEmpty ?? false;
+                      return ListTile(
+                        leading: Icon(
+                          configured
+                              ? Icons.verified_user_rounded
+                              : Icons.key_off_rounded,
+                        ),
+                        title: const Text('Financial Modeling Prep API-Key'),
+                        subtitle: Text(
+                          configured
+                              ? 'Sicher im Plattform-Schlüsselspeicher hinterlegt'
+                              : 'Nicht eingerichtet – Aktienabfragen bleiben deaktiviert',
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => _editMarketApiKey(context, ref, user.id),
+                      );
+                    },
+                  ),
+                  const ListTile(
+                    leading: Icon(Icons.schedule_rounded),
+                    title: Text('Sparsame Aktualisierung vorbereitet'),
+                    subtitle: Text(
+                      'Ein globaler Aktienpool, Batch-Abfragen und Cache-Zeitfenster um 10:00, 15:00 und 19:00 Uhr. Bis die endgültige Datenquelle feststeht, werden keine Requests gesendet.',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _Section(
                 title: 'Datenspeicherung',
                 icon: Icons.storage_rounded,
                 children: [
@@ -166,7 +203,7 @@ class SettingsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'WealthFlow 1.0.0 · Lokale Datenbankversion 5',
+                'WealthFlow 1.0.0 · Lokale Datenbankversion 7',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -250,6 +287,72 @@ class SettingsPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _editMarketApiKey(
+    BuildContext context,
+    WidgetRef ref,
+    String userId,
+  ) async {
+    final store = ref.read(secureSessionStoreProvider);
+    final current = await store.readMarketApiKey(userId) ?? '';
+    if (!context.mounted) return;
+    final controller = TextEditingController(text: current);
+    var obscure = true;
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('FMP API-Key'),
+          content: SizedBox(
+            width: 480,
+            child: TextField(
+              controller: controller,
+              obscureText: obscure,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: InputDecoration(
+                labelText: 'API-Key',
+                helperText: 'Leer speichern entfernt den vorhandenen Key.',
+                suffixIcon: IconButton(
+                  onPressed: () => setDialogState(() => obscure = !obscure),
+                  icon: Icon(
+                    obscure
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Sicher speichern'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (submitted == true) {
+      final saved = await store.writeMarketApiKey(userId, controller.text);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              saved
+                  ? 'API-Key wurde sicher gespeichert.'
+                  : 'Der Plattform-Schlüsselspeicher ist nicht verfügbar. Der Key wurde nicht gespeichert.',
+            ),
+          ),
+        );
+      }
+    }
+    controller.dispose();
   }
 
   Future<void> _savePreference(

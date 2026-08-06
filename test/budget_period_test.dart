@@ -35,5 +35,19 @@ void main() {
         DateTime(2026, 8),
       );
     });
+
+    test('advance payment becomes effective in its budget month', () {
+      expect(
+        ledgerEffectiveDate(DateTime(2026, 7, 31), DateTime(2026, 8)),
+        DateTime(2026, 8),
+      );
+    });
+
+    test('same-month payment keeps its actual booking day', () {
+      expect(
+        ledgerEffectiveDate(DateTime(2026, 8, 15), DateTime(2026, 8)),
+        DateTime(2026, 8, 15),
+      );
+    });
   });
 }

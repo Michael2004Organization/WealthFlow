@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:drift/drift.dart' show Value;
 
 import '../../core/database/app_database.dart';
 import '../../core/security/password_hasher.dart';
@@ -80,6 +81,7 @@ final class AuthController extends StateNotifier<AuthState> {
     required String displayName,
     required String email,
     required String password,
+    bool createInitialAdmin = false,
   }) async {
     final validation = _validate(displayName, email, password);
     if (validation != null) {
@@ -99,6 +101,7 @@ final class AuthController extends StateNotifier<AuthState> {
       final digest = await compute(_hashPassword, password);
       final now = DateTime.now().toUtc();
       final userId = _uuid.v4();
+      final isFirstAccount = await _database.userCount() == 0;
       await _database.transaction(() async {
         await _database.createUser(
           UsersCompanion.insert(
@@ -107,6 +110,9 @@ final class AuthController extends StateNotifier<AuthState> {
             displayName: displayName.trim(),
             passwordHash: digest.hash,
             passwordSalt: digest.salt,
+            role: Value(
+              createInitialAdmin && isFirstAccount ? 'admin' : 'member',
+            ),
             createdAt: now,
             updatedAt: now,
           ),

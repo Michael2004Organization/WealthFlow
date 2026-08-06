@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../storage/data_export.dart';
 import '../security/data_cipher.dart';
+import '../finance/budget_period.dart';
 
 part 'app_database.g.dart';
 
@@ -16,6 +17,7 @@ class Users extends Table {
   TextColumn get passwordHash => text()();
   TextColumn get passwordSalt => text()();
   TextColumn get profileImagePath => text().nullable()();
+  TextColumn get role => text().withDefault(const Constant('member'))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -47,6 +49,7 @@ class Accounts extends Table {
 class Investments extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text().references(Users, #id)();
+  TextColumn get stockId => text().nullable()();
   TextColumn get name => text()();
   TextColumn get symbol => text().withDefault(const Constant(''))();
   TextColumn get isin => text().withDefault(const Constant(''))();
@@ -95,12 +98,76 @@ class DividendSchedules extends Table {
   IntColumn get paymentMonth => integer()();
   RealColumn get amountPerShare => real()();
   DateTimeColumn get exDate => dateTime().nullable()();
+  DateTimeColumn get paymentDate => dateTime().nullable()();
+  IntColumn get paymentYear => integer().withDefault(const Constant(0))();
+  TextColumn get currency => text().withDefault(const Constant('EUR'))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Shared, user-independent stock catalogue. Portfolio rows only reference
+/// these records; this prevents duplicate quote requests per user.
+class StockMasters extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get symbol => text().unique()();
+  TextColumn get isin => text().withDefault(const Constant(''))();
+  TextColumn get currency => text().withDefault(const Constant('EUR'))();
+  TextColumn get country => text().withDefault(const Constant(''))();
+  TextColumn get exchange => text().withDefault(const Constant(''))();
+  TextColumn get sector => text().withDefault(const Constant(''))();
+  TextColumn get companyData => text().withDefault(const Constant(''))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class StockPrices extends Table {
+  TextColumn get stockId => text().references(StockMasters, #id)();
+  RealColumn get price => real()();
+  TextColumn get currency => text().withDefault(const Constant('EUR'))();
+  DateTimeColumn get quotedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {stockId};
+}
+
+class StockDividends extends Table {
+  TextColumn get id => text()();
+  TextColumn get stockId => text().references(StockMasters, #id)();
+  DateTimeColumn get exDate => dateTime()();
+  DateTimeColumn get paymentDate => dateTime().nullable()();
+  RealColumn get amount => real()();
+  TextColumn get currency => text().withDefault(const Constant('EUR'))();
+  DateTimeColumn get fetchedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class MarketDataRefreshes extends Table {
+  TextColumn get dataType => text()();
+  TextColumn get scopeKey => text()();
+  DateTimeColumn get refreshedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {dataType, scopeKey};
+}
+
+class ApiRequestDays extends Table {
+  TextColumn get day => text()();
+  IntColumn get requestCount => integer().withDefault(const Constant(0))();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {day};
 }
 
 @DataClassName('LedgerEntry')
@@ -236,6 +303,11 @@ class NetWorthSnapshots extends Table {
     VehicleCosts,
     UserPreferences,
     NetWorthSnapshots,
+    StockMasters,
+    StockPrices,
+    StockDividends,
+    MarketDataRefreshes,
+    ApiRequestDays,
   ],
 )
 final class AppDatabase extends _$AppDatabase {
@@ -275,7 +347,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -325,6 +397,24 @@ final class AppDatabase extends _$AppDatabase {
           'FROM investments WHERE deleted_at IS NULL',
         );
       }
+      if (from < 7) {
+        await migrator.addColumn(users, users.role);
+        await migrator.addColumn(investments, investments.stockId);
+        await migrator.addColumn(
+          dividendSchedules,
+          dividendSchedules.paymentDate,
+        );
+        await migrator.addColumn(
+          dividendSchedules,
+          dividendSchedules.paymentYear,
+        );
+        await migrator.addColumn(dividendSchedules, dividendSchedules.currency);
+        await migrator.createTable(stockMasters);
+        await migrator.createTable(stockPrices);
+        await migrator.createTable(stockDividends);
+        await migrator.createTable(marketDataRefreshes);
+        await migrator.createTable(apiRequestDays);
+      }
     },
   );
 
@@ -336,6 +426,127 @@ final class AppDatabase extends _$AppDatabase {
       (select(users)..where((row) => row.id.equals(id))).getSingleOrNull();
 
   Future<void> createUser(UsersCompanion user) => into(users).insert(user);
+
+  Future<int> userCount() async {
+    final count = users.id.count();
+    final row = await (selectOnly(users)..addColumns([count])).getSingle();
+    return row.read(count) ?? 0;
+  }
+
+  Stream<List<User>> watchUsers() => (select(
+    users,
+  )..orderBy([(row) => OrderingTerm.asc(row.displayName)])).watch();
+
+  Future<void> updateUserRole({
+    required String actorUserId,
+    required String userId,
+    required String role,
+  }) async {
+    await _requireAdmin(actorUserId);
+    if (!const {'admin', 'member'}.contains(role)) {
+      throw ArgumentError.value(role, 'role', 'Unbekannte Rolle');
+    }
+    if (actorUserId == userId && role != 'admin') {
+      throw StateError('Administratoren können sich nicht selbst herabstufen.');
+    }
+    await (update(users)..where((row) => row.id.equals(userId))).write(
+      UsersCompanion(
+        role: Value(role),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+  }
+
+  Stream<List<StockMaster>> watchStockMasters() =>
+      (select(stockMasters)
+            ..where((row) => row.deletedAt.isNull())
+            ..orderBy([(row) => OrderingTerm.asc(row.name)]))
+          .watch();
+
+  Future<List<StockMaster>> stockPool() =>
+      (select(stockMasters)..where((row) => row.deletedAt.isNull())).get();
+
+  Future<void> saveStockMaster(
+    String actorUserId,
+    StockMastersCompanion value,
+  ) async {
+    await _requireAdmin(actorUserId);
+    await into(stockMasters).insertOnConflictUpdate(value);
+  }
+
+  Future<void> deleteStockMaster(String actorUserId, String id) async {
+    await _requireAdmin(actorUserId);
+    await (update(stockMasters)..where((row) => row.id.equals(id))).write(
+      StockMastersCompanion(
+        deletedAt: Value(DateTime.now().toUtc()),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+  }
+
+  Future<void> _requireAdmin(String userId) async {
+    final actor = await userById(userId);
+    if (actor?.role != 'admin') {
+      throw StateError('Für diese Aktion ist die Adminrolle erforderlich.');
+    }
+  }
+
+  Future<StockPrice?> stockPrice(String stockId) => (select(
+    stockPrices,
+  )..where((row) => row.stockId.equals(stockId))).getSingleOrNull();
+
+  Future<void> saveStockPrice(StockPricesCompanion value) =>
+      into(stockPrices).insertOnConflictUpdate(value);
+
+  Future<DateTime?> lastMarketRefresh(String type, String scope) async =>
+      (await (select(marketDataRefreshes)..where(
+                (row) => row.dataType.equals(type) & row.scopeKey.equals(scope),
+              ))
+              .getSingleOrNull())
+          ?.refreshedAt;
+
+  Future<void> markMarketRefresh(String type, String scope, DateTime at) =>
+      into(marketDataRefreshes).insertOnConflictUpdate(
+        MarketDataRefreshesCompanion.insert(
+          dataType: type,
+          scopeKey: scope,
+          refreshedAt: at,
+        ),
+      );
+
+  Future<int> apiRequestsForDay(String day) async =>
+      (await (select(
+            apiRequestDays,
+          )..where((row) => row.day.equals(day))).getSingleOrNull())
+          ?.requestCount ??
+      0;
+
+  Future<void> recordApiRequest(String day) async {
+    final current = await apiRequestsForDay(day);
+    await into(apiRequestDays).insertOnConflictUpdate(
+      ApiRequestDaysCompanion.insert(
+        day: day,
+        requestCount: Value(current + 1),
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  Future<List<StockDividend>> stockDividendsForYear(String stockId, int year) =>
+      (select(stockDividends)..where(
+            (row) =>
+                row.stockId.equals(stockId) &
+                row.exDate.isBiggerOrEqualValue(DateTime(year)) &
+                row.exDate.isSmallerThanValue(DateTime(year + 1)),
+          ))
+          .get();
+
+  Future<void> saveStockDividends(Iterable<StockDividendsCompanion> values) =>
+      batch((batch) {
+        for (final value in values) {
+          batch.insert(stockDividends, value, mode: InsertMode.insertOrReplace);
+        }
+      });
 
   Future<void> updateUserPassword(String userId, String hash, String salt) =>
       (update(users)..where((row) => row.id.equals(userId))).write(
@@ -582,10 +793,9 @@ final class AppDatabase extends _$AppDatabase {
     if (reverse && !entry.accountApplied) return;
     if (!reverse && entry.accountApplied) return;
     final now = DateTime.now();
-    final bookingDay = DateTime(
-      entry.bookingDate.year,
-      entry.bookingDate.month,
-      entry.bookingDate.day,
+    final bookingDay = ledgerEffectiveDate(
+      entry.bookingDate,
+      entry.budgetMonth,
     );
     final today = DateTime(now.year, now.month, now.day);
     if (bookingDay.isAfter(today)) return;

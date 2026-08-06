@@ -921,7 +921,9 @@ class _EntryEditorState extends State<_EntryEditor> {
                   initialValue: _budgetOffset,
                   isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'In welchem Budgetmonat berücksichtigen?',
+                    labelText: 'Budgetmonat',
+                    helperText:
+                        'Bestimmt Saldo, Einnahmen, Ausgaben und Statistiken.',
                   ),
                   items: const [
                     DropdownMenuItem(
@@ -947,7 +949,7 @@ class _EntryEditorState extends State<_EntryEditor> {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Automatisch monatlich buchen'),
                   subtitle: const Text(
-                    'Mit festem Beginn und begrenzter Laufzeit',
+                    'Datum und Budgetmonat werden gemeinsam je Monat fortgeschrieben.',
                   ),
                   value: _repeatMonthly,
                   onChanged: (value) => setState(() => _repeatMonthly = value),

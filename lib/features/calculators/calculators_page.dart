@@ -416,9 +416,27 @@ class _WithdrawalCalculatorState extends State<_WithdrawalCalculator> {
         ? double.infinity
         : -math.log(1 - capital * monthlyRate / wanted) /
               math.log(1 + monthlyRate);
+    final chartWithdrawal = _mode == 'amount' ? monthly : wanted;
+    final chartMonths = _mode == 'amount'
+        ? months
+        : durationMonths.isFinite
+        ? durationMonths.ceil().clamp(1, 1200)
+        : 600;
+    final remaining = <FlSpot>[FlSpot(0, capital.clamp(0, double.infinity))];
+    var balance = capital;
+    for (var month = 1; month <= chartMonths; month++) {
+      balance = (balance * (1 + monthlyRate) - chartWithdrawal)
+          .clamp(0, double.infinity)
+          .toDouble();
+      if (month % 12 == 0 || month == chartMonths) {
+        remaining.add(FlSpot(month / 12, balance));
+      }
+    }
     return _CalculatorScaffold(
       title: 'Entnahmerechner',
       subtitle: 'Berechne den Monatsbetrag oder wie lange dein Kapital reicht.',
+      resultHeight: 560,
+      verticalResultHeight: 680,
       input: Column(
         children: [
           SegmentedButton<String>(
@@ -461,7 +479,7 @@ class _WithdrawalCalculatorState extends State<_WithdrawalCalculator> {
         ],
       ),
       result: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Icon(
             Icons.payments_rounded,
@@ -500,6 +518,80 @@ class _WithdrawalCalculatorState extends State<_WithdrawalCalculator> {
             'Die Berechnung nimmt eine konstante Rendite und monatliche Entnahme an. Steuern und Inflation sind nicht enthalten.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 18),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Kapitalverlauf',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: LineChart(
+              LineChartData(
+                minY: 0,
+                borderData: FlBorderData(show: false),
+                gridData: FlGridData(
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: Theme.of(context).dividerColor.withValues(alpha: .2),
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    axisNameWidget: const Text('Jahre'),
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 28,
+                      interval: (chartMonths / 12 / 5).clamp(1, 20).toDouble(),
+                    ),
+                  ),
+                ),
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems: (spots) => spots
+                        .map(
+                          (spot) => LineTooltipItem(
+                            '${spot.x.toStringAsFixed(1)} Jahre\n${money(spot.y)}',
+                            const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: remaining,
+                    isCurved: true,
+                    barWidth: 4,
+                    color: Theme.of(context).colorScheme.primary,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: .16),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -755,7 +847,6 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
   bool _usePortfolio = true;
   bool _considerTaxes = true;
   bool _considerInflation = true;
-  bool _showDefinitions = false;
 
   @override
   void dispose() {
@@ -847,7 +938,7 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
             suffix: 'Jahre',
             onChanged: (_) => _changed(preference),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
             title: const Text('Startkapital aus Depot lesen'),
@@ -862,7 +953,7 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
               _saveFreedomPreference(preference);
             },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
           _NumberField(
             controller: _start,
             label: 'Startkapital',
@@ -876,108 +967,88 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
             suffix: '%',
             onChanged: (_) => setState(() {}),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
           Card(
             margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Deutsche Kapitalertragsteuer'),
-                    subtitle: Text(
-                      _considerTaxes
-                          ? 'Steuersatz wird auf Erträge und Dividenden angewendet'
-                          : 'Modellrechnung ohne Steuern',
-                    ),
-                    value: _considerTaxes,
-                    onChanged: (value) =>
-                        setState(() => _considerTaxes = value),
+            child: ExpansionTile(
+              leading: const Icon(Icons.tune_rounded),
+              title: const Text('Steuern & Inflation'),
+              subtitle: const Text('Optionale Annahmen einblenden'),
+              childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+              children: [
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Deutsche Kapitalertragsteuer'),
+                  subtitle: Text(
+                    _considerTaxes
+                        ? 'Steuersatz wird auf Erträge und Dividenden angewendet'
+                        : 'Modellrechnung ohne Steuern',
                   ),
-                  if (_considerTaxes)
-                    _NumberField(
-                      controller: _taxRate,
-                      label: 'Effektiver Steuersatz',
-                      suffix: '%',
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Inflation berücksichtigen'),
-                    subtitle: Text(
-                      _considerInflation
-                          ? 'Ergebnisse werden in heutiger Kaufkraft gerechnet'
-                          : 'Nominale Modellrechnung ohne Inflation',
-                    ),
-                    value: _considerInflation,
-                    onChanged: (value) =>
-                        setState(() => _considerInflation = value),
+                  value: _considerTaxes,
+                  onChanged: (value) => setState(() => _considerTaxes = value),
+                ),
+                if (_considerTaxes)
+                  _DefinitionNumberField(
+                    controller: _taxRate,
+                    label: 'Effektiver Steuersatz',
+                    suffix: '%',
+                    definition:
+                        'Vereinfachter Abzug auf Kapitalerträge. Freibeträge und persönliche Kirchensteuer werden nicht automatisch berücksichtigt.',
+                    onChanged: (_) => setState(() {}),
                   ),
-                  if (_considerInflation)
-                    _NumberField(
-                      controller: _inflation,
-                      label: 'Erwartete Inflation p. a.',
-                      suffix: '%',
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: () =>
-                          setState(() => _showDefinitions = !_showDefinitions),
-                      icon: Icon(
-                        _showDefinitions
-                            ? Icons.expand_less_rounded
-                            : Icons.info_outline_rounded,
-                      ),
-                      label: Text(
-                        _showDefinitions
-                            ? 'Definitionen ausblenden'
-                            : 'Kurze Definitionen einblenden',
-                      ),
-                    ),
+                const SizedBox(height: 8),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Inflation berücksichtigen'),
+                  subtitle: Text(
+                    _considerInflation
+                        ? 'Ergebnisse werden in heutiger Kaufkraft gerechnet'
+                        : 'Nominale Modellrechnung ohne Inflation',
                   ),
-                  if (_showDefinitions)
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Rendite: angenommener jährlicher Wertzuwachs vor Abzügen.\n'
-                        'Kapitalertragsteuer: vereinfachter effektiver Abzug auf Erträge; Freibeträge und individuelle Kirchensteuer sind nicht automatisch enthalten.\n'
-                        'Inflation: jährlicher Kaufkraftverlust. Mit aktivierter Inflation zeigt das Modell Werte in heutiger Kaufkraft.\n'
-                        'Entnahmerate: Anteil des Zielkapitals, der pro Jahr entnommen werden soll.',
-                      ),
-                    ),
-                ],
-              ),
+                  value: _considerInflation,
+                  onChanged: (value) =>
+                      setState(() => _considerInflation = value),
+                ),
+                if (_considerInflation)
+                  _DefinitionNumberField(
+                    controller: _inflation,
+                    label: 'Erwartete Inflation p. a.',
+                    suffix: '%',
+                    definition:
+                        'Geschätzter jährlicher Kaufkraftverlust. Aktiviert zeigt das Ergebnis Werte in heutiger Kaufkraft.',
+                    onChanged: (_) => setState(() {}),
+                  ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
           _NumberField(
             controller: _saving,
             label: 'Monatliche Sparrate',
             suffix: '€',
             onChanged: (_) => setState(() {}),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
           _NumberField(
             controller: _payout,
             label: 'Monatlicher Wunschbetrag',
             suffix: '€',
             onChanged: (_) => setState(() {}),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
           _NumberField(
             controller: _dividends,
             label: 'Weitere Dividenden monatlich',
             suffix: '€',
             onChanged: (_) => setState(() {}),
           ),
-          const SizedBox(height: 12),
-          _NumberField(
+          const SizedBox(height: 18),
+          _DefinitionNumberField(
             controller: _withdrawalRate,
             label: 'Nachhaltige Entnahmerate',
             suffix: '%',
+            definition:
+                'Anteil des Zielkapitals, der pro Jahr entnommen wird. Eine niedrigere Rate erhöht das benötigte Zielkapital.',
             onChanged: (_) => setState(() {}),
           ),
         ],
@@ -1260,6 +1331,58 @@ class _NumberField extends StatelessWidget {
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
     onChanged: onChanged,
     decoration: InputDecoration(labelText: label, suffixText: suffix),
+  );
+}
+
+class _DefinitionNumberField extends StatefulWidget {
+  const _DefinitionNumberField({
+    required this.controller,
+    required this.label,
+    required this.suffix,
+    required this.definition,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String suffix;
+  final String definition;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_DefinitionNumberField> createState() => _DefinitionNumberFieldState();
+}
+
+class _DefinitionNumberFieldState extends State<_DefinitionNumberField> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _NumberField(
+        controller: widget.controller,
+        label: widget.label,
+        suffix: widget.suffix,
+        onChanged: widget.onChanged,
+      ),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => setState(() => _expanded = !_expanded),
+          icon: Icon(
+            _expanded ? Icons.expand_less_rounded : Icons.info_outline_rounded,
+            size: 18,
+          ),
+          label: Text(_expanded ? 'Erklärung ausblenden' : 'Was bedeutet das?'),
+        ),
+      ),
+      if (_expanded)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Text(widget.definition),
+        ),
+    ],
   );
 }
 

@@ -25,6 +25,28 @@ DateTime budgetMonthOf(DateTime bookingDate, DateTime? explicitBudgetMonth) {
   return DateTime(value.year, value.month);
 }
 
+/// Date from which a ledger entry affects budget totals and the app balance.
+///
+/// A payment without an explicit budget month becomes effective on its real
+/// booking date. Advance payments become effective on the first day of their
+/// economic month (for example salary paid on 31 July for August).
+DateTime ledgerEffectiveDate(
+  DateTime bookingDate,
+  DateTime? explicitBudgetMonth,
+) {
+  if (explicitBudgetMonth == null) {
+    return DateTime(bookingDate.year, bookingDate.month, bookingDate.day);
+  }
+  final budgetMonth = DateTime(
+    explicitBudgetMonth.year,
+    explicitBudgetMonth.month,
+  );
+  final bookingMonth = DateTime(bookingDate.year, bookingDate.month);
+  return budgetMonth == bookingMonth
+      ? DateTime(bookingDate.year, bookingDate.month, bookingDate.day)
+      : budgetMonth;
+}
+
 /// Calculates the real payment date for a payment belonging to [budgetMonth].
 ///
 /// Start and middle are paid in the same economic month. End is paid on the

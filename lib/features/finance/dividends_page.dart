@@ -386,7 +386,18 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Auszahlung'),
                 ),
+                OutlinedButton.icon(
+                  onPressed: () => _showHistoryLoader(context, selected),
+                  icon: const Icon(Icons.history_rounded),
+                  label: const Text('Historie nachladen'),
+                ),
               ],
+            ),
+            const SizedBox(height: 16),
+            _DividendQuickEntry(
+              key: ValueKey('quick-$selectedId'),
+              investment: selected,
+              schedules: exact,
             ),
             const SizedBox(height: 16),
             LayoutBuilder(
@@ -421,25 +432,12 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (var month = 1; month <= 12; month++)
-                  Chip(
-                    label: Text(
-                      _monthNames[month - 1] +
-                          ': ' +
-                          money(
-                            _dividendForMonth(
-                              selected,
-                              widget.schedules,
-                              month,
-                            ),
-                          ),
-                    ),
-                  ),
-              ],
+            SizedBox(
+              height: 230,
+              child: _AnnualDividendChart(
+                investment: selected,
+                schedules: widget.schedules,
+              ),
             ),
             const SizedBox(height: 12),
             if (exact.isEmpty)
@@ -457,10 +455,19 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                   ),
                   title: Text(money(row.amountPerShare) + ' je Aktie'),
                   subtitle: Text(
-                    row.exDate == null
-                        ? 'Ex-Datum nicht hinterlegt'
-                        : 'Ex-Datum ' +
-                              DateFormat('dd.MM.yyyy').format(row.exDate!),
+                    [
+                      row.exDate == null
+                          ? 'Ex-Datum offen'
+                          : 'Ex ' +
+                                DateFormat('dd.MM.yyyy').format(row.exDate!),
+                      row.paymentDate == null
+                          ? 'Zahlungstermin offen'
+                          : 'Zahlung ' +
+                                DateFormat(
+                                  'dd.MM.yyyy',
+                                ).format(row.paymentDate!),
+                      row.currency,
+                    ].join(' · '),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -485,6 +492,280 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                 ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+Future<void> _showHistoryLoader(
+  BuildContext context,
+  Investment investment,
+) async {
+  var year = DateTime.now().year - 1;
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: Text('Dividendenhistorie · ${investment.name}'),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DropdownButtonFormField<int>(
+                initialValue: year,
+                decoration: const InputDecoration(
+                  labelText: 'Historisches Jahr',
+                ),
+                items: List.generate(15, (index) => DateTime.now().year - index)
+                    .map(
+                      (value) =>
+                          DropdownMenuItem(value: value, child: Text('$value')),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setDialogState(() => year = value ?? year),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Der Cache und die jahresweise Abruflogik sind vorbereitet. Der Download wird freigeschaltet, sobald die endgültige Marktdaten-Webseite angebunden ist; bis dahin entsteht kein API-Request.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Verstanden'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _DividendQuickEntry extends ConsumerStatefulWidget {
+  const _DividendQuickEntry({
+    super.key,
+    required this.investment,
+    required this.schedules,
+  });
+
+  final Investment investment;
+  final List<DividendSchedule> schedules;
+
+  @override
+  ConsumerState<_DividendQuickEntry> createState() =>
+      _DividendQuickEntryState();
+}
+
+class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
+  late final List<TextEditingController> _amounts = List.generate(12, (index) {
+    final rows = widget.schedules.where((row) => row.paymentMonth == index + 1);
+    return TextEditingController(
+      text: rows.isEmpty ? '' : rows.first.amountPerShare.toString(),
+    );
+  });
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    for (final controller in _amounts) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Theme.of(
+        context,
+      ).colorScheme.primaryContainer.withValues(alpha: .28),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Schnellerfassung · Betrag je Aktie',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Alle zwölf Monate direkt bearbeiten und mit einem Klick speichern.',
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (var month = 1; month <= 12; month++) ...[
+                  SizedBox(
+                    width: 92,
+                    child: TextField(
+                      controller: _amounts[month - 1],
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: _monthNames[month - 1].substring(0, 3),
+                        suffixText: '€',
+                      ),
+                    ),
+                  ),
+                  if (month < 12) const SizedBox(width: 8),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_rounded),
+              label: const Text('Alle Werte speichern'),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _save() async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    setState(() => _saving = true);
+    final database = ref.read(databaseProvider);
+    final now = DateTime.now().toUtc();
+    for (var month = 1; month <= 12; month++) {
+      final old = widget.schedules
+          .where((row) => row.paymentMonth == month)
+          .firstOrNull;
+      final amount = double.tryParse(
+        _amounts[month - 1].text.replaceAll(',', '.'),
+      );
+      if (amount == null || amount <= 0) {
+        if (old != null) await database.deleteDividendSchedule(old.id, userId);
+        continue;
+      }
+      await database.saveDividendSchedule(
+        DividendSchedulesCompanion.insert(
+          id: old?.id ?? const Uuid().v4(),
+          userId: userId,
+          investmentId: widget.investment.id,
+          paymentMonth: month,
+          amountPerShare: amount,
+          exDate: Value(old?.exDate),
+          paymentDate: Value(old?.paymentDate),
+          paymentYear: Value(
+            old?.paymentYear == 0 || old == null
+                ? DateTime.now().year
+                : old.paymentYear,
+          ),
+          currency: Value(old?.currency ?? 'EUR'),
+          createdAt: old?.createdAt ?? now,
+          updatedAt: now,
+        ),
+      );
+    }
+    if (mounted) {
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Dividendenwerte wurden gespeichert.')),
+      );
+    }
+  }
+}
+
+class _AnnualDividendChart extends StatelessWidget {
+  const _AnnualDividendChart({
+    required this.investment,
+    required this.schedules,
+  });
+
+  final Investment investment;
+  final List<DividendSchedule> schedules;
+
+  @override
+  Widget build(BuildContext context) {
+    final values = List.generate(
+      12,
+      (index) => _dividendForMonth(investment, schedules, index + 1),
+    );
+    final maximum = values.fold<double>(
+      0,
+      (max, value) => value > max ? value : max,
+    );
+    return BarChart(
+      BarChartData(
+        maxY: maximum <= 0 ? 1 : maximum * 1.2,
+        borderData: FlBorderData(show: false),
+        gridData: FlGridData(
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: Theme.of(context).dividerColor.withValues(alpha: .2),
+          ),
+        ),
+        titlesData: FlTitlesData(
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) => Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(_monthNames[value.toInt()].substring(0, 3)),
+              ),
+            ),
+          ),
+        ),
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipItem: (group, groupIndex, rod, rodIndex) =>
+                BarTooltipItem(
+                  '${_monthNames[group.x]}\n${money(rod.toY)}',
+                  const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+          ),
+        ),
+        barGroups: [
+          for (var index = 0; index < values.length; index++)
+            BarChartGroupData(
+              x: index,
+              barRods: [
+                BarChartRodData(
+                  toY: values[index],
+                  width: 18,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(6),
+                  ),
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }
@@ -575,10 +856,10 @@ Future<void> _showScheduleEditor(
       schedule?.paymentMonth ?? existing.firstOrNull?.paymentMonth ?? 1;
   var months = schedule != null
       ? <int>{schedule.paymentMonth}
-      : existing.isNotEmpty
-      ? existing.map((row) => row.paymentMonth).toSet()
-      : _paymentMonthsFromStart(investment.dividendFrequency, startMonth);
+      : <int>{startMonth};
   var exDate = schedule?.exDate;
+  var paymentDate = schedule?.paymentDate;
+  final currency = TextEditingController(text: schedule?.currency ?? 'EUR');
   final key = GlobalKey<FormState>();
   final result = await showDialog<bool>(
     context: context,
@@ -612,10 +893,7 @@ Future<void> _showScheduleEditor(
                         if (value == null) return;
                         setDialogState(() {
                           startMonth = value;
-                          months = _paymentMonthsFromStart(
-                            investment.dividendFrequency,
-                            startMonth,
-                          );
+                          months = <int>{startMonth};
                         });
                       },
                     ),
@@ -704,6 +982,37 @@ Future<void> _showScheduleEditor(
                                 DateFormat('dd.MM.yyyy').format(exDate!),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: months.length == 1
+                        ? () async {
+                            final selected = await showDatePicker(
+                              context: context,
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                              initialDate: paymentDate ?? DateTime.now(),
+                            );
+                            if (selected != null) {
+                              setDialogState(() => paymentDate = selected);
+                            }
+                          }
+                        : null,
+                    icon: const Icon(Icons.payments_outlined),
+                    label: Text(
+                      months.length > 1
+                          ? 'Zahlungstermin bei Bedarf je Eintrag bearbeiten'
+                          : paymentDate == null
+                          ? 'Zahlungstermin auswählen'
+                          : 'Zahlung ' +
+                                DateFormat('dd.MM.yyyy').format(paymentDate!),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: currency,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(labelText: 'Währung'),
+                  ),
                 ],
               ),
             ),
@@ -732,17 +1041,8 @@ Future<void> _showScheduleEditor(
     if (userId != null) {
       final now = DateTime.now().toUtc();
       final database = ref.read(databaseProvider);
-      if (schedule == null) {
-        for (final row in existing.where(
-          (row) => !months.contains(row.paymentMonth),
-        )) {
-          await database.deleteDividendSchedule(row.id, userId);
-        }
-      }
       for (final month in months) {
-        final old = existing
-            .where((row) => row.paymentMonth == month)
-            .firstOrNull;
+        final old = schedule;
         await database.saveDividendSchedule(
           DividendSchedulesCompanion.insert(
             id: old?.id ?? const Uuid().v4(),
@@ -751,6 +1051,13 @@ Future<void> _showScheduleEditor(
             paymentMonth: month,
             amountPerShare: double.parse(amount.text.replaceAll(',', '.')),
             exDate: Value(months.length == 1 ? exDate : old?.exDate),
+            paymentDate: Value(
+              months.length == 1 ? paymentDate : old?.paymentDate,
+            ),
+            paymentYear: Value(
+              (paymentDate ?? exDate)?.year ?? DateTime.now().year,
+            ),
+            currency: Value(currency.text.trim().toUpperCase()),
             createdAt: old?.createdAt ?? now,
             updatedAt: now,
           ),
@@ -759,20 +1066,7 @@ Future<void> _showScheduleEditor(
     }
   }
   amount.dispose();
-}
-
-Set<int> _paymentMonthsFromStart(String frequency, int startMonth) {
-  final interval = switch (frequency) {
-    'monatlich' => 1,
-    'vierteljährlich' => 3,
-    'halbjährlich' => 6,
-    _ => 12,
-  };
-  final count = 12 ~/ interval;
-  return {
-    for (var index = 0; index < count; index++)
-      ((startMonth - 1 + index * interval) % 12) + 1,
-  };
+  currency.dispose();
 }
 
 Future<void> _deleteSchedule(
