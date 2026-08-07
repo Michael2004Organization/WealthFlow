@@ -21,3 +21,16 @@ double dividendPerMonth(
 double dividendPerQuarterFromMonth(double monthlyTotal) => monthlyTotal * 3;
 
 double dividendPerYearFromMonth(double monthlyTotal) => monthlyTotal * 12;
+
+List<int> dividendPaymentMonths(String frequency, int startMonth) {
+  final interval = switch (frequency) {
+    'monatlich' => 1,
+    'vierteljährlich' => 3,
+    'halbjährlich' => 6,
+    _ => 12,
+  };
+  final normalizedStart = ((startMonth - 1) % 12) + 1;
+  return List<int>.generate(12 ~/ interval, (index) {
+    return ((normalizedStart - 1 + index * interval) % 12) + 1;
+  })..sort();
+}

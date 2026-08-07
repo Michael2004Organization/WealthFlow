@@ -630,6 +630,28 @@ Future<void> showEntryEditor(
     await database.saveLedgerEntries(result.entries);
     final userId = ref.read(currentUserIdProvider);
     if (userId != null) {
+      if (result.reminderTitle != null && result.reminderAt != null) {
+        final reminderId = const Uuid().v4();
+        final now = DateTime.now().toUtc();
+        await database.saveReminder(
+          RemindersCompanion.insert(
+            id: reminderId,
+            userId: userId,
+            title: result.reminderTitle!,
+            scheduledAt: result.reminderAt!.toUtc(),
+            ledgerEntryId: Value(result.entries.first.id.value),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        final notifications = ref.read(notificationServiceProvider);
+        await notifications.requestPermissions();
+        await notifications.schedule(
+          id: reminderId,
+          title: result.reminderTitle!,
+          scheduledAt: result.reminderAt!,
+        );
+      }
       for (final item in {
         if (result.merchant.isNotEmpty) 'merchant': result.merchant,
         if (result.paymentMethod.isNotEmpty)
@@ -656,11 +678,15 @@ class _EntrySubmission {
     required this.merchant,
     required this.paymentMethod,
     required this.category,
+    this.reminderTitle,
+    this.reminderAt,
   });
   final List<LedgerEntriesCompanion> entries;
   final String merchant;
   final String paymentMethod;
   final String category;
+  final String? reminderTitle;
+  final DateTime? reminderAt;
 }
 
 class _EntryEditor extends StatefulWidget {
@@ -699,6 +725,7 @@ class _EntryEditorState extends State<_EntryEditor> {
   late final _category = TextEditingController(
     text: widget.entry?.category ?? 'Einkaufen',
   );
+  final _reminderTitle = TextEditingController();
   late bool _income = widget.entry?.isIncome ?? false;
   late DateTime _date =
       widget.entry?.bookingDate ?? widget.initialDate ?? DateTime.now();
@@ -715,6 +742,8 @@ class _EntryEditorState extends State<_EntryEditor> {
   bool _repeatMonthly = false;
   String _timing = 'selected';
   int _months = 3;
+  bool _addReminder = false;
+  DateTime _reminderAt = DateTime.now().add(const Duration(days: 1));
 
   @override
   void dispose() {
@@ -723,6 +752,7 @@ class _EntryEditorState extends State<_EntryEditor> {
     _description.dispose();
     _payment.dispose();
     _category.dispose();
+    _reminderTitle.dispose();
     super.dispose();
   }
 
@@ -903,6 +933,45 @@ class _EntryEditorState extends State<_EntryEditor> {
                 decoration: const InputDecoration(labelText: 'Beschreibung'),
                 maxLines: 2,
               ),
+              const SizedBox(height: 8),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Erinnerung zu dieser Buchung'),
+                subtitle: const Text(
+                  'Plant optional eine Systembenachrichtigung.',
+                ),
+                value: _addReminder,
+                onChanged: (value) => setState(() => _addReminder = value),
+              ),
+              if (_addReminder) ...[
+                TextFormField(
+                  controller: _reminderTitle,
+                  decoration: const InputDecoration(
+                    labelText: 'Erinnerung',
+                    hintText: 'z. B. Abo kündigen',
+                    prefixIcon: Icon(Icons.notifications_outlined),
+                  ),
+                  validator: (value) =>
+                      _addReminder && (value?.trim().isEmpty ?? true)
+                      ? 'Bitte einen Erinnerungstext eingeben.'
+                      : null,
+                ),
+                const SizedBox(height: 10),
+                _responsiveFields([
+                  OutlinedButton.icon(
+                    onPressed: _pickReminderDate,
+                    icon: const Icon(Icons.event_rounded),
+                    label: Text(DateFormat('dd.MM.yyyy').format(_reminderAt)),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _pickReminderTime,
+                    icon: const Icon(Icons.schedule_rounded),
+                    label: Text(
+                      '${DateFormat('HH:mm').format(_reminderAt)} Uhr',
+                    ),
+                  ),
+                ]),
+              ],
               const SizedBox(height: 12),
               Align(
                 alignment: Alignment.centerLeft,
@@ -915,34 +984,27 @@ class _EntryEditorState extends State<_EntryEditor> {
                   ),
                 ),
               ),
-              if (!_repeatMonthly) ...[
-                const SizedBox(height: 8),
-                DropdownButtonFormField<int>(
-                  initialValue: _budgetOffset,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Budgetmonat',
-                    helperText:
-                        'Bestimmt Saldo, Einnahmen, Ausgaben und Statistiken.',
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: -1,
-                      child: Text('Im vorherigen Monat'),
-                    ),
-                    DropdownMenuItem(
-                      value: 0,
-                      child: Text('Im Monat des Buchungstags'),
-                    ),
-                    DropdownMenuItem(
-                      value: 1,
-                      child: Text('Im nächsten Monat (im Voraus bezahlt)'),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _budgetOffset = value ?? 0),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<int>(
+                key: ValueKey('budget-$_budgetOffset-$_timing'),
+                initialValue: _timing == 'end' ? 1 : _budgetOffset,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Wirtschaftlicher Buchungsmonat',
+                  helperText:
+                      'Steuert Monatsübersichten, Statistiken und Auswertungen.',
                 ),
-              ],
+                items: const [
+                  DropdownMenuItem(
+                    value: 0,
+                    child: Text('Tatsächlicher Buchungsmonat'),
+                  ),
+                  DropdownMenuItem(value: 1, child: Text('Nächster Monat')),
+                ],
+                onChanged: _timing == 'end'
+                    ? null
+                    : (value) => setState(() => _budgetOffset = value ?? 0),
+              ),
               if (widget.entry == null) ...[
                 const SizedBox(height: 8),
                 SwitchListTile.adaptive(
@@ -976,11 +1038,13 @@ class _EntryEditorState extends State<_EntryEditor> {
                         ),
                         DropdownMenuItem(
                           value: 'end',
-                          child: Text('Vormonat (vorletzter Werktag)'),
+                          child: Text('Vormonat (letzter Werktag)'),
                         ),
                       ],
-                      onChanged: (value) =>
-                          setState(() => _timing = value ?? 'selected'),
+                      onChanged: (value) => setState(() {
+                        _timing = value ?? 'selected';
+                        if (_timing == 'end') _budgetOffset = 1;
+                      }),
                     ),
                     DropdownButtonFormField<int>(
                       initialValue: _months,
@@ -1001,16 +1065,7 @@ class _EntryEditorState extends State<_EntryEditor> {
                 if (_repeatMonthly) ...[
                   const SizedBox(height: 8),
                   Text(
-                    'Erste Kontobuchung: ' +
-                        DateFormat('dd.MM.yyyy').format(
-                          paymentDateForBudgetMonth(
-                            budgetMonth: DateTime(_date.year, _date.month),
-                            timing: _timing,
-                            selectedDay: _date.day,
-                          ),
-                        ) +
-                        ' · zählt für ' +
-                        _monthLabel(DateTime(_date.year, _date.month)),
+                    _seriesPreview(),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -1081,16 +1136,17 @@ class _EntryEditorState extends State<_EntryEditor> {
     final entries = <LedgerEntriesCompanion>[];
     for (var index = 0; index < repeatCount; index++) {
       final transferId = _bookingKind == 'standard' ? '' : const Uuid().v4();
-      final budgetMonth = _repeatMonthly
-          ? DateTime(_date.year, _date.month + index)
-          : DateTime(_date.year, _date.month + _budgetOffset);
+      final seriesMonth = DateTime(_date.year, _date.month + index);
       final date = _repeatMonthly
           ? paymentDateForBudgetMonth(
-              budgetMonth: budgetMonth,
+              budgetMonth: seriesMonth,
               timing: _timing,
               selectedDay: _date.day,
             )
           : _date;
+      final budgetMonth = _repeatMonthly && _timing == 'end'
+          ? seriesMonth
+          : DateTime(date.year, date.month + _budgetOffset);
       entries.add(
         LedgerEntriesCompanion.insert(
           id: widget.entry?.id ?? const Uuid().v4(),
@@ -1151,6 +1207,8 @@ class _EntryEditorState extends State<_EntryEditor> {
         category: _category.text.trim().isEmpty
             ? 'Sonstiges'
             : _category.text.trim(),
+        reminderTitle: _addReminder ? _reminderTitle.text.trim() : null,
+        reminderAt: _addReminder ? _reminderAt : null,
       ),
     );
   }
@@ -1167,7 +1225,60 @@ class _EntryEditorState extends State<_EntryEditor> {
     return ((budgetMonth.year - bookingDate.year) * 12 +
             budgetMonth.month -
             bookingDate.month)
-        .clamp(-1, 1);
+        .clamp(0, 1);
+  }
+
+  String _seriesPreview() {
+    final seriesMonth = DateTime(_date.year, _date.month);
+    final bookingDate = paymentDateForBudgetMonth(
+      budgetMonth: seriesMonth,
+      timing: _timing,
+      selectedDay: _date.day,
+    );
+    final budgetMonth = _timing == 'end'
+        ? seriesMonth
+        : DateTime(bookingDate.year, bookingDate.month + _budgetOffset);
+    return 'Erste Kontobuchung: '
+        '${DateFormat('dd.MM.yyyy').format(bookingDate)}'
+        ' · zählt wirtschaftlich für ${_monthLabel(budgetMonth)}';
+  }
+
+  Future<void> _pickReminderDate() async {
+    final selected = await showDatePicker(
+      context: context,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+      initialDate: _reminderAt,
+    );
+    if (selected != null) {
+      setState(
+        () => _reminderAt = DateTime(
+          selected.year,
+          selected.month,
+          selected.day,
+          _reminderAt.hour,
+          _reminderAt.minute,
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickReminderTime() async {
+    final selected = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_reminderAt),
+    );
+    if (selected != null) {
+      setState(
+        () => _reminderAt = DateTime(
+          _reminderAt.year,
+          _reminderAt.month,
+          _reminderAt.day,
+          selected.hour,
+          selected.minute,
+        ),
+      );
+    }
   }
 }
 

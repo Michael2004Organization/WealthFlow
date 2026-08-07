@@ -306,12 +306,10 @@ double _dividendForMonth(
       (sum, row) => sum + row.amountPerShare * investment.quantity,
     );
   }
-  final paymentMonths = switch (investment.dividendFrequency) {
-    'monatlich' => List<int>.generate(12, (index) => index + 1),
-    'vierteljährlich' => const [3, 6, 9, 12],
-    'halbjährlich' => const [6, 12],
-    _ => const [12],
-  };
+  final paymentMonths = dividendPaymentMonths(
+    investment.dividendFrequency,
+    investment.dividendStartMonth,
+  );
   return paymentMonths.contains(month)
       ? investment.annualDividend * investment.quantity
       : 0;
@@ -562,12 +560,23 @@ class _DividendQuickEntry extends ConsumerStatefulWidget {
 
 class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
   late final List<TextEditingController> _amounts = List.generate(12, (index) {
+    final month = index + 1;
     final rows = widget.schedules.where((row) => row.paymentMonth == index + 1);
     return TextEditingController(
-      text: rows.isEmpty ? '' : rows.first.amountPerShare.toString(),
+      text: rows.isNotEmpty
+          ? rows.first.amountPerShare.toString()
+          : _editableMonths.contains(month) &&
+                widget.investment.annualDividend > 0
+          ? widget.investment.annualDividend.toString()
+          : '',
     );
   });
   bool _saving = false;
+
+  late final Set<int> _editableMonths = dividendPaymentMonths(
+    widget.investment.dividendFrequency,
+    widget.investment.dividendStartMonth,
+  ).toSet();
 
   @override
   void dispose() {
@@ -597,8 +606,10 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Alle zwölf Monate direkt bearbeiten und mit einem Klick speichern.',
+          Text(
+            'Nur die Monate des ${widget.investment.dividendFrequency}en '
+            'Rhythmus ab ${_monthNames[widget.investment.dividendStartMonth - 1]} '
+            'sind änderbar. Der Positionsbetrag ist bereits vorbelegt.',
           ),
           const SizedBox(height: 12),
           SingleChildScrollView(
@@ -610,12 +621,17 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
                     width: 92,
                     child: TextField(
                       controller: _amounts[month - 1],
+                      readOnly: !_editableMonths.contains(month),
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
                       decoration: InputDecoration(
                         labelText: _monthNames[month - 1].substring(0, 3),
                         suffixText: '€',
+                        filled: !_editableMonths.contains(month),
+                        prefixIcon: _editableMonths.contains(month)
+                            ? null
+                            : const Icon(Icons.lock_outline_rounded, size: 17),
                       ),
                     ),
                   ),
@@ -650,6 +666,7 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
     final database = ref.read(databaseProvider);
     final now = DateTime.now().toUtc();
     for (var month = 1; month <= 12; month++) {
+      if (!_editableMonths.contains(month)) continue;
       final old = widget.schedules
           .where((row) => row.paymentMonth == month)
           .firstOrNull;

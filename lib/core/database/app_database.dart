@@ -68,6 +68,8 @@ class Investments extends Table {
   RealColumn get annualDividend => real().withDefault(const Constant(0))();
   TextColumn get dividendFrequency =>
       text().withDefault(const Constant('jährlich'))();
+  IntColumn get dividendStartMonth =>
+      integer().withDefault(const Constant(1))();
   TextColumn get notes => text().withDefault(const Constant(''))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -217,6 +219,21 @@ class MasterData extends Table {
   ];
 }
 
+@DataClassName('AppReminder')
+class Reminders extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text().references(Users, #id)();
+  TextColumn get title => text()();
+  DateTimeColumn get scheduledAt => dateTime()();
+  TextColumn get ledgerEntryId => text().withDefault(const Constant(''))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class Vehicles extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text().references(Users, #id)();
@@ -299,6 +316,7 @@ class NetWorthSnapshots extends Table {
     DividendSchedules,
     LedgerEntries,
     MasterData,
+    Reminders,
     Vehicles,
     VehicleCosts,
     UserPreferences,
@@ -347,7 +365,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -414,6 +432,10 @@ final class AppDatabase extends _$AppDatabase {
         await migrator.createTable(stockDividends);
         await migrator.createTable(marketDataRefreshes);
         await migrator.createTable(apiRequestDays);
+      }
+      if (from < 8) {
+        await migrator.addColumn(investments, investments.dividendStartMonth);
+        await migrator.createTable(reminders);
       }
     },
   );
@@ -661,6 +683,29 @@ final class AppDatabase extends _$AppDatabase {
             ]))
           .watch();
 
+  Stream<List<AppReminder>> watchReminders(String userId) =>
+      (select(reminders)
+            ..where((row) => row.userId.equals(userId) & row.deletedAt.isNull())
+            ..orderBy([(row) => OrderingTerm.asc(row.scheduledAt)]))
+          .watch();
+
+  Future<void> saveReminder(RemindersCompanion value) async {
+    await into(reminders).insertOnConflictUpdate(value);
+    await persistUserFile(value.userId.value);
+  }
+
+  Future<void> deleteReminder(String id, String userId) async {
+    await (update(
+      reminders,
+    )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+      RemindersCompanion(
+        deletedAt: Value(DateTime.now().toUtc()),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    await persistUserFile(userId);
+  }
+
   Future<void> saveMasterDatum(MasterDataCompanion value) async {
     await into(masterData).insert(value, mode: InsertMode.insertOrIgnore);
     await persistUserFile(value.userId.value);
@@ -866,6 +911,9 @@ final class AppDatabase extends _$AppDatabase {
     final masterRows = await (select(
       masterData,
     )..where((r) => r.userId.equals(userId))).get();
+    final reminderRows = await (select(
+      reminders,
+    )..where((r) => r.userId.equals(userId))).get();
     final snapshotRows = await (select(
       netWorthSnapshots,
     )..where((r) => r.userId.equals(userId))).get();
@@ -890,6 +938,7 @@ final class AppDatabase extends _$AppDatabase {
       'vehicles': vehicleRows.map((e) => e.toJson()).toList(),
       'vehicleCosts': costRows.map((e) => e.toJson()).toList(),
       'masterData': masterRows.map((e) => e.toJson()).toList(),
+      'reminders': reminderRows.map((e) => e.toJson()).toList(),
       'netWorthSnapshots': snapshotRows.map((e) => e.toJson()).toList(),
       'preferences': preferences?.toJson(),
     };
@@ -969,6 +1018,18 @@ final class AppDatabase extends _$AppDatabase {
         if (local == null || remoteChanged.isAfter(localChanged!)) {
           await into(
             masterData,
+          ).insertOnConflictUpdate(remote.toCompanion(false));
+        }
+      }
+      for (final json in rows('reminders')) {
+        final remote = AppReminder.fromJson(json);
+        if (remote.userId != userId) continue;
+        final local = await (select(
+          reminders,
+        )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+        if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
+          await into(
+            reminders,
           ).insertOnConflictUpdate(remote.toCompanion(false));
         }
       }

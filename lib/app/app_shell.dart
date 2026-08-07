@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/providers.dart';
 import '../features/dashboard/dashboard_page.dart';
+import '../features/calculators/calculators_page.dart';
 import '../features/finance/finance_page.dart';
 import '../features/household/household_page.dart';
 import '../features/more/more_page.dart';
 import '../features/statistics/statistics_page.dart';
+import '../features/vehicles/vehicles_page.dart';
 
 class AppShell extends ConsumerWidget {
   const AppShell({super.key});
@@ -32,6 +34,12 @@ class AppShell extends ConsumerWidget {
       Icons.query_stats_outlined,
       Icons.query_stats_rounded,
     ),
+    _Destination('Rechner', Icons.calculate_outlined, Icons.calculate_rounded),
+    _Destination(
+      'Fahrzeuge',
+      Icons.directions_car_outlined,
+      Icons.directions_car_rounded,
+    ),
     _Destination('Mehr', Icons.grid_view_outlined, Icons.grid_view_rounded),
   ];
 
@@ -44,6 +52,8 @@ class AppShell extends ConsumerWidget {
       FinancePage(),
       HouseholdPage(),
       StatisticsPage(),
+      CalculatorsPage(),
+      VehiclesPage(),
       MorePage(),
     ];
     return LayoutBuilder(

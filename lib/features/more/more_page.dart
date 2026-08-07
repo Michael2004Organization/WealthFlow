@@ -3,12 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
-import '../calculators/calculators_page.dart';
+import '../reminders/reminders_page.dart';
 import '../search/search_page.dart';
 import '../settings/settings_page.dart';
 import '../settings/master_data_page.dart';
 import '../settings/administration_page.dart';
-import '../vehicles/vehicles_page.dart';
 
 class MorePage extends ConsumerStatefulWidget {
   const MorePage({super.key});
@@ -19,20 +18,12 @@ class MorePage extends ConsumerStatefulWidget {
 class _MorePageState extends ConsumerState<MorePage> {
   static const _destinations = [
     _MoreDestination(
-      'vehicles',
-      'Fahrzeuge',
-      'Autos, Motorräder und Kosten',
-      Icons.directions_car_rounded,
-      Colors.blue,
-      VehiclesPage(),
-    ),
-    _MoreDestination(
-      'calculators',
-      'Rechner',
-      'Zinseszins, Entnahme und Fahrten',
-      Icons.calculate_rounded,
-      Colors.teal,
-      CalculatorsPage(),
+      'reminders',
+      'Erinnerungen',
+      'Termine und Benachrichtigungen',
+      Icons.notifications_active_rounded,
+      Colors.deepPurple,
+      RemindersPage(),
     ),
     _MoreDestination(
       'search',

@@ -203,7 +203,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               icon: item.vehicleType == 'Motorrad'
                   ? Icons.two_wheeler_rounded
                   : Icons.directions_car_rounded,
-              shellIndex: 4,
+              shellIndex: 5,
             ),
           );
         }

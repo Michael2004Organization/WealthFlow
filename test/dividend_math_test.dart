@@ -15,4 +15,10 @@ void main() {
     expect(dividendPerQuarterFromMonth(monthly), closeTo(10, 0.0001));
     expect(dividendPerYearFromMonth(monthly), closeTo(40, 0.0001));
   });
+
+  test('payout months follow the configured rhythm start', () {
+    expect(dividendPaymentMonths('vierteljährlich', 2), [2, 5, 8, 11]);
+    expect(dividendPaymentMonths('halbjährlich', 10), [4, 10]);
+    expect(dividendPaymentMonths('jährlich', 7), [7]);
+  });
 }

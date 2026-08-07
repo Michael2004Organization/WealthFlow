@@ -79,7 +79,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   }
 
   Widget _buildForm(BuildContext context, bool busy, String? error) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 42),
       child: Form(
         key: _formKey,

@@ -1612,6 +1612,17 @@ class $InvestmentsTable extends Investments
         requiredDuringInsert: false,
         defaultValue: const Constant('jährlich'),
       );
+  static const VerificationMeta _dividendStartMonthMeta =
+      const VerificationMeta('dividendStartMonth');
+  @override
+  late final GeneratedColumn<int> dividendStartMonth = GeneratedColumn<int>(
+    'dividend_start_month',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -1675,6 +1686,7 @@ class $InvestmentsTable extends Investments
     currentPrice,
     annualDividend,
     dividendFrequency,
+    dividendStartMonth,
     notes,
     createdAt,
     updatedAt,
@@ -1828,6 +1840,15 @@ class $InvestmentsTable extends Investments
         ),
       );
     }
+    if (data.containsKey('dividend_start_month')) {
+      context.handle(
+        _dividendStartMonthMeta,
+        dividendStartMonth.isAcceptableOrUnknown(
+          data['dividend_start_month']!,
+          _dividendStartMonthMeta,
+        ),
+      );
+    }
     if (data.containsKey('notes')) {
       context.handle(
         _notesMeta,
@@ -1937,6 +1958,10 @@ class $InvestmentsTable extends Investments
         DriftSqlType.string,
         data['${effectivePrefix}dividend_frequency'],
       )!,
+      dividendStartMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}dividend_start_month'],
+      )!,
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -1981,6 +2006,7 @@ class Investment extends DataClass implements Insertable<Investment> {
   final double currentPrice;
   final double annualDividend;
   final String dividendFrequency;
+  final int dividendStartMonth;
   final String notes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -2004,6 +2030,7 @@ class Investment extends DataClass implements Insertable<Investment> {
     required this.currentPrice,
     required this.annualDividend,
     required this.dividendFrequency,
+    required this.dividendStartMonth,
     required this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -2032,6 +2059,7 @@ class Investment extends DataClass implements Insertable<Investment> {
     map['current_price'] = Variable<double>(currentPrice);
     map['annual_dividend'] = Variable<double>(annualDividend);
     map['dividend_frequency'] = Variable<String>(dividendFrequency);
+    map['dividend_start_month'] = Variable<int>(dividendStartMonth);
     map['notes'] = Variable<String>(notes);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -2063,6 +2091,7 @@ class Investment extends DataClass implements Insertable<Investment> {
       currentPrice: Value(currentPrice),
       annualDividend: Value(annualDividend),
       dividendFrequency: Value(dividendFrequency),
+      dividendStartMonth: Value(dividendStartMonth),
       notes: Value(notes),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -2096,6 +2125,7 @@ class Investment extends DataClass implements Insertable<Investment> {
       currentPrice: serializer.fromJson<double>(json['currentPrice']),
       annualDividend: serializer.fromJson<double>(json['annualDividend']),
       dividendFrequency: serializer.fromJson<String>(json['dividendFrequency']),
+      dividendStartMonth: serializer.fromJson<int>(json['dividendStartMonth']),
       notes: serializer.fromJson<String>(json['notes']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -2124,6 +2154,7 @@ class Investment extends DataClass implements Insertable<Investment> {
       'currentPrice': serializer.toJson<double>(currentPrice),
       'annualDividend': serializer.toJson<double>(annualDividend),
       'dividendFrequency': serializer.toJson<String>(dividendFrequency),
+      'dividendStartMonth': serializer.toJson<int>(dividendStartMonth),
       'notes': serializer.toJson<String>(notes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -2150,6 +2181,7 @@ class Investment extends DataClass implements Insertable<Investment> {
     double? currentPrice,
     double? annualDividend,
     String? dividendFrequency,
+    int? dividendStartMonth,
     String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -2173,6 +2205,7 @@ class Investment extends DataClass implements Insertable<Investment> {
     currentPrice: currentPrice ?? this.currentPrice,
     annualDividend: annualDividend ?? this.annualDividend,
     dividendFrequency: dividendFrequency ?? this.dividendFrequency,
+    dividendStartMonth: dividendStartMonth ?? this.dividendStartMonth,
     notes: notes ?? this.notes,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -2208,6 +2241,9 @@ class Investment extends DataClass implements Insertable<Investment> {
       dividendFrequency: data.dividendFrequency.present
           ? data.dividendFrequency.value
           : this.dividendFrequency,
+      dividendStartMonth: data.dividendStartMonth.present
+          ? data.dividendStartMonth.value
+          : this.dividendStartMonth,
       notes: data.notes.present ? data.notes.value : this.notes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -2236,6 +2272,7 @@ class Investment extends DataClass implements Insertable<Investment> {
           ..write('currentPrice: $currentPrice, ')
           ..write('annualDividend: $annualDividend, ')
           ..write('dividendFrequency: $dividendFrequency, ')
+          ..write('dividendStartMonth: $dividendStartMonth, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -2264,6 +2301,7 @@ class Investment extends DataClass implements Insertable<Investment> {
     currentPrice,
     annualDividend,
     dividendFrequency,
+    dividendStartMonth,
     notes,
     createdAt,
     updatedAt,
@@ -2291,6 +2329,7 @@ class Investment extends DataClass implements Insertable<Investment> {
           other.currentPrice == this.currentPrice &&
           other.annualDividend == this.annualDividend &&
           other.dividendFrequency == this.dividendFrequency &&
+          other.dividendStartMonth == this.dividendStartMonth &&
           other.notes == this.notes &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -2316,6 +2355,7 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
   final Value<double> currentPrice;
   final Value<double> annualDividend;
   final Value<String> dividendFrequency;
+  final Value<int> dividendStartMonth;
   final Value<String> notes;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -2340,6 +2380,7 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     this.currentPrice = const Value.absent(),
     this.annualDividend = const Value.absent(),
     this.dividendFrequency = const Value.absent(),
+    this.dividendStartMonth = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -2365,6 +2406,7 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     required double currentPrice,
     this.annualDividend = const Value.absent(),
     this.dividendFrequency = const Value.absent(),
+    this.dividendStartMonth = const Value.absent(),
     this.notes = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -2399,6 +2441,7 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     Expression<double>? currentPrice,
     Expression<double>? annualDividend,
     Expression<String>? dividendFrequency,
+    Expression<int>? dividendStartMonth,
     Expression<String>? notes,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -2424,6 +2467,8 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
       if (currentPrice != null) 'current_price': currentPrice,
       if (annualDividend != null) 'annual_dividend': annualDividend,
       if (dividendFrequency != null) 'dividend_frequency': dividendFrequency,
+      if (dividendStartMonth != null)
+        'dividend_start_month': dividendStartMonth,
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -2451,6 +2496,7 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     Value<double>? currentPrice,
     Value<double>? annualDividend,
     Value<String>? dividendFrequency,
+    Value<int>? dividendStartMonth,
     Value<String>? notes,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -2476,6 +2522,7 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
       currentPrice: currentPrice ?? this.currentPrice,
       annualDividend: annualDividend ?? this.annualDividend,
       dividendFrequency: dividendFrequency ?? this.dividendFrequency,
+      dividendStartMonth: dividendStartMonth ?? this.dividendStartMonth,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -2541,6 +2588,9 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     if (dividendFrequency.present) {
       map['dividend_frequency'] = Variable<String>(dividendFrequency.value);
     }
+    if (dividendStartMonth.present) {
+      map['dividend_start_month'] = Variable<int>(dividendStartMonth.value);
+    }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
@@ -2580,6 +2630,7 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
           ..write('currentPrice: $currentPrice, ')
           ..write('annualDividend: $annualDividend, ')
           ..write('dividendFrequency: $dividendFrequency, ')
+          ..write('dividendStartMonth: $dividendStartMonth, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -5359,6 +5410,526 @@ class MasterDataCompanion extends UpdateCompanion<MasterDataData> {
           ..write('userId: $userId, ')
           ..write('kind: $kind, ')
           ..write('value: $value, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RemindersTable extends Reminders
+    with TableInfo<$RemindersTable, AppReminder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RemindersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES users (id)',
+    ),
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _scheduledAtMeta = const VerificationMeta(
+    'scheduledAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> scheduledAt = GeneratedColumn<DateTime>(
+    'scheduled_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ledgerEntryIdMeta = const VerificationMeta(
+    'ledgerEntryId',
+  );
+  @override
+  late final GeneratedColumn<String> ledgerEntryId = GeneratedColumn<String>(
+    'ledger_entry_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    title,
+    scheduledAt,
+    ledgerEntryId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reminders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppReminder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('scheduled_at')) {
+      context.handle(
+        _scheduledAtMeta,
+        scheduledAt.isAcceptableOrUnknown(
+          data['scheduled_at']!,
+          _scheduledAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_scheduledAtMeta);
+    }
+    if (data.containsKey('ledger_entry_id')) {
+      context.handle(
+        _ledgerEntryIdMeta,
+        ledgerEntryId.isAcceptableOrUnknown(
+          data['ledger_entry_id']!,
+          _ledgerEntryIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AppReminder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppReminder(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      scheduledAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}scheduled_at'],
+      )!,
+      ledgerEntryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ledger_entry_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $RemindersTable createAlias(String alias) {
+    return $RemindersTable(attachedDatabase, alias);
+  }
+}
+
+class AppReminder extends DataClass implements Insertable<AppReminder> {
+  final String id;
+  final String userId;
+  final String title;
+  final DateTime scheduledAt;
+  final String ledgerEntryId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const AppReminder({
+    required this.id,
+    required this.userId,
+    required this.title,
+    required this.scheduledAt,
+    required this.ledgerEntryId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['title'] = Variable<String>(title);
+    map['scheduled_at'] = Variable<DateTime>(scheduledAt);
+    map['ledger_entry_id'] = Variable<String>(ledgerEntryId);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  RemindersCompanion toCompanion(bool nullToAbsent) {
+    return RemindersCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      title: Value(title),
+      scheduledAt: Value(scheduledAt),
+      ledgerEntryId: Value(ledgerEntryId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory AppReminder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppReminder(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      title: serializer.fromJson<String>(json['title']),
+      scheduledAt: serializer.fromJson<DateTime>(json['scheduledAt']),
+      ledgerEntryId: serializer.fromJson<String>(json['ledgerEntryId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'title': serializer.toJson<String>(title),
+      'scheduledAt': serializer.toJson<DateTime>(scheduledAt),
+      'ledgerEntryId': serializer.toJson<String>(ledgerEntryId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  AppReminder copyWith({
+    String? id,
+    String? userId,
+    String? title,
+    DateTime? scheduledAt,
+    String? ledgerEntryId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => AppReminder(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    title: title ?? this.title,
+    scheduledAt: scheduledAt ?? this.scheduledAt,
+    ledgerEntryId: ledgerEntryId ?? this.ledgerEntryId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  AppReminder copyWithCompanion(RemindersCompanion data) {
+    return AppReminder(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      title: data.title.present ? data.title.value : this.title,
+      scheduledAt: data.scheduledAt.present
+          ? data.scheduledAt.value
+          : this.scheduledAt,
+      ledgerEntryId: data.ledgerEntryId.present
+          ? data.ledgerEntryId.value
+          : this.ledgerEntryId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppReminder(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('title: $title, ')
+          ..write('scheduledAt: $scheduledAt, ')
+          ..write('ledgerEntryId: $ledgerEntryId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    title,
+    scheduledAt,
+    ledgerEntryId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppReminder &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.title == this.title &&
+          other.scheduledAt == this.scheduledAt &&
+          other.ledgerEntryId == this.ledgerEntryId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class RemindersCompanion extends UpdateCompanion<AppReminder> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> title;
+  final Value<DateTime> scheduledAt;
+  final Value<String> ledgerEntryId;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const RemindersCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.scheduledAt = const Value.absent(),
+    this.ledgerEntryId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RemindersCompanion.insert({
+    required String id,
+    required String userId,
+    required String title,
+    required DateTime scheduledAt,
+    this.ledgerEntryId = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       title = Value(title),
+       scheduledAt = Value(scheduledAt),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<AppReminder> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? title,
+    Expression<DateTime>? scheduledAt,
+    Expression<String>? ledgerEntryId,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (title != null) 'title': title,
+      if (scheduledAt != null) 'scheduled_at': scheduledAt,
+      if (ledgerEntryId != null) 'ledger_entry_id': ledgerEntryId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RemindersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? title,
+    Value<DateTime>? scheduledAt,
+    Value<String>? ledgerEntryId,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return RemindersCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      scheduledAt: scheduledAt ?? this.scheduledAt,
+      ledgerEntryId: ledgerEntryId ?? this.ledgerEntryId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (scheduledAt.present) {
+      map['scheduled_at'] = Variable<DateTime>(scheduledAt.value);
+    }
+    if (ledgerEntryId.present) {
+      map['ledger_entry_id'] = Variable<String>(ledgerEntryId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RemindersCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('title: $title, ')
+          ..write('scheduledAt: $scheduledAt, ')
+          ..write('ledgerEntryId: $ledgerEntryId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -10138,6 +10709,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $DividendSchedulesTable(this);
   late final $LedgerEntriesTable ledgerEntries = $LedgerEntriesTable(this);
   late final $MasterDataTable masterData = $MasterDataTable(this);
+  late final $RemindersTable reminders = $RemindersTable(this);
   late final $VehiclesTable vehicles = $VehiclesTable(this);
   late final $VehicleCostsTable vehicleCosts = $VehicleCostsTable(this);
   late final $UserPreferencesTable userPreferences = $UserPreferencesTable(
@@ -10163,6 +10735,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     dividendSchedules,
     ledgerEntries,
     masterData,
+    reminders,
     vehicles,
     vehicleCosts,
     userPreferences,
@@ -10319,6 +10892,24 @@ final class $$UsersTableReferences
     ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_masterDataRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$RemindersTable, List<AppReminder>>
+  _remindersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.reminders,
+    aliasName: 'users__id__reminders__user_id',
+  );
+
+  $$RemindersTableProcessedTableManager get remindersRefs {
+    final manager = $$RemindersTableTableManager(
+      $_db,
+      $_db.reminders,
+    ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_remindersRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -10597,6 +11188,31 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
           }) => $$MasterDataTableFilterComposer(
             $db: $db,
             $table: $db.masterData,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> remindersRefs(
+    Expression<bool> Function($$RemindersTableFilterComposer f) f,
+  ) {
+    final $$RemindersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.reminders,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RemindersTableFilterComposer(
+            $db: $db,
+            $table: $db.reminders,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -10958,6 +11574,31 @@ class $$UsersTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> remindersRefs<T extends Object>(
+    Expression<T> Function($$RemindersTableAnnotationComposer a) f,
+  ) {
+    final $$RemindersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.reminders,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RemindersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.reminders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> vehiclesRefs<T extends Object>(
     Expression<T> Function($$VehiclesTableAnnotationComposer a) f,
   ) {
@@ -11080,6 +11721,7 @@ class $$UsersTableTableManager
             bool dividendSchedulesRefs,
             bool ledgerEntriesRefs,
             bool masterDataRefs,
+            bool remindersRefs,
             bool vehiclesRefs,
             bool vehicleCostsRefs,
             bool userPreferencesRefs,
@@ -11159,6 +11801,7 @@ class $$UsersTableTableManager
                 dividendSchedulesRefs = false,
                 ledgerEntriesRefs = false,
                 masterDataRefs = false,
+                remindersRefs = false,
                 vehiclesRefs = false,
                 vehicleCostsRefs = false,
                 userPreferencesRefs = false,
@@ -11173,6 +11816,7 @@ class $$UsersTableTableManager
                     if (dividendSchedulesRefs) db.dividendSchedules,
                     if (ledgerEntriesRefs) db.ledgerEntries,
                     if (masterDataRefs) db.masterData,
+                    if (remindersRefs) db.reminders,
                     if (vehiclesRefs) db.vehicles,
                     if (vehicleCostsRefs) db.vehicleCosts,
                     if (userPreferencesRefs) db.userPreferences,
@@ -11303,6 +11947,27 @@ class $$UsersTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (remindersRefs)
+                        await $_getPrefetchedData<
+                          User,
+                          $UsersTable,
+                          AppReminder
+                        >(
+                          currentTable: table,
+                          referencedTable: $$UsersTableReferences
+                              ._remindersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$UsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).remindersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (vehiclesRefs)
                         await $_getPrefetchedData<User, $UsersTable, Vehicle>(
                           currentTable: table,
@@ -11410,6 +12075,7 @@ typedef $$UsersTableProcessedTableManager =
         bool dividendSchedulesRefs,
         bool ledgerEntriesRefs,
         bool masterDataRefs,
+        bool remindersRefs,
         bool vehiclesRefs,
         bool vehicleCostsRefs,
         bool userPreferencesRefs,
@@ -11947,6 +12613,7 @@ typedef $$InvestmentsTableCreateCompanionBuilder =
       required double currentPrice,
       Value<double> annualDividend,
       Value<String> dividendFrequency,
+      Value<int> dividendStartMonth,
       Value<String> notes,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -11973,6 +12640,7 @@ typedef $$InvestmentsTableUpdateCompanionBuilder =
       Value<double> currentPrice,
       Value<double> annualDividend,
       Value<String> dividendFrequency,
+      Value<int> dividendStartMonth,
       Value<String> notes,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -12138,6 +12806,11 @@ class $$InvestmentsTableFilterComposer
 
   ColumnFilters<String> get dividendFrequency => $composableBuilder(
     column: $table.dividendFrequency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get dividendStartMonth => $composableBuilder(
+    column: $table.dividendStartMonth,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12329,6 +13002,11 @@ class $$InvestmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get dividendStartMonth => $composableBuilder(
+    column: $table.dividendStartMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -12440,6 +13118,11 @@ class $$InvestmentsTableAnnotationComposer
 
   GeneratedColumn<String> get dividendFrequency => $composableBuilder(
     column: $table.dividendFrequency,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get dividendStartMonth => $composableBuilder(
+    column: $table.dividendStartMonth,
     builder: (column) => column,
   );
 
@@ -12581,6 +13264,7 @@ class $$InvestmentsTableTableManager
                 Value<double> currentPrice = const Value.absent(),
                 Value<double> annualDividend = const Value.absent(),
                 Value<String> dividendFrequency = const Value.absent(),
+                Value<int> dividendStartMonth = const Value.absent(),
                 Value<String> notes = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -12605,6 +13289,7 @@ class $$InvestmentsTableTableManager
                 currentPrice: currentPrice,
                 annualDividend: annualDividend,
                 dividendFrequency: dividendFrequency,
+                dividendStartMonth: dividendStartMonth,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -12631,6 +13316,7 @@ class $$InvestmentsTableTableManager
                 required double currentPrice,
                 Value<double> annualDividend = const Value.absent(),
                 Value<String> dividendFrequency = const Value.absent(),
+                Value<int> dividendStartMonth = const Value.absent(),
                 Value<String> notes = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -12655,6 +13341,7 @@ class $$InvestmentsTableTableManager
                 currentPrice: currentPrice,
                 annualDividend: annualDividend,
                 dividendFrequency: dividendFrequency,
+                dividendStartMonth: dividendStartMonth,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -14788,6 +15475,384 @@ typedef $$MasterDataTableProcessedTableManager =
       $$MasterDataTableUpdateCompanionBuilder,
       (MasterDataData, $$MasterDataTableReferences),
       MasterDataData,
+      PrefetchHooks Function({bool userId})
+    >;
+typedef $$RemindersTableCreateCompanionBuilder =
+    RemindersCompanion Function({
+      required String id,
+      required String userId,
+      required String title,
+      required DateTime scheduledAt,
+      Value<String> ledgerEntryId,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$RemindersTableUpdateCompanionBuilder =
+    RemindersCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> title,
+      Value<DateTime> scheduledAt,
+      Value<String> ledgerEntryId,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $$RemindersTableReferences
+    extends BaseReferences<_$AppDatabase, $RemindersTable, AppReminder> {
+  $$RemindersTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $UsersTable _userIdTable(_$AppDatabase db) =>
+      db.users.createAlias('reminders__user_id__users__id');
+
+  $$UsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$UsersTableTableManager(
+      $_db,
+      $_db.users,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$RemindersTableFilterComposer
+    extends Composer<_$AppDatabase, $RemindersTable> {
+  $$RemindersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get scheduledAt => $composableBuilder(
+    column: $table.scheduledAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ledgerEntryId => $composableBuilder(
+    column: $table.ledgerEntryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$UsersTableFilterComposer get userId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableFilterComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RemindersTableOrderingComposer
+    extends Composer<_$AppDatabase, $RemindersTable> {
+  $$RemindersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get scheduledAt => $composableBuilder(
+    column: $table.scheduledAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ledgerEntryId => $composableBuilder(
+    column: $table.ledgerEntryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$UsersTableOrderingComposer get userId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RemindersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RemindersTable> {
+  $$RemindersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get scheduledAt => $composableBuilder(
+    column: $table.scheduledAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get ledgerEntryId => $composableBuilder(
+    column: $table.ledgerEntryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$UsersTableAnnotationComposer get userId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RemindersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RemindersTable,
+          AppReminder,
+          $$RemindersTableFilterComposer,
+          $$RemindersTableOrderingComposer,
+          $$RemindersTableAnnotationComposer,
+          $$RemindersTableCreateCompanionBuilder,
+          $$RemindersTableUpdateCompanionBuilder,
+          (AppReminder, $$RemindersTableReferences),
+          AppReminder,
+          PrefetchHooks Function({bool userId})
+        > {
+  $$RemindersTableTableManager(_$AppDatabase db, $RemindersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RemindersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RemindersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RemindersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<DateTime> scheduledAt = const Value.absent(),
+                Value<String> ledgerEntryId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RemindersCompanion(
+                id: id,
+                userId: userId,
+                title: title,
+                scheduledAt: scheduledAt,
+                ledgerEntryId: ledgerEntryId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String title,
+                required DateTime scheduledAt,
+                Value<String> ledgerEntryId = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RemindersCompanion.insert(
+                id: id,
+                userId: userId,
+                title: title,
+                scheduledAt: scheduledAt,
+                ledgerEntryId: ledgerEntryId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$RemindersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({userId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (userId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.userId,
+                                referencedTable: $$RemindersTableReferences
+                                    ._userIdTable(db),
+                                referencedColumn: $$RemindersTableReferences
+                                    ._userIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$RemindersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RemindersTable,
+      AppReminder,
+      $$RemindersTableFilterComposer,
+      $$RemindersTableOrderingComposer,
+      $$RemindersTableAnnotationComposer,
+      $$RemindersTableCreateCompanionBuilder,
+      $$RemindersTableUpdateCompanionBuilder,
+      (AppReminder, $$RemindersTableReferences),
+      AppReminder,
       PrefetchHooks Function({bool userId})
     >;
 typedef $$VehiclesTableCreateCompanionBuilder =
@@ -18327,6 +19392,8 @@ class $AppDatabaseManager {
       $$LedgerEntriesTableTableManager(_db, _db.ledgerEntries);
   $$MasterDataTableTableManager get masterData =>
       $$MasterDataTableTableManager(_db, _db.masterData);
+  $$RemindersTableTableManager get reminders =>
+      $$RemindersTableTableManager(_db, _db.reminders);
   $$VehiclesTableTableManager get vehicles =>
       $$VehiclesTableTableManager(_db, _db.vehicles);
   $$VehicleCostsTableTableManager get vehicleCosts =>

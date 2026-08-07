@@ -560,6 +560,7 @@ Future<void> showInvestmentEditor(
             currentPrice: result.currentPrice.value,
             annualDividend: result.annualDividend,
             dividendFrequency: result.dividendFrequency,
+            dividendStartMonth: result.dividendStartMonth,
             notes: result.notes,
             createdAt: duplicate.createdAt,
             updatedAt: DateTime.now().toUtc(),
@@ -641,6 +642,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
   late final _notes = TextEditingController(text: widget.investment?.notes);
   late String _type = widget.investment?.assetType ?? 'Aktie';
   late String _frequency = widget.investment?.dividendFrequency ?? 'jährlich';
+  late int _startMonth = widget.investment?.dividendStartMonth ?? 1;
   late DateTime _date = widget.investment?.purchaseDate ?? DateTime.now();
   String? _selectedExistingId;
   late String? _selectedStockId = widget.investment?.stockId;
@@ -743,11 +745,14 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                   const SizedBox(height: 12),
                 ],
                 _responsiveFields([
-                  _field(_name, 'Name', required: true),
-                  _field(_symbol, 'Symbol'),
+                  _field(_name, 'Name', required: true, readOnly: true),
+                  _field(_symbol, 'Symbol', readOnly: true),
                 ]),
                 const SizedBox(height: 12),
-                _responsiveFields([_field(_isin, 'ISIN'), _field(_wkn, 'WKN')]),
+                _responsiveFields([
+                  _field(_isin, 'ISIN', readOnly: true),
+                  _field(_wkn, 'WKN'),
+                ]),
                 const SizedBox(height: 12),
                 _responsiveFields([
                   DropdownButtonFormField<String>(
@@ -825,8 +830,28 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                               (v) => DropdownMenuItem(value: v, child: Text(v)),
                             )
                             .toList(),
-                    onChanged: (v) => _frequency = v ?? 'jährlich',
+                    onChanged: (v) =>
+                        setState(() => _frequency = v ?? 'jährlich'),
                   ),
+                  DropdownButtonFormField<int>(
+                    initialValue: _startMonth,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Startmonat des Rhythmus',
+                    ),
+                    items: List.generate(
+                      12,
+                      (index) => DropdownMenuItem(
+                        value: index + 1,
+                        child: Text(_investmentMonthNames[index]),
+                      ),
+                    ),
+                    onChanged: (value) =>
+                        setState(() => _startMonth = value ?? 1),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                _responsiveFields([
                   OutlinedButton.icon(
                     onPressed: _pickDate,
                     icon: const Icon(Icons.calendar_month_rounded),
@@ -858,13 +883,23 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     bool required = false,
     bool number = false,
     int lines = 1,
+    bool readOnly = false,
   }) => TextFormField(
     controller: controller,
+    readOnly: readOnly,
     maxLines: lines,
     keyboardType: number
         ? const TextInputType.numberWithOptions(decimal: true)
         : null,
-    decoration: InputDecoration(labelText: label),
+    decoration: InputDecoration(
+      labelText: label,
+      suffixIcon: readOnly
+          ? const Tooltip(
+              message: 'Wird aus den Aktien-Stammdaten übernommen',
+              child: Icon(Icons.lock_outline_rounded),
+            )
+          : null,
+    ),
     validator: (value) {
       if (required && (value?.trim().isEmpty ?? true)) return 'Pflichtfeld';
       if (number && _number(value) == null) return 'Ungültige Zahl';
@@ -942,6 +977,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       _notes.text = item.notes;
       _type = item.assetType;
       _frequency = item.dividendFrequency;
+      _startMonth = item.dividendStartMonth;
       _purchasePrice.clear();
       _quantity.clear();
       _fees.text = '0';
@@ -1003,6 +1039,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
         currentPrice: _number(_currentPrice.text) ?? 0,
         annualDividend: Value(_number(_dividend.text) ?? 0),
         dividendFrequency: Value(_frequency),
+        dividendStartMonth: Value(_startMonth),
         notes: Value(_notes.text.trim()),
         createdAt: widget.investment?.createdAt ?? now,
         updatedAt: now,
@@ -1010,3 +1047,18 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     );
   }
 }
+
+const _investmentMonthNames = [
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
+];

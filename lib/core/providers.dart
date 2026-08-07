@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/auth_controller.dart';
 import 'database/app_database.dart';
+import 'notifications/notification_service.dart';
 import 'security/secure_session_store.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -14,6 +15,12 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 final secureSessionStoreProvider = Provider<SecureSessionStore>(
   (_) => SecureSessionStore(),
 );
+
+final notificationServiceProvider = Provider<NotificationService>((ref) {
+  final service = NotificationService();
+  service.initialize();
+  return service;
+});
 
 final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
   (ref) {
@@ -70,6 +77,13 @@ final masterDataProvider = StreamProvider<List<MasterDataData>>((ref) {
   return userId == null
       ? Stream.value(const <MasterDataData>[])
       : ref.watch(databaseProvider).watchMasterData(userId);
+});
+
+final remindersProvider = StreamProvider<List<AppReminder>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <AppReminder>[])
+      : ref.watch(databaseProvider).watchReminders(userId);
 });
 
 final vehiclesProvider = StreamProvider<List<Vehicle>>((ref) {
@@ -149,14 +163,14 @@ void openFinance(WidgetRef ref, int tab) {
 
 void openMore(WidgetRef ref, String destination) {
   ref.read(moreDestinationProvider.notifier).state = destination;
-  ref.read(shellIndexProvider.notifier).state = 4;
+  ref.read(shellIndexProvider.notifier).state = 6;
 }
 
 void selectShellDestination(WidgetRef ref, int destination) {
   if (destination == 1) {
     ref.read(financeTabProvider.notifier).state = 0;
   }
-  if (destination == 4) {
+  if (destination == 6) {
     ref.read(moreDestinationProvider.notifier).state = null;
   }
   ref.read(shellIndexProvider.notifier).state = destination;

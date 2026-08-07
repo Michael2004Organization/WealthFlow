@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/finance/budget_period.dart';
+import '../../core/finance/dividend_math.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -232,12 +233,10 @@ double _dashboardDividendForMonth(
       (sum, row) => sum + row.amountPerShare * investment.quantity,
     );
   }
-  final paymentMonths = switch (investment.dividendFrequency) {
-    'monatlich' => List<int>.generate(12, (index) => index + 1),
-    'vierteljährlich' => const [3, 6, 9, 12],
-    'halbjährlich' => const [6, 12],
-    _ => const [12],
-  };
+  final paymentMonths = dividendPaymentMonths(
+    investment.dividendFrequency,
+    investment.dividendStartMonth,
+  );
   return paymentMonths.contains(month)
       ? investment.annualDividend * investment.quantity
       : 0;

@@ -82,7 +82,7 @@ void main() {
     await pumpPage(
       tester,
       const AuthPage(),
-      size: const Size(1440, 720),
+      size: const Size(1024, 630),
       overrides: const [],
     );
 
@@ -103,6 +103,9 @@ void main() {
         masterDataProvider.overrideWith(
           (_) => Stream.value(const <MasterDataData>[]),
         ),
+        stockMastersProvider.overrideWith(
+          (_) => Stream.value(const <StockMaster>[]),
+        ),
       ],
     );
 
@@ -122,10 +125,14 @@ void main() {
           (_) => Stream.value(const <Investment>[]),
         ),
         preferencesProvider.overrideWith((_) => Stream.value(null)),
+        accountsProvider.overrideWith((_) => Stream.value(const <Account>[])),
+        ledgerEntriesProvider.overrideWith(
+          (_) => Stream.value(const <LedgerEntry>[]),
+        ),
       ],
     );
 
-    for (final tab in ['Entnahme', 'Spritkosten', 'Freiheit']) {
+    for (final tab in ['Entnahme', 'Spritkosten', 'Freiheit', 'Kontoziel']) {
       final finder = find.text(tab);
       await tester.ensureVisible(finder);
       await tester.tap(finder);

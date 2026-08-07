@@ -1,17 +1,30 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/finance/budget_period.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
-class StatisticsPage extends ConsumerWidget {
+class StatisticsPage extends ConsumerStatefulWidget {
   const StatisticsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StatisticsPage> createState() => _StatisticsPageState();
+}
+
+class _StatisticsPageState extends ConsumerState<StatisticsPage> {
+  String _periodMode = 'month';
+  DateTime _periodAnchor = DateTime.now();
+  DateTimeRange _customPeriod = DateTimeRange(
+    start: DateTime(DateTime.now().year, DateTime.now().month, 1),
+    end: DateTime.now(),
+  );
+
+  @override
+  Widget build(BuildContext context) {
     final accounts =
         ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
     final investments =
@@ -32,6 +45,8 @@ class StatisticsPage extends ConsumerWidget {
                 title: 'Statistik',
                 subtitle: 'Interaktive Auswertungen über alle Module.',
               ),
+              _buildTopExpenses(context, entries),
+              const SizedBox(height: 16),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth < 820
@@ -81,7 +96,193 @@ class StatisticsPage extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _buildTopExpenses(BuildContext context, List<LedgerEntry> entries) {
+    final range = switch (_periodMode) {
+      'year' => DateTimeRange(
+        start: DateTime(_periodAnchor.year),
+        end: DateTime(_periodAnchor.year, 12, 31, 23, 59, 59),
+      ),
+      'custom' => _customPeriod,
+      _ => DateTimeRange(
+        start: DateTime(_periodAnchor.year, _periodAnchor.month),
+        end: DateTime(
+          _periodAnchor.year,
+          _periodAnchor.month + 1,
+        ).subtract(const Duration(milliseconds: 1)),
+      ),
+    };
+    final top = entries.where((entry) {
+      if (entry.isIncome ||
+          entry.sourceType == 'transfer' ||
+          entry.sourceType == 'saving') {
+        return false;
+      }
+      final economicDate = ledgerEffectiveDate(
+        entry.bookingDate,
+        entry.budgetMonth,
+      );
+      return !economicDate.isBefore(range.start) &&
+          !economicDate.isAfter(range.end);
+    }).toList()..sort((a, b) => b.amount.compareTo(a.amount));
+    final label = switch (_periodMode) {
+      'year' => '${_periodAnchor.year}',
+      'custom' =>
+        '${DateFormat('dd.MM.yyyy').format(range.start)} – '
+            '${DateFormat('dd.MM.yyyy').format(range.end)}',
+      _ =>
+        '${_statisticsMonthNames[_periodAnchor.month - 1]} '
+            '${_periodAnchor.year}',
+    };
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Top-Ausgaben',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const Text('Höchste Einzel-Ausgaben im gewählten Zeitraum'),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                SizedBox(
+                  width: 190,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _periodMode,
+                    decoration: const InputDecoration(labelText: 'Zeitraum'),
+                    items: const [
+                      DropdownMenuItem(value: 'month', child: Text('Monat')),
+                      DropdownMenuItem(value: 'year', child: Text('Jahr')),
+                      DropdownMenuItem(
+                        value: 'custom',
+                        child: Text('Benutzerdefiniert'),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _periodMode = value ?? 'month'),
+                  ),
+                ),
+                if (_periodMode != 'custom') ...[
+                  IconButton(
+                    tooltip: 'Vorheriger Zeitraum',
+                    onPressed: () => setState(
+                      () => _periodAnchor = _periodMode == 'year'
+                          ? DateTime(_periodAnchor.year - 1)
+                          : DateTime(
+                              _periodAnchor.year,
+                              _periodAnchor.month - 1,
+                            ),
+                    ),
+                    icon: const Icon(Icons.chevron_left_rounded),
+                  ),
+                  Text(
+                    label,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  IconButton(
+                    tooltip: 'Nächster Zeitraum',
+                    onPressed: () => setState(
+                      () => _periodAnchor = _periodMode == 'year'
+                          ? DateTime(_periodAnchor.year + 1)
+                          : DateTime(
+                              _periodAnchor.year,
+                              _periodAnchor.month + 1,
+                            ),
+                    ),
+                    icon: const Icon(Icons.chevron_right_rounded),
+                  ),
+                ] else
+                  OutlinedButton.icon(
+                    onPressed: _pickCustomPeriod,
+                    icon: const Icon(Icons.date_range_rounded),
+                    label: Text(label),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (top.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text(
+                  'Keine Ausgaben in diesem Zeitraum.',
+                  textAlign: TextAlign.center,
+                ),
+              )
+            else
+              for (final indexed in top.take(10).indexed) ...[
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(child: Text('${indexed.$1 + 1}')),
+                  title: Text(
+                    indexed.$2.merchant.isEmpty
+                        ? indexed.$2.description
+                        : indexed.$2.merchant,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(indexed.$2.category),
+                  trailing: Text(
+                    money(indexed.$2.amount),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                if (indexed.$1 < top.take(10).length - 1)
+                  const Divider(height: 1),
+              ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickCustomPeriod() async {
+    final selected = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+      initialDateRange: _customPeriod,
+    );
+    if (selected != null) {
+      setState(
+        () => _customPeriod = DateTimeRange(
+          start: selected.start,
+          end: DateTime(
+            selected.end.year,
+            selected.end.month,
+            selected.end.day,
+            23,
+            59,
+            59,
+          ),
+        ),
+      );
+    }
+  }
 }
+
+const _statisticsMonthNames = [
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
+];
 
 class _ChartCard extends StatelessWidget {
   const _ChartCard({
