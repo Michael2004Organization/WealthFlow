@@ -723,7 +723,7 @@ class _EntryEditorState extends State<_EntryEditor> {
     text: widget.entry?.paymentMethod,
   );
   late final _category = TextEditingController(
-    text: widget.entry?.category ?? 'Einkaufen',
+    text: widget.entry?.category ?? '',
   );
   final _reminderTitle = TextEditingController();
   late bool _income = widget.entry?.isIncome ?? false;
@@ -741,7 +741,7 @@ class _EntryEditorState extends State<_EntryEditor> {
   late int _budgetOffset = _initialBudgetOffset();
   bool _repeatMonthly = false;
   String _timing = 'selected';
-  int _months = 3;
+  int _months = 2;
   bool _addReminder = false;
   DateTime _reminderAt = DateTime.now().add(const Duration(days: 1));
 
@@ -975,19 +975,61 @@ class _EntryEditorState extends State<_EntryEditor> {
               const SizedBox(height: 12),
               Align(
                 alignment: Alignment.centerLeft,
+                child: Text(
+                  'Buchungsmonat und Automatik',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                key: ValueKey(_timing),
+                initialValue: _timing,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Buchungstag'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'selected',
+                    child: Text('Gewählter Tag'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'start',
+                    child: Text('Erster Werktag'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'middle',
+                    child: Text('Monatsmitte (15.)'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'end',
+                    child: Text('Letzter Werktag des Monats'),
+                  ),
+                ],
+                onChanged: (value) =>
+                    setState(() => _timing = value ?? 'selected'),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
                 child: OutlinedButton.icon(
-                  onPressed: _pickDate,
-                  icon: const Icon(Icons.calendar_month_rounded),
+                  onPressed: _timing == 'selected' ? _pickDate : _pickMonth,
+                  icon: Icon(
+                    _timing == 'selected'
+                        ? Icons.event_rounded
+                        : Icons.calendar_month_rounded,
+                  ),
                   label: Text(
-                    '${_repeatMonthly ? 'Start' : 'Datum'}: '
-                    '${DateFormat('dd.MM.yyyy').format(_date)}',
+                    _timing == 'selected'
+                        ? 'Datum: ${DateFormat('dd.MM.yyyy').format(_date)}'
+                        : 'Monat: ${_monthLabel(_date)}',
                   ),
                 ),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<int>(
                 key: ValueKey('budget-$_budgetOffset-$_timing'),
-                initialValue: _timing == 'end' ? 1 : _budgetOffset,
+                initialValue: _budgetOffset,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Wirtschaftlicher Buchungsmonat',
@@ -1001,69 +1043,48 @@ class _EntryEditorState extends State<_EntryEditor> {
                   ),
                   DropdownMenuItem(value: 1, child: Text('Nächster Monat')),
                 ],
-                onChanged: _timing == 'end'
-                    ? null
-                    : (value) => setState(() => _budgetOffset = value ?? 0),
+                onChanged: (value) =>
+                    setState(() => _budgetOffset = value ?? 0),
               ),
               if (widget.entry == null) ...[
                 const SizedBox(height: 8),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Automatisch monatlich buchen'),
+                  title: const Text('Mehrere Monate buchen'),
                   subtitle: const Text(
-                    'Datum und Budgetmonat werden gemeinsam je Monat fortgeschrieben.',
+                    'Ohne Auswahl wird genau ein Monat angelegt.',
                   ),
                   value: _repeatMonthly,
-                  onChanged: (value) => setState(() => _repeatMonthly = value),
+                  onChanged: (value) => setState(() {
+                    _repeatMonthly = value;
+                    if (value && _months < 2) _months = 2;
+                  }),
                 ),
                 if (_repeatMonthly) ...[
-                  const SizedBox(height: 8),
-                  _responsiveFields([
-                    DropdownButtonFormField<String>(
-                      initialValue: _timing,
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Zeitpunkt'),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'selected',
-                          child: Text('Gewählter Tag'),
+                  Row(
+                    children: [
+                      const Text('Laufzeit'),
+                      Expanded(
+                        child: Slider(
+                          min: 2,
+                          max: 60,
+                          divisions: 58,
+                          value: _months.toDouble(),
+                          label: '$_months Monate',
+                          onChanged: (value) =>
+                              setState(() => _months = value.round()),
                         ),
-                        DropdownMenuItem(
-                          value: 'start',
-                          child: Text('Monatsanfang (erster Werktag)'),
+                      ),
+                      SizedBox(
+                        width: 76,
+                        child: Text(
+                          '$_months Monate',
+                          textAlign: TextAlign.end,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
-                        DropdownMenuItem(
-                          value: 'middle',
-                          child: Text('Monatsmitte (15.)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'end',
-                          child: Text('Vormonat (letzter Werktag)'),
-                        ),
-                      ],
-                      onChanged: (value) => setState(() {
-                        _timing = value ?? 'selected';
-                        if (_timing == 'end') _budgetOffset = 1;
-                      }),
-                    ),
-                    DropdownButtonFormField<int>(
-                      initialValue: _months,
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Laufzeit'),
-                      items: const [1, 2, 3, 6, 12, 24, 36, 60]
-                          .map(
-                            (value) => DropdownMenuItem(
-                              value: value,
-                              child: Text('$value Monate'),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) => _months = value ?? 3,
-                    ),
-                  ]),
-                ],
-                if (_repeatMonthly) ...[
-                  const SizedBox(height: 8),
+                      ),
+                    ],
+                  ),
                   Text(
                     _seriesPreview(),
                     style: Theme.of(context).textTheme.bodySmall,
@@ -1123,6 +1144,72 @@ class _EntryEditorState extends State<_EntryEditor> {
     if (value != null) setState(() => _date = value);
   }
 
+  Future<void> _pickMonth() async {
+    var selectedYear = _date.year;
+    var selectedMonth = _date.month;
+    final value = await showDialog<DateTime>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Buchungsmonat wählen'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      onPressed: () => setDialogState(() => selectedYear--),
+                      icon: const Icon(Icons.chevron_left_rounded),
+                    ),
+                    Text(
+                      '$selectedYear',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    IconButton(
+                      onPressed: () => setDialogState(() => selectedYear++),
+                      icon: const Icon(Icons.chevron_right_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (var month = 1; month <= 12; month++)
+                      ChoiceChip(
+                        label: Text(_shortMonths[month - 1]),
+                        selected: selectedMonth == month,
+                        onSelected: (_) =>
+                            setDialogState(() => selectedMonth = month),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(
+                dialogContext,
+                DateTime(selectedYear, selectedMonth),
+              ),
+              child: const Text('Übernehmen'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (value != null) setState(() => _date = value);
+  }
+
   void _save() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final userId = ProviderScope.containerOf(
@@ -1137,16 +1224,14 @@ class _EntryEditorState extends State<_EntryEditor> {
     for (var index = 0; index < repeatCount; index++) {
       final transferId = _bookingKind == 'standard' ? '' : const Uuid().v4();
       final seriesMonth = DateTime(_date.year, _date.month + index);
-      final date = _repeatMonthly
-          ? paymentDateForBudgetMonth(
+      final date = widget.entry != null
+          ? _date
+          : paymentDateForBudgetMonth(
               budgetMonth: seriesMonth,
               timing: _timing,
               selectedDay: _date.day,
-            )
-          : _date;
-      final budgetMonth = _repeatMonthly && _timing == 'end'
-          ? seriesMonth
-          : DateTime(date.year, date.month + _budgetOffset);
+            );
+      final budgetMonth = DateTime(date.year, date.month + _budgetOffset);
       entries.add(
         LedgerEntriesCompanion.insert(
           id: widget.entry?.id ?? const Uuid().v4(),
@@ -1235,9 +1320,10 @@ class _EntryEditorState extends State<_EntryEditor> {
       timing: _timing,
       selectedDay: _date.day,
     );
-    final budgetMonth = _timing == 'end'
-        ? seriesMonth
-        : DateTime(bookingDate.year, bookingDate.month + _budgetOffset);
+    final budgetMonth = DateTime(
+      bookingDate.year,
+      bookingDate.month + _budgetOffset,
+    );
     return 'Erste Kontobuchung: '
         '${DateFormat('dd.MM.yyyy').format(bookingDate)}'
         ' · zählt wirtschaftlich für ${_monthLabel(budgetMonth)}';

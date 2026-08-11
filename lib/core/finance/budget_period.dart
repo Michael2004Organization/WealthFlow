@@ -45,9 +45,7 @@ DateTime ledgerEffectiveDate(
 
 /// Calculates the real payment date for a payment belonging to [budgetMonth].
 ///
-/// Start and middle are paid in the same economic month. End is paid on the
-/// last working day of the previous month, as commonly used for
-/// salaries and subscriptions paid in advance.
+/// All automatic timing choices stay in the selected month.
 DateTime paymentDateForBudgetMonth({
   required DateTime budgetMonth,
   required String timing,
@@ -57,7 +55,7 @@ DateTime paymentDateForBudgetMonth({
   return switch (timing) {
     'start' => firstWorkingDay(month),
     'middle' => DateTime(month.year, month.month, 15),
-    'end' => lastWorkingDay(DateTime(month.year, month.month - 1)),
+    'end' => lastWorkingDay(month),
     _ => DateTime(
       month.year,
       month.month,

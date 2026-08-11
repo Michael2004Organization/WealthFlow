@@ -1599,6 +1599,42 @@ class $InvestmentsTable extends Investments
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _dividendCurrencyMeta = const VerificationMeta(
+    'dividendCurrency',
+  );
+  @override
+  late final GeneratedColumn<String> dividendCurrency = GeneratedColumn<String>(
+    'dividend_currency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('EUR'),
+  );
+  static const VerificationMeta _dividendExchangeRateMeta =
+      const VerificationMeta('dividendExchangeRate');
+  @override
+  late final GeneratedColumn<double> dividendExchangeRate =
+      GeneratedColumn<double>(
+        'dividend_exchange_rate',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(1),
+      );
+  static const VerificationMeta _dividendWithholdingTaxRateMeta =
+      const VerificationMeta('dividendWithholdingTaxRate');
+  @override
+  late final GeneratedColumn<double> dividendWithholdingTaxRate =
+      GeneratedColumn<double>(
+        'dividend_withholding_tax_rate',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
   static const VerificationMeta _dividendFrequencyMeta = const VerificationMeta(
     'dividendFrequency',
   );
@@ -1685,6 +1721,9 @@ class $InvestmentsTable extends Investments
     fees,
     currentPrice,
     annualDividend,
+    dividendCurrency,
+    dividendExchangeRate,
+    dividendWithholdingTaxRate,
     dividendFrequency,
     dividendStartMonth,
     notes,
@@ -1831,6 +1870,33 @@ class $InvestmentsTable extends Investments
         ),
       );
     }
+    if (data.containsKey('dividend_currency')) {
+      context.handle(
+        _dividendCurrencyMeta,
+        dividendCurrency.isAcceptableOrUnknown(
+          data['dividend_currency']!,
+          _dividendCurrencyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('dividend_exchange_rate')) {
+      context.handle(
+        _dividendExchangeRateMeta,
+        dividendExchangeRate.isAcceptableOrUnknown(
+          data['dividend_exchange_rate']!,
+          _dividendExchangeRateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('dividend_withholding_tax_rate')) {
+      context.handle(
+        _dividendWithholdingTaxRateMeta,
+        dividendWithholdingTaxRate.isAcceptableOrUnknown(
+          data['dividend_withholding_tax_rate']!,
+          _dividendWithholdingTaxRateMeta,
+        ),
+      );
+    }
     if (data.containsKey('dividend_frequency')) {
       context.handle(
         _dividendFrequencyMeta,
@@ -1954,6 +2020,18 @@ class $InvestmentsTable extends Investments
         DriftSqlType.double,
         data['${effectivePrefix}annual_dividend'],
       )!,
+      dividendCurrency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dividend_currency'],
+      )!,
+      dividendExchangeRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}dividend_exchange_rate'],
+      )!,
+      dividendWithholdingTaxRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}dividend_withholding_tax_rate'],
+      )!,
       dividendFrequency: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}dividend_frequency'],
@@ -2005,6 +2083,9 @@ class Investment extends DataClass implements Insertable<Investment> {
   final double fees;
   final double currentPrice;
   final double annualDividend;
+  final String dividendCurrency;
+  final double dividendExchangeRate;
+  final double dividendWithholdingTaxRate;
   final String dividendFrequency;
   final int dividendStartMonth;
   final String notes;
@@ -2029,6 +2110,9 @@ class Investment extends DataClass implements Insertable<Investment> {
     required this.fees,
     required this.currentPrice,
     required this.annualDividend,
+    required this.dividendCurrency,
+    required this.dividendExchangeRate,
+    required this.dividendWithholdingTaxRate,
     required this.dividendFrequency,
     required this.dividendStartMonth,
     required this.notes,
@@ -2058,6 +2142,11 @@ class Investment extends DataClass implements Insertable<Investment> {
     map['fees'] = Variable<double>(fees);
     map['current_price'] = Variable<double>(currentPrice);
     map['annual_dividend'] = Variable<double>(annualDividend);
+    map['dividend_currency'] = Variable<String>(dividendCurrency);
+    map['dividend_exchange_rate'] = Variable<double>(dividendExchangeRate);
+    map['dividend_withholding_tax_rate'] = Variable<double>(
+      dividendWithholdingTaxRate,
+    );
     map['dividend_frequency'] = Variable<String>(dividendFrequency);
     map['dividend_start_month'] = Variable<int>(dividendStartMonth);
     map['notes'] = Variable<String>(notes);
@@ -2090,6 +2179,9 @@ class Investment extends DataClass implements Insertable<Investment> {
       fees: Value(fees),
       currentPrice: Value(currentPrice),
       annualDividend: Value(annualDividend),
+      dividendCurrency: Value(dividendCurrency),
+      dividendExchangeRate: Value(dividendExchangeRate),
+      dividendWithholdingTaxRate: Value(dividendWithholdingTaxRate),
       dividendFrequency: Value(dividendFrequency),
       dividendStartMonth: Value(dividendStartMonth),
       notes: Value(notes),
@@ -2124,6 +2216,13 @@ class Investment extends DataClass implements Insertable<Investment> {
       fees: serializer.fromJson<double>(json['fees']),
       currentPrice: serializer.fromJson<double>(json['currentPrice']),
       annualDividend: serializer.fromJson<double>(json['annualDividend']),
+      dividendCurrency: serializer.fromJson<String>(json['dividendCurrency']),
+      dividendExchangeRate: serializer.fromJson<double>(
+        json['dividendExchangeRate'],
+      ),
+      dividendWithholdingTaxRate: serializer.fromJson<double>(
+        json['dividendWithholdingTaxRate'],
+      ),
       dividendFrequency: serializer.fromJson<String>(json['dividendFrequency']),
       dividendStartMonth: serializer.fromJson<int>(json['dividendStartMonth']),
       notes: serializer.fromJson<String>(json['notes']),
@@ -2153,6 +2252,11 @@ class Investment extends DataClass implements Insertable<Investment> {
       'fees': serializer.toJson<double>(fees),
       'currentPrice': serializer.toJson<double>(currentPrice),
       'annualDividend': serializer.toJson<double>(annualDividend),
+      'dividendCurrency': serializer.toJson<String>(dividendCurrency),
+      'dividendExchangeRate': serializer.toJson<double>(dividendExchangeRate),
+      'dividendWithholdingTaxRate': serializer.toJson<double>(
+        dividendWithholdingTaxRate,
+      ),
       'dividendFrequency': serializer.toJson<String>(dividendFrequency),
       'dividendStartMonth': serializer.toJson<int>(dividendStartMonth),
       'notes': serializer.toJson<String>(notes),
@@ -2180,6 +2284,9 @@ class Investment extends DataClass implements Insertable<Investment> {
     double? fees,
     double? currentPrice,
     double? annualDividend,
+    String? dividendCurrency,
+    double? dividendExchangeRate,
+    double? dividendWithholdingTaxRate,
     String? dividendFrequency,
     int? dividendStartMonth,
     String? notes,
@@ -2204,6 +2311,10 @@ class Investment extends DataClass implements Insertable<Investment> {
     fees: fees ?? this.fees,
     currentPrice: currentPrice ?? this.currentPrice,
     annualDividend: annualDividend ?? this.annualDividend,
+    dividendCurrency: dividendCurrency ?? this.dividendCurrency,
+    dividendExchangeRate: dividendExchangeRate ?? this.dividendExchangeRate,
+    dividendWithholdingTaxRate:
+        dividendWithholdingTaxRate ?? this.dividendWithholdingTaxRate,
     dividendFrequency: dividendFrequency ?? this.dividendFrequency,
     dividendStartMonth: dividendStartMonth ?? this.dividendStartMonth,
     notes: notes ?? this.notes,
@@ -2238,6 +2349,15 @@ class Investment extends DataClass implements Insertable<Investment> {
       annualDividend: data.annualDividend.present
           ? data.annualDividend.value
           : this.annualDividend,
+      dividendCurrency: data.dividendCurrency.present
+          ? data.dividendCurrency.value
+          : this.dividendCurrency,
+      dividendExchangeRate: data.dividendExchangeRate.present
+          ? data.dividendExchangeRate.value
+          : this.dividendExchangeRate,
+      dividendWithholdingTaxRate: data.dividendWithholdingTaxRate.present
+          ? data.dividendWithholdingTaxRate.value
+          : this.dividendWithholdingTaxRate,
       dividendFrequency: data.dividendFrequency.present
           ? data.dividendFrequency.value
           : this.dividendFrequency,
@@ -2271,6 +2391,9 @@ class Investment extends DataClass implements Insertable<Investment> {
           ..write('fees: $fees, ')
           ..write('currentPrice: $currentPrice, ')
           ..write('annualDividend: $annualDividend, ')
+          ..write('dividendCurrency: $dividendCurrency, ')
+          ..write('dividendExchangeRate: $dividendExchangeRate, ')
+          ..write('dividendWithholdingTaxRate: $dividendWithholdingTaxRate, ')
           ..write('dividendFrequency: $dividendFrequency, ')
           ..write('dividendStartMonth: $dividendStartMonth, ')
           ..write('notes: $notes, ')
@@ -2300,6 +2423,9 @@ class Investment extends DataClass implements Insertable<Investment> {
     fees,
     currentPrice,
     annualDividend,
+    dividendCurrency,
+    dividendExchangeRate,
+    dividendWithholdingTaxRate,
     dividendFrequency,
     dividendStartMonth,
     notes,
@@ -2328,6 +2454,9 @@ class Investment extends DataClass implements Insertable<Investment> {
           other.fees == this.fees &&
           other.currentPrice == this.currentPrice &&
           other.annualDividend == this.annualDividend &&
+          other.dividendCurrency == this.dividendCurrency &&
+          other.dividendExchangeRate == this.dividendExchangeRate &&
+          other.dividendWithholdingTaxRate == this.dividendWithholdingTaxRate &&
           other.dividendFrequency == this.dividendFrequency &&
           other.dividendStartMonth == this.dividendStartMonth &&
           other.notes == this.notes &&
@@ -2354,6 +2483,9 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
   final Value<double> fees;
   final Value<double> currentPrice;
   final Value<double> annualDividend;
+  final Value<String> dividendCurrency;
+  final Value<double> dividendExchangeRate;
+  final Value<double> dividendWithholdingTaxRate;
   final Value<String> dividendFrequency;
   final Value<int> dividendStartMonth;
   final Value<String> notes;
@@ -2379,6 +2511,9 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     this.fees = const Value.absent(),
     this.currentPrice = const Value.absent(),
     this.annualDividend = const Value.absent(),
+    this.dividendCurrency = const Value.absent(),
+    this.dividendExchangeRate = const Value.absent(),
+    this.dividendWithholdingTaxRate = const Value.absent(),
     this.dividendFrequency = const Value.absent(),
     this.dividendStartMonth = const Value.absent(),
     this.notes = const Value.absent(),
@@ -2405,6 +2540,9 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     this.fees = const Value.absent(),
     required double currentPrice,
     this.annualDividend = const Value.absent(),
+    this.dividendCurrency = const Value.absent(),
+    this.dividendExchangeRate = const Value.absent(),
+    this.dividendWithholdingTaxRate = const Value.absent(),
     this.dividendFrequency = const Value.absent(),
     this.dividendStartMonth = const Value.absent(),
     this.notes = const Value.absent(),
@@ -2440,6 +2578,9 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     Expression<double>? fees,
     Expression<double>? currentPrice,
     Expression<double>? annualDividend,
+    Expression<String>? dividendCurrency,
+    Expression<double>? dividendExchangeRate,
+    Expression<double>? dividendWithholdingTaxRate,
     Expression<String>? dividendFrequency,
     Expression<int>? dividendStartMonth,
     Expression<String>? notes,
@@ -2466,6 +2607,11 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
       if (fees != null) 'fees': fees,
       if (currentPrice != null) 'current_price': currentPrice,
       if (annualDividend != null) 'annual_dividend': annualDividend,
+      if (dividendCurrency != null) 'dividend_currency': dividendCurrency,
+      if (dividendExchangeRate != null)
+        'dividend_exchange_rate': dividendExchangeRate,
+      if (dividendWithholdingTaxRate != null)
+        'dividend_withholding_tax_rate': dividendWithholdingTaxRate,
       if (dividendFrequency != null) 'dividend_frequency': dividendFrequency,
       if (dividendStartMonth != null)
         'dividend_start_month': dividendStartMonth,
@@ -2495,6 +2641,9 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     Value<double>? fees,
     Value<double>? currentPrice,
     Value<double>? annualDividend,
+    Value<String>? dividendCurrency,
+    Value<double>? dividendExchangeRate,
+    Value<double>? dividendWithholdingTaxRate,
     Value<String>? dividendFrequency,
     Value<int>? dividendStartMonth,
     Value<String>? notes,
@@ -2521,6 +2670,10 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
       fees: fees ?? this.fees,
       currentPrice: currentPrice ?? this.currentPrice,
       annualDividend: annualDividend ?? this.annualDividend,
+      dividendCurrency: dividendCurrency ?? this.dividendCurrency,
+      dividendExchangeRate: dividendExchangeRate ?? this.dividendExchangeRate,
+      dividendWithholdingTaxRate:
+          dividendWithholdingTaxRate ?? this.dividendWithholdingTaxRate,
       dividendFrequency: dividendFrequency ?? this.dividendFrequency,
       dividendStartMonth: dividendStartMonth ?? this.dividendStartMonth,
       notes: notes ?? this.notes,
@@ -2585,6 +2738,19 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     if (annualDividend.present) {
       map['annual_dividend'] = Variable<double>(annualDividend.value);
     }
+    if (dividendCurrency.present) {
+      map['dividend_currency'] = Variable<String>(dividendCurrency.value);
+    }
+    if (dividendExchangeRate.present) {
+      map['dividend_exchange_rate'] = Variable<double>(
+        dividendExchangeRate.value,
+      );
+    }
+    if (dividendWithholdingTaxRate.present) {
+      map['dividend_withholding_tax_rate'] = Variable<double>(
+        dividendWithholdingTaxRate.value,
+      );
+    }
     if (dividendFrequency.present) {
       map['dividend_frequency'] = Variable<String>(dividendFrequency.value);
     }
@@ -2629,6 +2795,9 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
           ..write('fees: $fees, ')
           ..write('currentPrice: $currentPrice, ')
           ..write('annualDividend: $annualDividend, ')
+          ..write('dividendCurrency: $dividendCurrency, ')
+          ..write('dividendExchangeRate: $dividendExchangeRate, ')
+          ..write('dividendWithholdingTaxRate: $dividendWithholdingTaxRate, ')
           ..write('dividendFrequency: $dividendFrequency, ')
           ..write('dividendStartMonth: $dividendStartMonth, ')
           ..write('notes: $notes, ')
@@ -3276,6 +3445,30 @@ class $DividendSchedulesTable extends DividendSchedules
     requiredDuringInsert: false,
     defaultValue: const Constant('EUR'),
   );
+  static const VerificationMeta _exchangeRateMeta = const VerificationMeta(
+    'exchangeRate',
+  );
+  @override
+  late final GeneratedColumn<double> exchangeRate = GeneratedColumn<double>(
+    'exchange_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _withholdingTaxRateMeta =
+      const VerificationMeta('withholdingTaxRate');
+  @override
+  late final GeneratedColumn<double> withholdingTaxRate =
+      GeneratedColumn<double>(
+        'withholding_tax_rate',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -3320,6 +3513,8 @@ class $DividendSchedulesTable extends DividendSchedules
     paymentDate,
     paymentYear,
     currency,
+    exchangeRate,
+    withholdingTaxRate,
     createdAt,
     updatedAt,
     deletedAt,
@@ -3412,6 +3607,24 @@ class $DividendSchedulesTable extends DividendSchedules
         currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
       );
     }
+    if (data.containsKey('exchange_rate')) {
+      context.handle(
+        _exchangeRateMeta,
+        exchangeRate.isAcceptableOrUnknown(
+          data['exchange_rate']!,
+          _exchangeRateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('withholding_tax_rate')) {
+      context.handle(
+        _withholdingTaxRateMeta,
+        withholdingTaxRate.isAcceptableOrUnknown(
+          data['withholding_tax_rate']!,
+          _withholdingTaxRateMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -3479,6 +3692,14 @@ class $DividendSchedulesTable extends DividendSchedules
         DriftSqlType.string,
         data['${effectivePrefix}currency'],
       )!,
+      exchangeRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}exchange_rate'],
+      )!,
+      withholdingTaxRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}withholding_tax_rate'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -3511,6 +3732,8 @@ class DividendSchedule extends DataClass
   final DateTime? paymentDate;
   final int paymentYear;
   final String currency;
+  final double exchangeRate;
+  final double withholdingTaxRate;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -3524,6 +3747,8 @@ class DividendSchedule extends DataClass
     this.paymentDate,
     required this.paymentYear,
     required this.currency,
+    required this.exchangeRate,
+    required this.withholdingTaxRate,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -3544,6 +3769,8 @@ class DividendSchedule extends DataClass
     }
     map['payment_year'] = Variable<int>(paymentYear);
     map['currency'] = Variable<String>(currency);
+    map['exchange_rate'] = Variable<double>(exchangeRate);
+    map['withholding_tax_rate'] = Variable<double>(withholdingTaxRate);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -3567,6 +3794,8 @@ class DividendSchedule extends DataClass
           : Value(paymentDate),
       paymentYear: Value(paymentYear),
       currency: Value(currency),
+      exchangeRate: Value(exchangeRate),
+      withholdingTaxRate: Value(withholdingTaxRate),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -3590,6 +3819,10 @@ class DividendSchedule extends DataClass
       paymentDate: serializer.fromJson<DateTime?>(json['paymentDate']),
       paymentYear: serializer.fromJson<int>(json['paymentYear']),
       currency: serializer.fromJson<String>(json['currency']),
+      exchangeRate: serializer.fromJson<double>(json['exchangeRate']),
+      withholdingTaxRate: serializer.fromJson<double>(
+        json['withholdingTaxRate'],
+      ),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -3608,6 +3841,8 @@ class DividendSchedule extends DataClass
       'paymentDate': serializer.toJson<DateTime?>(paymentDate),
       'paymentYear': serializer.toJson<int>(paymentYear),
       'currency': serializer.toJson<String>(currency),
+      'exchangeRate': serializer.toJson<double>(exchangeRate),
+      'withholdingTaxRate': serializer.toJson<double>(withholdingTaxRate),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -3624,6 +3859,8 @@ class DividendSchedule extends DataClass
     Value<DateTime?> paymentDate = const Value.absent(),
     int? paymentYear,
     String? currency,
+    double? exchangeRate,
+    double? withholdingTaxRate,
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -3637,6 +3874,8 @@ class DividendSchedule extends DataClass
     paymentDate: paymentDate.present ? paymentDate.value : this.paymentDate,
     paymentYear: paymentYear ?? this.paymentYear,
     currency: currency ?? this.currency,
+    exchangeRate: exchangeRate ?? this.exchangeRate,
+    withholdingTaxRate: withholdingTaxRate ?? this.withholdingTaxRate,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -3662,6 +3901,12 @@ class DividendSchedule extends DataClass
           ? data.paymentYear.value
           : this.paymentYear,
       currency: data.currency.present ? data.currency.value : this.currency,
+      exchangeRate: data.exchangeRate.present
+          ? data.exchangeRate.value
+          : this.exchangeRate,
+      withholdingTaxRate: data.withholdingTaxRate.present
+          ? data.withholdingTaxRate.value
+          : this.withholdingTaxRate,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -3680,6 +3925,8 @@ class DividendSchedule extends DataClass
           ..write('paymentDate: $paymentDate, ')
           ..write('paymentYear: $paymentYear, ')
           ..write('currency: $currency, ')
+          ..write('exchangeRate: $exchangeRate, ')
+          ..write('withholdingTaxRate: $withholdingTaxRate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -3698,6 +3945,8 @@ class DividendSchedule extends DataClass
     paymentDate,
     paymentYear,
     currency,
+    exchangeRate,
+    withholdingTaxRate,
     createdAt,
     updatedAt,
     deletedAt,
@@ -3715,6 +3964,8 @@ class DividendSchedule extends DataClass
           other.paymentDate == this.paymentDate &&
           other.paymentYear == this.paymentYear &&
           other.currency == this.currency &&
+          other.exchangeRate == this.exchangeRate &&
+          other.withholdingTaxRate == this.withholdingTaxRate &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -3730,6 +3981,8 @@ class DividendSchedulesCompanion extends UpdateCompanion<DividendSchedule> {
   final Value<DateTime?> paymentDate;
   final Value<int> paymentYear;
   final Value<String> currency;
+  final Value<double> exchangeRate;
+  final Value<double> withholdingTaxRate;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
@@ -3744,6 +3997,8 @@ class DividendSchedulesCompanion extends UpdateCompanion<DividendSchedule> {
     this.paymentDate = const Value.absent(),
     this.paymentYear = const Value.absent(),
     this.currency = const Value.absent(),
+    this.exchangeRate = const Value.absent(),
+    this.withholdingTaxRate = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -3759,6 +4014,8 @@ class DividendSchedulesCompanion extends UpdateCompanion<DividendSchedule> {
     this.paymentDate = const Value.absent(),
     this.paymentYear = const Value.absent(),
     this.currency = const Value.absent(),
+    this.exchangeRate = const Value.absent(),
+    this.withholdingTaxRate = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.deletedAt = const Value.absent(),
@@ -3780,6 +4037,8 @@ class DividendSchedulesCompanion extends UpdateCompanion<DividendSchedule> {
     Expression<DateTime>? paymentDate,
     Expression<int>? paymentYear,
     Expression<String>? currency,
+    Expression<double>? exchangeRate,
+    Expression<double>? withholdingTaxRate,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
@@ -3795,6 +4054,9 @@ class DividendSchedulesCompanion extends UpdateCompanion<DividendSchedule> {
       if (paymentDate != null) 'payment_date': paymentDate,
       if (paymentYear != null) 'payment_year': paymentYear,
       if (currency != null) 'currency': currency,
+      if (exchangeRate != null) 'exchange_rate': exchangeRate,
+      if (withholdingTaxRate != null)
+        'withholding_tax_rate': withholdingTaxRate,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -3812,6 +4074,8 @@ class DividendSchedulesCompanion extends UpdateCompanion<DividendSchedule> {
     Value<DateTime?>? paymentDate,
     Value<int>? paymentYear,
     Value<String>? currency,
+    Value<double>? exchangeRate,
+    Value<double>? withholdingTaxRate,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
@@ -3827,6 +4091,8 @@ class DividendSchedulesCompanion extends UpdateCompanion<DividendSchedule> {
       paymentDate: paymentDate ?? this.paymentDate,
       paymentYear: paymentYear ?? this.paymentYear,
       currency: currency ?? this.currency,
+      exchangeRate: exchangeRate ?? this.exchangeRate,
+      withholdingTaxRate: withholdingTaxRate ?? this.withholdingTaxRate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -3864,6 +4130,12 @@ class DividendSchedulesCompanion extends UpdateCompanion<DividendSchedule> {
     if (currency.present) {
       map['currency'] = Variable<String>(currency.value);
     }
+    if (exchangeRate.present) {
+      map['exchange_rate'] = Variable<double>(exchangeRate.value);
+    }
+    if (withholdingTaxRate.present) {
+      map['withholding_tax_rate'] = Variable<double>(withholdingTaxRate.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3891,6 +4163,8 @@ class DividendSchedulesCompanion extends UpdateCompanion<DividendSchedule> {
           ..write('paymentDate: $paymentDate, ')
           ..write('paymentYear: $paymentYear, ')
           ..write('currency: $currency, ')
+          ..write('exchangeRate: $exchangeRate, ')
+          ..write('withholdingTaxRate: $withholdingTaxRate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -12612,6 +12886,9 @@ typedef $$InvestmentsTableCreateCompanionBuilder =
       Value<double> fees,
       required double currentPrice,
       Value<double> annualDividend,
+      Value<String> dividendCurrency,
+      Value<double> dividendExchangeRate,
+      Value<double> dividendWithholdingTaxRate,
       Value<String> dividendFrequency,
       Value<int> dividendStartMonth,
       Value<String> notes,
@@ -12639,6 +12916,9 @@ typedef $$InvestmentsTableUpdateCompanionBuilder =
       Value<double> fees,
       Value<double> currentPrice,
       Value<double> annualDividend,
+      Value<String> dividendCurrency,
+      Value<double> dividendExchangeRate,
+      Value<double> dividendWithholdingTaxRate,
       Value<String> dividendFrequency,
       Value<int> dividendStartMonth,
       Value<String> notes,
@@ -12801,6 +13081,21 @@ class $$InvestmentsTableFilterComposer
 
   ColumnFilters<double> get annualDividend => $composableBuilder(
     column: $table.annualDividend,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dividendCurrency => $composableBuilder(
+    column: $table.dividendCurrency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get dividendExchangeRate => $composableBuilder(
+    column: $table.dividendExchangeRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get dividendWithholdingTaxRate => $composableBuilder(
+    column: $table.dividendWithholdingTaxRate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12997,6 +13292,21 @@ class $$InvestmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get dividendCurrency => $composableBuilder(
+    column: $table.dividendCurrency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get dividendExchangeRate => $composableBuilder(
+    column: $table.dividendExchangeRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get dividendWithholdingTaxRate => $composableBuilder(
+    column: $table.dividendWithholdingTaxRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get dividendFrequency => $composableBuilder(
     column: $table.dividendFrequency,
     builder: (column) => ColumnOrderings(column),
@@ -13113,6 +13423,21 @@ class $$InvestmentsTableAnnotationComposer
 
   GeneratedColumn<double> get annualDividend => $composableBuilder(
     column: $table.annualDividend,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get dividendCurrency => $composableBuilder(
+    column: $table.dividendCurrency,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get dividendExchangeRate => $composableBuilder(
+    column: $table.dividendExchangeRate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get dividendWithholdingTaxRate => $composableBuilder(
+    column: $table.dividendWithholdingTaxRate,
     builder: (column) => column,
   );
 
@@ -13263,6 +13588,9 @@ class $$InvestmentsTableTableManager
                 Value<double> fees = const Value.absent(),
                 Value<double> currentPrice = const Value.absent(),
                 Value<double> annualDividend = const Value.absent(),
+                Value<String> dividendCurrency = const Value.absent(),
+                Value<double> dividendExchangeRate = const Value.absent(),
+                Value<double> dividendWithholdingTaxRate = const Value.absent(),
                 Value<String> dividendFrequency = const Value.absent(),
                 Value<int> dividendStartMonth = const Value.absent(),
                 Value<String> notes = const Value.absent(),
@@ -13288,6 +13616,9 @@ class $$InvestmentsTableTableManager
                 fees: fees,
                 currentPrice: currentPrice,
                 annualDividend: annualDividend,
+                dividendCurrency: dividendCurrency,
+                dividendExchangeRate: dividendExchangeRate,
+                dividendWithholdingTaxRate: dividendWithholdingTaxRate,
                 dividendFrequency: dividendFrequency,
                 dividendStartMonth: dividendStartMonth,
                 notes: notes,
@@ -13315,6 +13646,9 @@ class $$InvestmentsTableTableManager
                 Value<double> fees = const Value.absent(),
                 required double currentPrice,
                 Value<double> annualDividend = const Value.absent(),
+                Value<String> dividendCurrency = const Value.absent(),
+                Value<double> dividendExchangeRate = const Value.absent(),
+                Value<double> dividendWithholdingTaxRate = const Value.absent(),
                 Value<String> dividendFrequency = const Value.absent(),
                 Value<int> dividendStartMonth = const Value.absent(),
                 Value<String> notes = const Value.absent(),
@@ -13340,6 +13674,9 @@ class $$InvestmentsTableTableManager
                 fees: fees,
                 currentPrice: currentPrice,
                 annualDividend: annualDividend,
+                dividendCurrency: dividendCurrency,
+                dividendExchangeRate: dividendExchangeRate,
+                dividendWithholdingTaxRate: dividendWithholdingTaxRate,
                 dividendFrequency: dividendFrequency,
                 dividendStartMonth: dividendStartMonth,
                 notes: notes,
@@ -13969,6 +14306,8 @@ typedef $$DividendSchedulesTableCreateCompanionBuilder =
       Value<DateTime?> paymentDate,
       Value<int> paymentYear,
       Value<String> currency,
+      Value<double> exchangeRate,
+      Value<double> withholdingTaxRate,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<DateTime?> deletedAt,
@@ -13985,6 +14324,8 @@ typedef $$DividendSchedulesTableUpdateCompanionBuilder =
       Value<DateTime?> paymentDate,
       Value<int> paymentYear,
       Value<String> currency,
+      Value<double> exchangeRate,
+      Value<double> withholdingTaxRate,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
@@ -14081,6 +14422,16 @@ class $$DividendSchedulesTableFilterComposer
 
   ColumnFilters<String> get currency => $composableBuilder(
     column: $table.currency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get exchangeRate => $composableBuilder(
+    column: $table.exchangeRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get withholdingTaxRate => $composableBuilder(
+    column: $table.withholdingTaxRate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14190,6 +14541,16 @@ class $$DividendSchedulesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get exchangeRate => $composableBuilder(
+    column: $table.exchangeRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get withholdingTaxRate => $composableBuilder(
+    column: $table.withholdingTaxRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -14290,6 +14651,16 @@ class $$DividendSchedulesTableAnnotationComposer
   GeneratedColumn<String> get currency =>
       $composableBuilder(column: $table.currency, builder: (column) => column);
 
+  GeneratedColumn<double> get exchangeRate => $composableBuilder(
+    column: $table.exchangeRate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get withholdingTaxRate => $composableBuilder(
+    column: $table.withholdingTaxRate,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -14388,6 +14759,8 @@ class $$DividendSchedulesTableTableManager
                 Value<DateTime?> paymentDate = const Value.absent(),
                 Value<int> paymentYear = const Value.absent(),
                 Value<String> currency = const Value.absent(),
+                Value<double> exchangeRate = const Value.absent(),
+                Value<double> withholdingTaxRate = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -14402,6 +14775,8 @@ class $$DividendSchedulesTableTableManager
                 paymentDate: paymentDate,
                 paymentYear: paymentYear,
                 currency: currency,
+                exchangeRate: exchangeRate,
+                withholdingTaxRate: withholdingTaxRate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -14418,6 +14793,8 @@ class $$DividendSchedulesTableTableManager
                 Value<DateTime?> paymentDate = const Value.absent(),
                 Value<int> paymentYear = const Value.absent(),
                 Value<String> currency = const Value.absent(),
+                Value<double> exchangeRate = const Value.absent(),
+                Value<double> withholdingTaxRate = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -14432,6 +14809,8 @@ class $$DividendSchedulesTableTableManager
                 paymentDate: paymentDate,
                 paymentYear: paymentYear,
                 currency: currency,
+                exchangeRate: exchangeRate,
+                withholdingTaxRate: withholdingTaxRate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,

@@ -22,6 +22,12 @@ double dividendPerQuarterFromMonth(double monthlyTotal) => monthlyTotal * 3;
 
 double dividendPerYearFromMonth(double monthlyTotal) => monthlyTotal * 12;
 
+double netDividendInBaseCurrency({
+  required double grossAmount,
+  required double exchangeRate,
+  required double withholdingTaxRate,
+}) => grossAmount * exchangeRate * (1 - withholdingTaxRate.clamp(0, 100) / 100);
+
 List<int> dividendPaymentMonths(String frequency, int startMonth) {
   final interval = switch (frequency) {
     'monatlich' => 1,

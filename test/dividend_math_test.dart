@@ -21,4 +21,13 @@ void main() {
     expect(dividendPaymentMonths('halbjährlich', 10), [4, 10]);
     expect(dividendPaymentMonths('jährlich', 7), [7]);
   });
+
+  test('foreign dividend is converted after withholding tax', () {
+    final net = netDividendInBaseCurrency(
+      grossAmount: 1,
+      exchangeRate: 0.92,
+      withholdingTaxRate: 15,
+    );
+    expect(net, closeTo(0.782, 0.0001));
+  });
 }

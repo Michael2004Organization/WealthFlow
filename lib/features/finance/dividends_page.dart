@@ -23,6 +23,8 @@ class DividendsPage extends ConsumerWidget {
         child: Text('Dividenden konnten nicht geladen werden: $error'),
       ),
       data: (items) {
+        final baseCurrency =
+            ref.watch(preferencesProvider).valueOrNull?.currency ?? 'EUR';
         final schedules =
             ref.watch(dividendSchedulesProvider).valueOrNull ??
             const <DividendSchedule>[];
@@ -76,7 +78,7 @@ class DividendsPage extends ConsumerWidget {
                             width: width,
                             child: MetricCard(
                               title: 'Pro Jahr',
-                              value: money(yearly),
+                              value: money(yearly, currency: baseCurrency),
                               icon: Icons.calendar_today_rounded,
                               color: Colors.green,
                             ),
@@ -87,6 +89,7 @@ class DividendsPage extends ConsumerWidget {
                               title: 'Pro Quartal',
                               value: money(
                                 dividendPerQuarterFromMonth(monthly),
+                                currency: baseCurrency,
                               ),
                               icon: Icons.date_range_rounded,
                               color: Colors.teal,
@@ -96,7 +99,7 @@ class DividendsPage extends ConsumerWidget {
                             width: width,
                             child: MetricCard(
                               title: 'Pro Monat',
-                              value: money(monthly),
+                              value: money(monthly, currency: baseCurrency),
                               icon: Icons.today_rounded,
                               color: Colors.cyan,
                             ),
@@ -179,8 +182,7 @@ class DividendsPage extends ConsumerWidget {
                                           title: Text(item.name),
                                           subtitle: Text(
                                             '${item.dividendFrequency} · '
-                                            '${money(item.annualDividend)} je Stück/Ausschüttung · '
-                                            'Kurs ${money(item.currentPrice)}',
+                                            '${_perShareSummary(item, schedules, baseCurrency)} je Stück',
                                           ),
                                           trailing: Text(
                                             money(
@@ -189,6 +191,7 @@ class DividendsPage extends ConsumerWidget {
                                                         schedules,
                                                       ) /
                                                       12,
+                                                  currency: baseCurrency,
                                                 ) +
                                                 '/Monat',
                                             style: const TextStyle(
@@ -210,6 +213,7 @@ class DividendsPage extends ConsumerWidget {
                     _DividendCalendar(
                       investments: dividendItems,
                       schedules: schedules,
+                      baseCurrency: baseCurrency,
                     ),
                   ],
                 ],
@@ -289,6 +293,28 @@ double _annualDividend(
   (index) => _dividendForMonth(investment, schedules, index + 1),
 ).fold<double>(0, (sum, value) => sum + value);
 
+String _perShareSummary(
+  Investment investment,
+  List<DividendSchedule> schedules,
+  String baseCurrency,
+) {
+  final schedule = schedules
+      .where((row) => row.investmentId == investment.id)
+      .firstOrNull;
+  final gross = schedule?.amountPerShare ?? investment.annualDividend;
+  final currency = schedule?.currency ?? investment.dividendCurrency;
+  final rate = schedule?.exchangeRate ?? investment.dividendExchangeRate;
+  final tax =
+      schedule?.withholdingTaxRate ?? investment.dividendWithholdingTaxRate;
+  final net = netDividendInBaseCurrency(
+    grossAmount: gross,
+    exchangeRate: rate,
+    withholdingTaxRate: tax,
+  );
+  return '${money(gross, currency: currency)} brutto · '
+      '${money(net, currency: baseCurrency)} netto';
+}
+
 double _dividendForMonth(
   Investment investment,
   List<DividendSchedule> schedules,
@@ -303,7 +329,14 @@ double _dividendForMonth(
   if (exactForMonth.isNotEmpty) {
     return exactForMonth.fold<double>(
       0,
-      (sum, row) => sum + row.amountPerShare * investment.quantity,
+      (sum, row) =>
+          sum +
+          netDividendInBaseCurrency(
+                grossAmount: row.amountPerShare,
+                exchangeRate: row.exchangeRate,
+                withholdingTaxRate: row.withholdingTaxRate,
+              ) *
+              investment.quantity,
     );
   }
   final paymentMonths = dividendPaymentMonths(
@@ -311,15 +344,25 @@ double _dividendForMonth(
     investment.dividendStartMonth,
   );
   return paymentMonths.contains(month)
-      ? investment.annualDividend * investment.quantity
+      ? netDividendInBaseCurrency(
+              grossAmount: investment.annualDividend,
+              exchangeRate: investment.dividendExchangeRate,
+              withholdingTaxRate: investment.dividendWithholdingTaxRate,
+            ) *
+            investment.quantity
       : 0;
 }
 
 class _DividendCalendar extends ConsumerStatefulWidget {
-  const _DividendCalendar({required this.investments, required this.schedules});
+  const _DividendCalendar({
+    required this.investments,
+    required this.schedules,
+    required this.baseCurrency,
+  });
 
   final List<Investment> investments;
   final List<DividendSchedule> schedules;
+  final String baseCurrency;
 
   @override
   ConsumerState<_DividendCalendar> createState() => _DividendCalendarState();
@@ -379,10 +422,15 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                   ),
                 ),
                 FilledButton.icon(
-                  onPressed: () =>
-                      _showScheduleEditor(context, ref, investment: selected),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Auszahlung'),
+                  onPressed: () => _showQuickEntry(
+                    context,
+                    ref,
+                    investment: selected,
+                    schedules: exact,
+                    baseCurrency: widget.baseCurrency,
+                  ),
+                  icon: const Icon(Icons.edit_calendar_rounded),
+                  label: const Text('Schnellerfassung'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _showHistoryLoader(context, selected),
@@ -390,12 +438,6 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                   label: const Text('Historie nachladen'),
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-            _DividendQuickEntry(
-              key: ValueKey('quick-$selectedId'),
-              investment: selected,
-              schedules: exact,
             ),
             const SizedBox(height: 16),
             LayoutBuilder(
@@ -416,6 +458,7 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                           month: month,
                           investments: widget.investments,
                           schedules: widget.schedules,
+                          baseCurrency: widget.baseCurrency,
                         ),
                       ),
                   ],
@@ -435,6 +478,7 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
               child: _AnnualDividendChart(
                 investment: selected,
                 schedules: widget.schedules,
+                baseCurrency: widget.baseCurrency,
               ),
             ),
             const SizedBox(height: 12),
@@ -451,7 +495,13 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                       _monthNames[row.paymentMonth - 1].substring(0, 3),
                     ),
                   ),
-                  title: Text(money(row.amountPerShare) + ' je Aktie'),
+                  title: Text(
+                    '${money(row.amountPerShare, currency: row.currency)} brutto · '
+                    '${money(
+                      netDividendInBaseCurrency(grossAmount: row.amountPerShare, exchangeRate: row.exchangeRate, withholdingTaxRate: row.withholdingTaxRate),
+                      currency: widget.baseCurrency,
+                    )} netto je Aktie',
+                  ),
                   subtitle: Text(
                     [
                       row.exDate == null
@@ -477,6 +527,7 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                           ref,
                           investment: selected,
                           schedule: row,
+                          baseCurrency: widget.baseCurrency,
                         ),
                         icon: const Icon(Icons.edit_outlined),
                       ),
@@ -543,15 +594,37 @@ Future<void> _showHistoryLoader(
   );
 }
 
+Future<void> _showQuickEntry(
+  BuildContext context,
+  WidgetRef ref, {
+  required Investment investment,
+  required List<DividendSchedule> schedules,
+  required String baseCurrency,
+}) => showDialog<void>(
+  context: context,
+  builder: (_) => Dialog(
+    insetPadding: const EdgeInsets.all(16),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 920, maxHeight: 760),
+      child: _DividendQuickEntry(
+        investment: investment,
+        schedules: schedules,
+        baseCurrency: baseCurrency,
+      ),
+    ),
+  ),
+);
+
 class _DividendQuickEntry extends ConsumerStatefulWidget {
   const _DividendQuickEntry({
-    super.key,
     required this.investment,
     required this.schedules,
+    required this.baseCurrency,
   });
 
   final Investment investment;
   final List<DividendSchedule> schedules;
+  final String baseCurrency;
 
   @override
   ConsumerState<_DividendQuickEntry> createState() =>
@@ -559,91 +632,220 @@ class _DividendQuickEntry extends ConsumerStatefulWidget {
 }
 
 class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
+  late final Set<int> _editableMonths = {
+    ...dividendPaymentMonths(
+      widget.investment.dividendFrequency,
+      widget.investment.dividendStartMonth,
+    ),
+    ...widget.schedules.map((row) => row.paymentMonth),
+  };
   late final List<TextEditingController> _amounts = List.generate(12, (index) {
     final month = index + 1;
-    final rows = widget.schedules.where((row) => row.paymentMonth == index + 1);
+    final row = _rowFor(month);
     return TextEditingController(
-      text: rows.isNotEmpty
-          ? rows.first.amountPerShare.toString()
-          : _editableMonths.contains(month) &&
-                widget.investment.annualDividend > 0
-          ? widget.investment.annualDividend.toString()
-          : '',
+      text:
+          row?.amountPerShare.toString() ??
+          (widget.investment.annualDividend > 0
+              ? widget.investment.annualDividend.toString()
+              : ''),
     );
   });
+  late final List<DateTime?> _exDates = List.generate(
+    12,
+    (index) => _rowFor(index + 1)?.exDate,
+  );
+  late final List<DateTime?> _paymentDates = List.generate(
+    12,
+    (index) => _rowFor(index + 1)?.paymentDate,
+  );
+  late final _currency = TextEditingController(
+    text:
+        widget.schedules.firstOrNull?.currency ??
+        widget.investment.dividendCurrency,
+  );
+  late final _exchangeRate = TextEditingController(
+    text:
+        (widget.schedules.firstOrNull?.exchangeRate ??
+                widget.investment.dividendExchangeRate)
+            .toString(),
+  );
+  late final _taxRate = TextEditingController(
+    text:
+        (widget.schedules.firstOrNull?.withholdingTaxRate ??
+                widget.investment.dividendWithholdingTaxRate)
+            .toString(),
+  );
   bool _saving = false;
 
-  late final Set<int> _editableMonths = dividendPaymentMonths(
-    widget.investment.dividendFrequency,
-    widget.investment.dividendStartMonth,
-  ).toSet();
+  DividendSchedule? _rowFor(int month) =>
+      widget.schedules.where((row) => row.paymentMonth == month).firstOrNull;
 
   @override
   void dispose() {
     for (final controller in _amounts) {
       controller.dispose();
     }
+    _currency.dispose();
+    _exchangeRate.dispose();
+    _taxRate.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: Theme.of(
-        context,
-      ).colorScheme.primaryContainer.withValues(alpha: .28),
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Schnellerfassung · Betrag je Aktie',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Nur die Monate des ${widget.investment.dividendFrequency}en '
-            'Rhythmus ab ${_monthNames[widget.investment.dividendStartMonth - 1]} '
-            'sind änderbar. Der Positionsbetrag ist bereits vorbelegt.',
-          ),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (var month = 1; month <= 12; month++) ...[
-                  SizedBox(
-                    width: 92,
-                    child: TextField(
-                      controller: _amounts[month - 1],
-                      readOnly: !_editableMonths.contains(month),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: _monthNames[month - 1].substring(0, 3),
-                        suffixText: '€',
-                        filled: !_editableMonths.contains(month),
-                        prefixIcon: _editableMonths.contains(month)
-                            ? null
-                            : const Icon(Icons.lock_outline_rounded, size: 17),
-                      ),
-                    ),
-                  ),
-                  if (month < 12) const SizedBox(width: 8),
-                ],
-              ],
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Schnellerfassung · ${widget.investment.name}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton.icon(
+            IconButton(
+              tooltip: 'Schließen',
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ],
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            SizedBox(
+              width: 150,
+              child: TextField(
+                controller: _currency,
+                textCapitalization: TextCapitalization.characters,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(labelText: 'Währung'),
+              ),
+            ),
+            SizedBox(
+              width: 210,
+              child: TextField(
+                controller: _exchangeRate,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Kurs zu ${widget.baseCurrency}',
+                  helperText: '1 Fremdwährung = ? ${widget.baseCurrency}',
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 180,
+              child: TextField(
+                controller: _taxRate,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Quellensteuer',
+                  suffixText: '%',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 10),
+      const Divider(height: 1),
+      Expanded(
+        child: ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: _editableMonths.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final month = _editableMonths.elementAt(index);
+            return Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final fields = <Widget>[
+                      SizedBox(
+                        width: 130,
+                        child: TextField(
+                          controller: _amounts[month - 1],
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: _monthNames[month - 1],
+                            suffixText: _currency.text.toUpperCase(),
+                          ),
+                        ),
+                      ),
+                      _quickDateButton(
+                        label: 'Ex-Datum',
+                        value: _exDates[month - 1],
+                        icon: Icons.event_rounded,
+                        onChanged: (value) =>
+                            setState(() => _exDates[month - 1] = value),
+                      ),
+                      _quickDateButton(
+                        label: 'Zahlung',
+                        value: _paymentDates[month - 1],
+                        icon: Icons.payments_outlined,
+                        onChanged: (value) =>
+                            setState(() => _paymentDates[month - 1] = value),
+                      ),
+                    ];
+                    return constraints.maxWidth < 650
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              for (var i = 0; i < fields.length; i++) ...[
+                                fields[i],
+                                if (i < fields.length - 1)
+                                  const SizedBox(height: 8),
+                              ],
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              for (var i = 0; i < fields.length; i++) ...[
+                                if (i > 0) const SizedBox(width: 10),
+                                if (i == 0)
+                                  fields[i]
+                                else
+                                  Expanded(child: fields[i]),
+                              ],
+                            ],
+                          );
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+      const Divider(height: 1),
+      Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: _saving ? null : () => Navigator.pop(context),
+              child: const Text('Abbrechen'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
               onPressed: _saving ? null : _save,
               icon: _saving
                   ? const SizedBox.square(
@@ -651,28 +853,64 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.save_rounded),
-              label: const Text('Alle Werte speichern'),
+              label: const Text('Alle speichern'),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
+    ],
+  );
+
+  Widget _quickDateButton({
+    required String label,
+    required DateTime? value,
+    required IconData icon,
+    required ValueChanged<DateTime?> onChanged,
+  }) => OutlinedButton.icon(
+    onPressed: () async {
+      final selected = await showDatePicker(
+        context: context,
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2100),
+        initialDate: value ?? DateTime.now(),
+      );
+      if (selected != null) onChanged(selected);
+    },
+    icon: Icon(icon),
+    label: Text(
+      value == null
+          ? '$label wählen'
+          : '$label ${DateFormat('dd.MM.yy').format(value)}',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     ),
   );
 
+  double? _number(String value) =>
+      double.tryParse(value.trim().replaceAll(',', '.'));
+
   Future<void> _save() async {
     final userId = ref.read(currentUserIdProvider);
-    if (userId == null) return;
+    final rate = _number(_exchangeRate.text);
+    final tax = _number(_taxRate.text);
+    if (userId == null ||
+        _currency.text.trim().isEmpty ||
+        rate == null ||
+        rate <= 0 ||
+        tax == null ||
+        tax < 0 ||
+        tax > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bitte Umrechnung und Steuer prüfen.')),
+      );
+      return;
+    }
     setState(() => _saving = true);
     final database = ref.read(databaseProvider);
     final now = DateTime.now().toUtc();
-    for (var month = 1; month <= 12; month++) {
-      if (!_editableMonths.contains(month)) continue;
-      final old = widget.schedules
-          .where((row) => row.paymentMonth == month)
-          .firstOrNull;
-      final amount = double.tryParse(
-        _amounts[month - 1].text.replaceAll(',', '.'),
-      );
+    for (final month in _editableMonths) {
+      final old = _rowFor(month);
+      final amount = _number(_amounts[month - 1].text);
       if (amount == null || amount <= 0) {
         if (old != null) await database.deleteDividendSchedule(old.id, userId);
         continue;
@@ -684,21 +922,22 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
           investmentId: widget.investment.id,
           paymentMonth: month,
           amountPerShare: amount,
-          exDate: Value(old?.exDate),
-          paymentDate: Value(old?.paymentDate),
+          exDate: Value(_exDates[month - 1]),
+          paymentDate: Value(_paymentDates[month - 1]),
           paymentYear: Value(
-            old?.paymentYear == 0 || old == null
-                ? DateTime.now().year
-                : old.paymentYear,
+            (_paymentDates[month - 1] ?? _exDates[month - 1])?.year ??
+                DateTime.now().year,
           ),
-          currency: Value(old?.currency ?? 'EUR'),
+          currency: Value(_currency.text.trim().toUpperCase()),
+          exchangeRate: Value(rate),
+          withholdingTaxRate: Value(tax.clamp(0, 100)),
           createdAt: old?.createdAt ?? now,
           updatedAt: now,
         ),
       );
     }
     if (mounted) {
-      setState(() => _saving = false);
+      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Dividendenwerte wurden gespeichert.')),
       );
@@ -710,10 +949,12 @@ class _AnnualDividendChart extends StatelessWidget {
   const _AnnualDividendChart({
     required this.investment,
     required this.schedules,
+    required this.baseCurrency,
   });
 
   final Investment investment;
   final List<DividendSchedule> schedules;
+  final String baseCurrency;
 
   @override
   Widget build(BuildContext context) {
@@ -757,14 +998,10 @@ class _AnnualDividendChart extends StatelessWidget {
         ),
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
-            getTooltipItem: (group, groupIndex, rod, rodIndex) =>
-                BarTooltipItem(
-                  '${_monthNames[group.x]}\n${money(rod.toY)}',
-                  const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+            getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
+              '${_monthNames[group.x]}\n${money(rod.toY, currency: baseCurrency)}',
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            ),
           ),
         ),
         barGroups: [
@@ -793,11 +1030,13 @@ class _DividendMonthCard extends StatelessWidget {
     required this.month,
     required this.investments,
     required this.schedules,
+    required this.baseCurrency,
   });
 
   final int month;
   final List<Investment> investments;
   final List<DividendSchedule> schedules;
+  final String baseCurrency;
 
   @override
   Widget build(BuildContext context) {
@@ -821,7 +1060,7 @@ class _DividendMonthCard extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             Text(
-              money(total),
+              money(total, currency: baseCurrency),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: Colors.green,
                 fontWeight: FontWeight.w800,
@@ -840,7 +1079,7 @@ class _DividendMonthCard extends StatelessWidget {
                           ? payment.$1.name
                           : payment.$1.symbol) +
                       ' · ' +
-                      money(payment.$2),
+                      money(payment.$2, currency: baseCurrency),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -856,6 +1095,7 @@ Future<void> _showScheduleEditor(
   WidgetRef ref, {
   required Investment investment,
   DividendSchedule? schedule,
+  required String baseCurrency,
 }) async {
   final existing =
       (ref.read(dividendSchedulesProvider).valueOrNull ??
@@ -876,7 +1116,18 @@ Future<void> _showScheduleEditor(
       : <int>{startMonth};
   var exDate = schedule?.exDate;
   var paymentDate = schedule?.paymentDate;
-  final currency = TextEditingController(text: schedule?.currency ?? 'EUR');
+  final currency = TextEditingController(
+    text: schedule?.currency ?? investment.dividendCurrency,
+  );
+  final exchangeRate = TextEditingController(
+    text: (schedule?.exchangeRate ?? investment.dividendExchangeRate)
+        .toString(),
+  );
+  final taxRate = TextEditingController(
+    text:
+        (schedule?.withholdingTaxRate ?? investment.dividendWithholdingTaxRate)
+            .toString(),
+  );
   final key = GlobalKey<FormState>();
   final result = await showDialog<bool>(
     context: context,
@@ -961,9 +1212,10 @@ Future<void> _showScheduleEditor(
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: InputDecoration(
                       labelText: 'Dividende je Aktie und Auszahlung',
-                      suffixText: '€',
+                      suffixText: currency.text.trim().toUpperCase(),
                     ),
                     validator: (value) {
                       final parsed = double.tryParse(
@@ -1028,7 +1280,101 @@ Future<void> _showScheduleEditor(
                   TextFormField(
                     controller: currency,
                     textCapitalization: TextCapitalization.characters,
+                    onChanged: (_) => setDialogState(() {}),
                     decoration: const InputDecoration(labelText: 'Währung'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: exchangeRate,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Umrechnung zu $baseCurrency',
+                      helperText:
+                          '1 ${currency.text.trim().toUpperCase()} = ? $baseCurrency',
+                    ),
+                    validator: (value) {
+                      final parsed = double.tryParse(
+                        (value ?? '').replaceAll(',', '.'),
+                      );
+                      return parsed == null || parsed <= 0
+                          ? 'Bitte einen positiven Kurs eingeben.'
+                          : null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: taxRate,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: const InputDecoration(
+                      labelText: 'Quellensteuer',
+                      suffixText: '%',
+                    ),
+                    validator: (value) {
+                      final parsed = double.tryParse(
+                        (value ?? '').replaceAll(',', '.'),
+                      );
+                      return parsed == null || parsed < 0 || parsed > 100
+                          ? 'Wert zwischen 0 und 100 eingeben.'
+                          : null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Builder(
+                    builder: (context) {
+                      final gross =
+                          double.tryParse(amount.text.replaceAll(',', '.')) ??
+                          0;
+                      final rate =
+                          double.tryParse(
+                            exchangeRate.text.replaceAll(',', '.'),
+                          ) ??
+                          0;
+                      final tax =
+                          double.tryParse(taxRate.text.replaceAll(',', '.')) ??
+                          0;
+                      final converted = gross * rate;
+                      final deduction = converted * tax.clamp(0, 100) / 100;
+                      return DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                'Auszahlungsweg je Aktie',
+                                style: Theme.of(context).textTheme.titleSmall,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                '${money(gross, currency: currency.text.trim().toUpperCase())} brutto'
+                                ' × ${rate.toStringAsFixed(4)} = '
+                                '${money(converted, currency: baseCurrency)}',
+                              ),
+                              Text(
+                                '− ${money(deduction, currency: baseCurrency)} Quellensteuer '
+                                '(${tax.toStringAsFixed(2)} %) = '
+                                '${money(converted - deduction, currency: baseCurrency)} netto',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -1075,6 +1421,12 @@ Future<void> _showScheduleEditor(
               (paymentDate ?? exDate)?.year ?? DateTime.now().year,
             ),
             currency: Value(currency.text.trim().toUpperCase()),
+            exchangeRate: Value(
+              double.parse(exchangeRate.text.replaceAll(',', '.')),
+            ),
+            withholdingTaxRate: Value(
+              double.parse(taxRate.text.replaceAll(',', '.')),
+            ),
             createdAt: old?.createdAt ?? now,
             updatedAt: now,
           ),
@@ -1084,6 +1436,8 @@ Future<void> _showScheduleEditor(
   }
   amount.dispose();
   currency.dispose();
+  exchangeRate.dispose();
+  taxRate.dispose();
 }
 
 Future<void> _deleteSchedule(

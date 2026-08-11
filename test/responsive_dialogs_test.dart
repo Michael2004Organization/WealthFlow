@@ -177,7 +177,7 @@ void main() {
 
     await tester.tap(find.text('Buchung').first);
     await tester.pumpAndSettle();
-    final recurring = find.text('Automatisch monatlich buchen');
+    final recurring = find.text('Mehrere Monate buchen');
     await tester.ensureVisible(recurring);
     await tester.tap(recurring);
     await tester.pumpAndSettle();

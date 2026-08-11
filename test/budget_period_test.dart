@@ -7,14 +7,14 @@ void main() {
       expect(firstWorkingDay(DateTime(2026, 8)), DateTime(2026, 8, 3));
     });
 
-    test('month end is the last weekday of the previous month', () {
+    test('month end is the last weekday of the selected month', () {
       expect(
         paymentDateForBudgetMonth(
           budgetMonth: DateTime(2026, 8),
           timing: 'end',
           selectedDay: 1,
         ),
-        DateTime(2026, 7, 31),
+        DateTime(2026, 8, 31),
       );
     });
 

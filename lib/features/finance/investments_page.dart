@@ -559,6 +559,9 @@ Future<void> showInvestmentEditor(
             fees: Value(duplicate.fees + result.fees.value),
             currentPrice: result.currentPrice.value,
             annualDividend: result.annualDividend,
+            dividendCurrency: result.dividendCurrency,
+            dividendExchangeRate: result.dividendExchangeRate,
+            dividendWithholdingTaxRate: result.dividendWithholdingTaxRate,
             dividendFrequency: result.dividendFrequency,
             dividendStartMonth: result.dividendStartMonth,
             notes: result.notes,
@@ -639,6 +642,15 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
   late final _dividend = TextEditingController(
     text: widget.investment?.annualDividend.toString() ?? '0',
   );
+  late final _dividendCurrency = TextEditingController(
+    text: widget.investment?.dividendCurrency ?? 'EUR',
+  );
+  late final _dividendExchangeRate = TextEditingController(
+    text: widget.investment?.dividendExchangeRate.toString() ?? '1',
+  );
+  late final _dividendWithholdingTax = TextEditingController(
+    text: widget.investment?.dividendWithholdingTaxRate.toString() ?? '0',
+  );
   late final _notes = TextEditingController(text: widget.investment?.notes);
   late String _type = widget.investment?.assetType ?? 'Aktie';
   late String _frequency = widget.investment?.dividendFrequency ?? 'jährlich';
@@ -662,6 +674,9 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       _fees,
       _currentPrice,
       _dividend,
+      _dividendCurrency,
+      _dividendExchangeRate,
+      _dividendWithholdingTax,
       _notes,
     ]) {
       controller.dispose();
@@ -812,6 +827,37 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                 ]),
                 const SizedBox(height: 12),
                 _responsiveFields([
+                  _field(
+                    _dividendCurrency,
+                    'Dividendenwährung',
+                    required: true,
+                  ),
+                  _field(
+                    _dividendExchangeRate,
+                    'Kurs zur Standardwährung',
+                    number: true,
+                    required: true,
+                    minimum: 0.000001,
+                  ),
+                  _field(
+                    _dividendWithholdingTax,
+                    'Quellensteuer',
+                    number: true,
+                    required: true,
+                    suffixText: '%',
+                    maximum: 100,
+                  ),
+                ]),
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Beispiel: 1 USD × 0,92 Kurs × 85 % nach 15 % Quellensteuer.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _responsiveFields([
                   DropdownButtonFormField<String>(
                     initialValue: _frequency,
                     isExpanded: true,
@@ -884,6 +930,9 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     bool number = false,
     int lines = 1,
     bool readOnly = false,
+    String? suffixText,
+    double? minimum,
+    double? maximum,
   }) => TextFormField(
     controller: controller,
     readOnly: readOnly,
@@ -893,6 +942,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
         : null,
     decoration: InputDecoration(
       labelText: label,
+      suffixText: suffixText,
       suffixIcon: readOnly
           ? const Tooltip(
               message: 'Wird aus den Aktien-Stammdaten übernommen',
@@ -904,6 +954,13 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       if (required && (value?.trim().isEmpty ?? true)) return 'Pflichtfeld';
       if (number && _number(value) == null) return 'Ungültige Zahl';
       if (number && (_number(value) ?? -1) < 0) return 'Muss positiv sein';
+      if (minimum != null &&
+          (_number(value) ?? double.negativeInfinity) < minimum) {
+        return 'Muss mindestens $minimum sein';
+      }
+      if (maximum != null && (_number(value) ?? double.infinity) > maximum) {
+        return 'Darf höchstens $maximum sein';
+      }
       return null;
     },
   );
@@ -974,6 +1031,9 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       _sector.text = item.sector;
       _currentPrice.text = item.currentPrice.toString();
       _dividend.text = item.annualDividend.toString();
+      _dividendCurrency.text = item.dividendCurrency;
+      _dividendExchangeRate.text = item.dividendExchangeRate.toString();
+      _dividendWithholdingTax.text = item.dividendWithholdingTaxRate.toString();
       _notes.text = item.notes;
       _type = item.assetType;
       _frequency = item.dividendFrequency;
@@ -994,6 +1054,13 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       _isin.text = stock.isin;
       _country.text = stock.country;
       _sector.text = stock.sector;
+      _dividendCurrency.text = stock.currency.toUpperCase();
+      _dividendExchangeRate.text = stock.currency.toUpperCase() == 'EUR'
+          ? '1'
+          : _dividendExchangeRate.text;
+      _dividendWithholdingTax.text = _isUnitedStates(stock.country)
+          ? '15'
+          : '0';
     });
   }
 
@@ -1038,6 +1105,11 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
         fees: Value(_number(_fees.text) ?? 0),
         currentPrice: _number(_currentPrice.text) ?? 0,
         annualDividend: Value(_number(_dividend.text) ?? 0),
+        dividendCurrency: Value(_dividendCurrency.text.trim().toUpperCase()),
+        dividendExchangeRate: Value(_number(_dividendExchangeRate.text) ?? 1),
+        dividendWithholdingTaxRate: Value(
+          (_number(_dividendWithholdingTax.text) ?? 0).clamp(0, 100),
+        ),
         dividendFrequency: Value(_frequency),
         dividendStartMonth: Value(_startMonth),
         notes: Value(_notes.text.trim()),
@@ -1045,6 +1117,14 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
         updatedAt: now,
       ),
     );
+  }
+
+  bool _isUnitedStates(String country) {
+    final normalized = country.trim().toLowerCase();
+    return normalized == 'usa' ||
+        normalized == 'us' ||
+        normalized.contains('vereinigte staat') ||
+        normalized.contains('united states');
   }
 }
 

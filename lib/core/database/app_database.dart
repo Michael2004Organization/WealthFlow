@@ -66,6 +66,13 @@ class Investments extends Table {
   // Legacy column name kept for a non-destructive migration. The stored value
   // is the dividend per share and payout; frequency controls projections.
   RealColumn get annualDividend => real().withDefault(const Constant(0))();
+  TextColumn get dividendCurrency =>
+      text().withDefault(const Constant('EUR'))();
+  // Units of the user's standard currency received for one currency unit.
+  RealColumn get dividendExchangeRate =>
+      real().withDefault(const Constant(1))();
+  RealColumn get dividendWithholdingTaxRate =>
+      real().withDefault(const Constant(0))();
   TextColumn get dividendFrequency =>
       text().withDefault(const Constant('jährlich'))();
   IntColumn get dividendStartMonth =>
@@ -103,6 +110,8 @@ class DividendSchedules extends Table {
   DateTimeColumn get paymentDate => dateTime().nullable()();
   IntColumn get paymentYear => integer().withDefault(const Constant(0))();
   TextColumn get currency => text().withDefault(const Constant('EUR'))();
+  RealColumn get exchangeRate => real().withDefault(const Constant(1))();
+  RealColumn get withholdingTaxRate => real().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
@@ -365,7 +374,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -436,6 +445,22 @@ final class AppDatabase extends _$AppDatabase {
       if (from < 8) {
         await migrator.addColumn(investments, investments.dividendStartMonth);
         await migrator.createTable(reminders);
+      }
+      if (from < 9) {
+        await migrator.addColumn(investments, investments.dividendCurrency);
+        await migrator.addColumn(investments, investments.dividendExchangeRate);
+        await migrator.addColumn(
+          investments,
+          investments.dividendWithholdingTaxRate,
+        );
+        await migrator.addColumn(
+          dividendSchedules,
+          dividendSchedules.exchangeRate,
+        );
+        await migrator.addColumn(
+          dividendSchedules,
+          dividendSchedules.withholdingTaxRate,
+        );
       }
     },
   );
