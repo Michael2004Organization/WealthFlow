@@ -28,6 +28,11 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
     final accounts =
         ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
     final preference = ref.watch(preferencesProvider).valueOrNull;
+    final investments =
+        ref.watch(investmentsProvider).valueOrNull ?? const <Investment>[];
+    final physicalAssets =
+        ref.watch(physicalAssetsProvider).valueOrNull ??
+        const <PhysicalAsset>[];
     final masterData =
         ref.watch(masterDataProvider).valueOrNull ?? const <MasterDataData>[];
     final categories = {
@@ -36,7 +41,16 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
           .where((item) => item.kind == 'category')
           .map((item) => item.value),
     }.toList()..sort();
-    final selectedAccountId = _effectiveAccountId(accounts, preference);
+    final householdAccounts = accounts.where((account) {
+      if (account.usageType == 'household') return true;
+      if (account.usageType != 'unassigned') return false;
+      return !investments.any((item) => item.accountId == account.id) &&
+          !physicalAssets.any((item) => item.accountId == account.id);
+    }).toList();
+    final selectedAccountId = _effectiveAccountId(
+      householdAccounts,
+      preference,
+    );
     return Padding(
       padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 600 ? 16 : 24),
       child: Center(
@@ -63,7 +77,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                           labelText: 'Haushaltskonto',
                           prefixIcon: Icon(Icons.account_balance_rounded),
                         ),
-                        items: accounts
+                        items: householdAccounts
                             .map(
                               (account) => DropdownMenuItem(
                                 value: account.id,
@@ -76,7 +90,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                               ),
                             )
                             .toList(),
-                        onChanged: (value) => _selectAccount(value, preference),
+                        onChanged: _selectAccount,
                       ),
                     ),
                     FilledButton.icon(
@@ -245,35 +259,27 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
     return accounts.first.id;
   }
 
-  Future<void> _selectAccount(
-    String? accountId,
-    UserPreference? preference,
-  ) async {
+  Future<void> _selectAccount(String? accountId) async {
     if (accountId == null) return;
-    setState(() => _selectedAccountId = accountId);
-    if (preference == null) return;
-    await ref
-        .read(databaseProvider)
-        .savePreferences(
-          UserPreferencesCompanion(
-            userId: Value(preference.userId),
-            themeMode: Value(preference.themeMode),
-            locale: Value(preference.locale),
-            currency: Value(preference.currency),
-            dateFormat: Value(preference.dateFormat),
-            serverMode: Value(preference.serverMode),
-            serverUrl: Value(preference.serverUrl),
-            serverPort: Value(preference.serverPort),
-            serverUsername: Value(preference.serverUsername),
-            selectedHouseholdAccountId: Value(accountId),
-            dataFilePath: Value(preference.dataFilePath),
-            freedomAge: Value(preference.freedomAge),
-            freedomStartCapital: Value(preference.freedomStartCapital),
-            freedomUsePortfolio: Value(preference.freedomUsePortfolio),
-            lastSyncAt: Value(preference.lastSyncAt),
-            updatedAt: Value(DateTime.now().toUtc()),
-          ),
-        );
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    try {
+      await ref
+          .read(databaseProvider)
+          .selectAccountForUsage(
+            userId: userId,
+            accountId: accountId,
+            usageType: 'household',
+          );
+      if (mounted) setState(() => _selectedAccountId = accountId);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Bad state: ', '')),
+        ),
+      );
+    }
   }
 
   bool _matches(LedgerEntry entry, String? selectedAccountId) {

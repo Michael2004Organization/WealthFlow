@@ -37,6 +37,8 @@ class Accounts extends Table {
   TextColumn get currency => text().withDefault(const Constant('EUR'))();
   RealColumn get balance => real().withDefault(const Constant(0))();
   RealColumn get availableBalance => real().withDefault(const Constant(0))();
+  TextColumn get usageType =>
+      text().withDefault(const Constant('unassigned'))();
   TextColumn get notes => text().withDefault(const Constant(''))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -50,6 +52,7 @@ class Investments extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text().references(Users, #id)();
   TextColumn get stockId => text().nullable()();
+  TextColumn get accountId => text().withDefault(const Constant(''))();
   TextColumn get name => text()();
   TextColumn get symbol => text().withDefault(const Constant(''))();
   TextColumn get isin => text().withDefault(const Constant(''))();
@@ -135,6 +138,56 @@ class StockMasters extends Table {
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class CountryTaxRates extends Table {
+  TextColumn get country => text()();
+  RealColumn get withholdingTaxRate => real().withDefault(const Constant(0))();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {country};
+}
+
+class AppConfigurations extends Table {
+  TextColumn get id => text()();
+  RealColumn get maximumTaxAllowance =>
+      real().withDefault(const Constant(1000))();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class PhysicalAssets extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text().references(Users, #id)();
+  TextColumn get accountId => text().withDefault(const Constant(''))();
+  TextColumn get name => text()();
+  TextColumn get category => text().withDefault(const Constant('Sonstiges'))();
+  RealColumn get quantity => real().withDefault(const Constant(1))();
+  RealColumn get purchasePrice => real().withDefault(const Constant(0))();
+  RealColumn get currentValue => real().withDefault(const Constant(0))();
+  TextColumn get notes => text().withDefault(const Constant(''))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class AppErrorLogs extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text().nullable()();
+  TextColumn get source => text()();
+  TextColumn get message => text()();
+  TextColumn get details => text().withDefault(const Constant(''))();
+  TextColumn get stackTrace => text().withDefault(const Constant(''))();
+  DateTimeColumn get occurredAt => dateTime()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -253,6 +306,8 @@ class Vehicles extends Table {
   IntColumn get year => integer()();
   TextColumn get fuelType => text().withDefault(const Constant('Benzin'))();
   RealColumn get tankCapacity => real().withDefault(const Constant(0))();
+  RealColumn get purchasePrice => real().withDefault(const Constant(0))();
+  RealColumn get currentValue => real().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
@@ -280,7 +335,7 @@ class VehicleCosts extends Table {
 
 class UserPreferences extends Table {
   TextColumn get userId => text().references(Users, #id)();
-  TextColumn get themeMode => text().withDefault(const Constant('system'))();
+  TextColumn get themeMode => text().withDefault(const Constant('dark'))();
   TextColumn get locale => text().withDefault(const Constant('de'))();
   TextColumn get currency => text().withDefault(const Constant('EUR'))();
   TextColumn get dateFormat =>
@@ -291,6 +346,9 @@ class UserPreferences extends Table {
   TextColumn get serverUsername => text().withDefault(const Constant(''))();
   TextColumn get selectedHouseholdAccountId =>
       text().withDefault(const Constant(''))();
+  TextColumn get selectedPortfolioAccountId =>
+      text().withDefault(const Constant(''))();
+  RealColumn get taxAllowance => real().withDefault(const Constant(1000))();
   TextColumn get dataFilePath => text().withDefault(const Constant(''))();
   RealColumn get freedomAge => real().withDefault(const Constant(35))();
   RealColumn get freedomStartCapital =>
@@ -335,6 +393,10 @@ class NetWorthSnapshots extends Table {
     StockDividends,
     MarketDataRefreshes,
     ApiRequestDays,
+    CountryTaxRates,
+    AppConfigurations,
+    PhysicalAssets,
+    AppErrorLogs,
   ],
 )
 final class AppDatabase extends _$AppDatabase {
@@ -374,7 +436,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -462,6 +524,36 @@ final class AppDatabase extends _$AppDatabase {
           dividendSchedules.withholdingTaxRate,
         );
       }
+      if (from < 10) {
+        await migrator.addColumn(accounts, accounts.usageType);
+        await migrator.addColumn(investments, investments.accountId);
+        await migrator.addColumn(vehicles, vehicles.purchasePrice);
+        await migrator.addColumn(vehicles, vehicles.currentValue);
+        await migrator.addColumn(
+          userPreferences,
+          userPreferences.selectedPortfolioAccountId,
+        );
+        await migrator.addColumn(userPreferences, userPreferences.taxAllowance);
+        await migrator.createTable(countryTaxRates);
+        await migrator.createTable(appConfigurations);
+        await migrator.createTable(physicalAssets);
+        await migrator.createTable(appErrorLogs);
+        await customStatement(
+          'UPDATE investments SET dividend_withholding_tax_rate = 15 '
+          "WHERE lower(trim(country)) IN ('usa', 'us', 'united states', "
+          "'vereinigte staaten') AND dividend_withholding_tax_rate = 0",
+        );
+        await customStatement(
+          'UPDATE dividend_schedules SET withholding_tax_rate = 15 '
+          'WHERE withholding_tax_rate = 0 AND investment_id IN '
+          '(SELECT id FROM investments WHERE lower(trim(country)) IN '
+          "('usa', 'us', 'united states', 'vereinigte staaten'))",
+        );
+        await customStatement(
+          "UPDATE user_preferences SET theme_mode = 'dark' "
+          "WHERE theme_mode = 'system'",
+        );
+      }
     },
   );
 
@@ -536,6 +628,155 @@ final class AppDatabase extends _$AppDatabase {
     if (actor?.role != 'admin') {
       throw StateError('Für diese Aktion ist die Adminrolle erforderlich.');
     }
+  }
+
+  Stream<List<CountryTaxRate>> watchCountryTaxRates() => (select(
+    countryTaxRates,
+  )..orderBy([(row) => OrderingTerm.asc(row.country)])).watch();
+
+  Future<List<String>> availableCountries() async {
+    final values = <String>{};
+    values.addAll(
+      (await (select(masterData)..where(
+                (row) => row.kind.equals('country') & row.deletedAt.isNull(),
+              ))
+              .get())
+          .map((row) => row.value.trim()),
+    );
+    values.addAll(
+      (await (select(
+        stockMasters,
+      )..where((row) => row.deletedAt.isNull())).get()).map(
+        (row) => row.country.trim(),
+      ),
+    );
+    final sorted = values.where((value) => value.isNotEmpty).toList()..sort();
+    return sorted;
+  }
+
+  Future<void> saveCountryTaxRate({
+    required String actorUserId,
+    required String country,
+    required double rate,
+  }) async {
+    await _requireAdmin(actorUserId);
+    if (country.trim().isEmpty || rate < 0 || rate > 100) {
+      throw ArgumentError('Land und Quellensteuer müssen gültig sein.');
+    }
+    await into(countryTaxRates).insertOnConflictUpdate(
+      CountryTaxRatesCompanion.insert(
+        country: country.trim(),
+        withholdingTaxRate: Value(rate),
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+    final normalized = country.trim().toLowerCase();
+    final affected = (await select(investments).get())
+        .where(
+          (investment) => investment.country.trim().toLowerCase() == normalized,
+        )
+        .toList();
+    await transaction(() async {
+      for (final investment in affected) {
+        await (update(
+          investments,
+        )..where((row) => row.id.equals(investment.id))).write(
+          InvestmentsCompanion(
+            dividendWithholdingTaxRate: Value(rate),
+            updatedAt: Value(DateTime.now().toUtc()),
+          ),
+        );
+        await (update(dividendSchedules)..where(
+              (row) =>
+                  row.investmentId.equals(investment.id) &
+                  row.deletedAt.isNull(),
+            ))
+            .write(
+              DividendSchedulesCompanion(
+                withholdingTaxRate: Value(rate),
+                updatedAt: Value(DateTime.now().toUtc()),
+              ),
+            );
+      }
+    });
+  }
+
+  Stream<AppConfiguration> watchAppConfiguration() async* {
+    yield await appConfiguration();
+    yield* (select(
+      appConfigurations,
+    )..where((row) => row.id.equals('global'))).watchSingle();
+  }
+
+  Future<AppConfiguration> appConfiguration() async {
+    final current = await (select(
+      appConfigurations,
+    )..where((row) => row.id.equals('global'))).getSingleOrNull();
+    if (current != null) return current;
+    await into(appConfigurations).insert(
+      AppConfigurationsCompanion.insert(
+        id: 'global',
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+    return (select(
+      appConfigurations,
+    )..where((row) => row.id.equals('global'))).getSingle();
+  }
+
+  Future<void> setMaximumTaxAllowance({
+    required String actorUserId,
+    required double amount,
+  }) async {
+    await _requireAdmin(actorUserId);
+    if (!amount.isFinite || amount < 0) {
+      throw ArgumentError.value(amount, 'amount', 'Ungültiger Höchstbetrag');
+    }
+    await into(appConfigurations).insertOnConflictUpdate(
+      AppConfigurationsCompanion.insert(
+        id: 'global',
+        maximumTaxAllowance: Value(amount),
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+    await customStatement(
+      'UPDATE user_preferences SET tax_allowance = ? '
+      'WHERE tax_allowance > ?',
+      [amount, amount],
+    );
+  }
+
+  Stream<List<AppErrorLog>> watchErrorLogs() => (select(
+    appErrorLogs,
+  )..orderBy([(row) => OrderingTerm.desc(row.occurredAt)])).watch();
+
+  Future<void> logError({
+    String? userId,
+    required String source,
+    required Object error,
+    StackTrace? stackTrace,
+    String details = '',
+  }) async {
+    try {
+      await into(appErrorLogs).insert(
+        AppErrorLogsCompanion.insert(
+          id: _uuid.v4(),
+          userId: Value(userId),
+          source: source,
+          message: error.toString(),
+          details: Value(details),
+          stackTrace: Value(stackTrace?.toString() ?? ''),
+          occurredAt: DateTime.now().toUtc(),
+        ),
+      );
+    } catch (_) {
+      // Error reporting must never trigger another application failure.
+    }
+  }
+
+  Future<void> clearErrorLogs(String actorUserId) async {
+    await _requireAdmin(actorUserId);
+    await delete(appErrorLogs).go();
   }
 
   Future<StockPrice?> stockPrice(String stockId) => (select(
@@ -615,8 +856,167 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> saveAccount(AccountsCompanion value) async {
+    final old = await (select(
+      accounts,
+    )..where((row) => row.id.equals(value.id.value))).getSingleOrNull();
+    if (old != null && value.usageType.present) {
+      final requested = value.usageType.value;
+      if (old.usageType != 'unassigned' && requested != old.usageType) {
+        throw StateError(
+          'Die Verwendung eines bereits zugeordneten Kontos kann nicht geändert werden.',
+        );
+      }
+      if (requested != 'unassigned' &&
+          !await accountCanBeUsed(old.userId, old.id, requested)) {
+        throw StateError('Das Konto enthält Daten aus einem anderen Modul.');
+      }
+    }
     await into(accounts).insertOnConflictUpdate(value);
     await captureNetWorth(value.userId.value);
+  }
+
+  Future<void> selectAccountForUsage({
+    required String userId,
+    required String accountId,
+    required String usageType,
+  }) async {
+    if (!const {'household', 'portfolio'}.contains(usageType)) {
+      throw ArgumentError.value(usageType, 'usageType');
+    }
+    await transaction(() async {
+      final account =
+          await (select(accounts)..where(
+                (row) =>
+                    row.id.equals(accountId) &
+                    row.userId.equals(userId) &
+                    row.deletedAt.isNull(),
+              ))
+              .getSingleOrNull();
+      if (account == null) throw StateError('Das Konto ist nicht verfügbar.');
+      if (account.usageType != 'unassigned' && account.usageType != usageType) {
+        throw StateError(
+          'Das Konto wird bereits in einem anderen Modul verwendet.',
+        );
+      }
+      final hasLedger =
+          await (select(ledgerEntries)..where(
+                (row) =>
+                    row.userId.equals(userId) &
+                    row.accountId.equals(accountId) &
+                    row.deletedAt.isNull(),
+              ))
+              .getSingleOrNull() !=
+          null;
+      final hasPortfolio =
+          await (select(investments)..where(
+                    (row) =>
+                        row.userId.equals(userId) &
+                        row.accountId.equals(accountId) &
+                        row.deletedAt.isNull(),
+                  ))
+                  .getSingleOrNull() !=
+              null ||
+          await (select(physicalAssets)..where(
+                    (row) =>
+                        row.userId.equals(userId) &
+                        row.accountId.equals(accountId) &
+                        row.deletedAt.isNull(),
+                  ))
+                  .getSingleOrNull() !=
+              null;
+      if (usageType == 'portfolio' && hasLedger) {
+        throw StateError(
+          'Konten mit Haushaltsbuchungen können keinem Portfolio zugeordnet werden.',
+        );
+      }
+      if (usageType == 'household' && hasPortfolio) {
+        throw StateError(
+          'Konten mit Portfolio-Daten können keinem Haushaltsbuch zugeordnet werden.',
+        );
+      }
+      await (update(accounts)..where((row) => row.id.equals(accountId))).write(
+        AccountsCompanion(
+          usageType: Value(usageType),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+      if (usageType == 'portfolio') {
+        await (update(investments)..where(
+              (row) =>
+                  row.userId.equals(userId) &
+                  row.accountId.equals('') &
+                  row.deletedAt.isNull(),
+            ))
+            .write(InvestmentsCompanion(accountId: Value(accountId)));
+        await (update(physicalAssets)..where(
+              (row) =>
+                  row.userId.equals(userId) &
+                  row.accountId.equals('') &
+                  row.deletedAt.isNull(),
+            ))
+            .write(PhysicalAssetsCompanion(accountId: Value(accountId)));
+      }
+      final preference = await preferencesFor(userId);
+      await into(userPreferences).insertOnConflictUpdate(
+        preference
+            .toCompanion(false)
+            .copyWith(
+              selectedHouseholdAccountId: usageType == 'household'
+                  ? Value(accountId)
+                  : null,
+              selectedPortfolioAccountId: usageType == 'portfolio'
+                  ? Value(accountId)
+                  : null,
+              updatedAt: Value(DateTime.now().toUtc()),
+            ),
+      );
+    });
+    await persistUserFile(userId);
+  }
+
+  Future<bool> accountCanBeUsed(
+    String userId,
+    String accountId,
+    String usageType,
+  ) async {
+    final account =
+        await (select(accounts)..where(
+              (row) =>
+                  row.id.equals(accountId) &
+                  row.userId.equals(userId) &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    if (account == null ||
+        (account.usageType != 'unassigned' && account.usageType != usageType)) {
+      return false;
+    }
+    if (usageType == 'portfolio') {
+      return await (select(ledgerEntries)..where(
+                (row) =>
+                    row.userId.equals(userId) &
+                    row.accountId.equals(accountId) &
+                    row.deletedAt.isNull(),
+              ))
+              .getSingleOrNull() ==
+          null;
+    }
+    return await (select(investments)..where(
+                  (row) =>
+                      row.userId.equals(userId) &
+                      row.accountId.equals(accountId) &
+                      row.deletedAt.isNull(),
+                ))
+                .getSingleOrNull() ==
+            null &&
+        await (select(physicalAssets)..where(
+                  (row) =>
+                      row.userId.equals(userId) &
+                      row.accountId.equals(accountId) &
+                      row.deletedAt.isNull(),
+                ))
+                .getSingleOrNull() ==
+            null;
   }
 
   Future<void> deleteAccount(String id, String userId) async {
@@ -651,8 +1051,25 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> saveInvestment(InvestmentsCompanion value) async {
+    final accountId = value.accountId.value;
+    final userId = value.userId.value;
+    if (accountId.isEmpty ||
+        !await accountCanBeUsed(userId, accountId, 'portfolio')) {
+      throw StateError(
+        'Für Portfolio-Positionen ist ein freies Portfolio-Konto erforderlich.',
+      );
+    }
+    await (update(
+          accounts,
+        )..where((row) => row.id.equals(accountId) & row.userId.equals(userId)))
+        .write(
+          AccountsCompanion(
+            usageType: const Value('portfolio'),
+            updatedAt: Value(DateTime.now().toUtc()),
+          ),
+        );
     await into(investments).insertOnConflictUpdate(value);
-    await captureNetWorth(value.userId.value);
+    await captureNetWorth(userId);
   }
 
   Future<void> deleteInvestment(String id, String userId) async {
@@ -660,6 +1077,49 @@ final class AppDatabase extends _$AppDatabase {
       investments,
     )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
       InvestmentsCompanion(
+        deletedAt: Value(DateTime.now().toUtc()),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    await captureNetWorth(userId);
+  }
+
+  Stream<List<PhysicalAsset>> watchPhysicalAssets(String userId) =>
+      (select(physicalAssets)
+            ..where((row) => row.userId.equals(userId) & row.deletedAt.isNull())
+            ..orderBy([
+              (row) => OrderingTerm.asc(row.category),
+              (row) => OrderingTerm.asc(row.name),
+            ]))
+          .watch();
+
+  Future<void> savePhysicalAsset(PhysicalAssetsCompanion value) async {
+    final accountId = value.accountId.value;
+    final userId = value.userId.value;
+    if (accountId.isEmpty ||
+        !await accountCanBeUsed(userId, accountId, 'portfolio')) {
+      throw StateError(
+        'Für physische Werte ist ein freies Portfolio-Konto erforderlich.',
+      );
+    }
+    await (update(
+          accounts,
+        )..where((row) => row.id.equals(accountId) & row.userId.equals(userId)))
+        .write(
+          AccountsCompanion(
+            usageType: const Value('portfolio'),
+            updatedAt: Value(DateTime.now().toUtc()),
+          ),
+        );
+    await into(physicalAssets).insertOnConflictUpdate(value);
+    await captureNetWorth(userId);
+  }
+
+  Future<void> deletePhysicalAsset(String id, String userId) async {
+    await (update(
+      physicalAssets,
+    )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+      PhysicalAssetsCompanion(
         deletedAt: Value(DateTime.now().toUtc()),
         updatedAt: Value(DateTime.now().toUtc()),
       ),
@@ -757,6 +1217,35 @@ final class AppDatabase extends _$AppDatabase {
     final entriesToSave = values.toList();
     await transaction(() async {
       for (final value in entriesToSave) {
+        final accountId = value.accountId.present ? value.accountId.value : '';
+        if (accountId.isNotEmpty) {
+          final userId = value.userId.value;
+          if (!await accountCanBeUsed(userId, accountId, 'household')) {
+            throw StateError(
+              'Das Konto ist bereits einem Portfolio oder anderen Daten zugeordnet.',
+            );
+          }
+          await (update(accounts)..where(
+                (row) => row.id.equals(accountId) & row.userId.equals(userId),
+              ))
+              .write(
+                AccountsCompanion(
+                  usageType: const Value('household'),
+                  updatedAt: Value(DateTime.now().toUtc()),
+                ),
+              );
+          final preference = await preferencesFor(userId);
+          if (preference.selectedHouseholdAccountId.isEmpty) {
+            await into(userPreferences).insertOnConflictUpdate(
+              preference
+                  .toCompanion(false)
+                  .copyWith(
+                    selectedHouseholdAccountId: Value(accountId),
+                    updatedAt: Value(DateTime.now().toUtc()),
+                  ),
+            );
+          }
+        }
         final old = await (select(
           ledgerEntries,
         )..where((row) => row.id.equals(value.id.value))).getSingleOrNull();
@@ -918,6 +1407,9 @@ final class AppDatabase extends _$AppDatabase {
     final investmentRows = await (select(
       investments,
     )..where((r) => r.userId.equals(userId))).get();
+    final physicalAssetRows = await (select(
+      physicalAssets,
+    )..where((r) => r.userId.equals(userId))).get();
     final purchaseRows = await (select(
       investmentPurchases,
     )..where((r) => r.userId.equals(userId))).get();
@@ -957,6 +1449,7 @@ final class AppDatabase extends _$AppDatabase {
             },
       'accounts': accountRows.map((e) => e.toJson()).toList(),
       'investments': investmentRows.map((e) => e.toJson()).toList(),
+      'physicalAssets': physicalAssetRows.map((e) => e.toJson()).toList(),
       'investmentPurchases': purchaseRows.map((e) => e.toJson()).toList(),
       'dividendSchedules': dividendRows.map((e) => e.toJson()).toList(),
       'ledgerEntries': ledgerRows.map((e) => e.toJson()).toList(),
@@ -998,6 +1491,18 @@ final class AppDatabase extends _$AppDatabase {
         if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
           await into(
             investments,
+          ).insertOnConflictUpdate(remote.toCompanion(false));
+        }
+      }
+      for (final json in rows('physicalAssets')) {
+        final remote = PhysicalAsset.fromJson(json);
+        if (remote.userId != userId) continue;
+        final local = await (select(
+          physicalAssets,
+        )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+        if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
+          await into(
+            physicalAssets,
           ).insertOnConflictUpdate(remote.toCompanion(false));
         }
       }
@@ -1111,14 +1616,21 @@ final class AppDatabase extends _$AppDatabase {
               (row) => row.userId.equals(userId) & row.deletedAt.isNull(),
             ))
             .get();
+    final physicalRows =
+        await (select(physicalAssets)..where(
+              (row) => row.userId.equals(userId) & row.deletedAt.isNull(),
+            ))
+            .get();
     final accountBalance = accountRows.fold<double>(
       0,
       (sum, row) => sum + row.balance,
     );
-    final portfolioValue = investmentRows.fold<double>(
-      0,
-      (sum, row) => sum + row.quantity * row.currentPrice,
-    );
+    final portfolioValue =
+        investmentRows.fold<double>(
+          0,
+          (sum, row) => sum + row.quantity * row.currentPrice,
+        ) +
+        physicalRows.fold<double>(0, (sum, row) => sum + row.currentValue);
     final last =
         await (select(netWorthSnapshots)
               ..where((row) => row.userId.equals(userId))
@@ -1247,6 +1759,18 @@ final class AppDatabase extends _$AppDatabase {
   Future<void> deleteVehicle(String id, String userId) async {
     final now = DateTime.now().toUtc();
     await transaction(() async {
+      final linkedEntries =
+          await (select(ledgerEntries)..where(
+                (row) =>
+                    row.userId.equals(userId) &
+                    row.vehicleId.equals(id) &
+                    row.sourceType.equals('vehicle') &
+                    row.deletedAt.isNull(),
+              ))
+              .get();
+      for (final entry in linkedEntries) {
+        await _applyLedgerToAccount(entry, reverse: true);
+      }
       await (update(
         vehicles,
       )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
@@ -1289,8 +1813,19 @@ final class AppDatabase extends _$AppDatabase {
     VehicleCostsCompanion cost,
     LedgerEntriesCompanion ledger,
   ) async {
+    final preference = await preferencesFor(cost.userId.value);
+    final accountId =
+        ledger.accountId.present && ledger.accountId.value.isNotEmpty
+        ? ledger.accountId.value
+        : preference.selectedHouseholdAccountId;
+    if (accountId.isEmpty ||
+        !await accountCanBeUsed(cost.userId.value, accountId, 'household')) {
+      throw StateError(
+        'Vor dem Erfassen von Fahrzeugkosten muss ein Haushaltskonto gewählt werden.',
+      );
+    }
     await into(vehicleCosts).insertOnConflictUpdate(cost);
-    await saveLedgerEntry(ledger);
+    await saveLedgerEntry(ledger.copyWith(accountId: Value(accountId)));
   }
 
   Stream<UserPreference?> watchPreferences(String userId) => (select(
@@ -1312,6 +1847,14 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> savePreferences(UserPreferencesCompanion value) async {
+    if (value.taxAllowance.present) {
+      final maximum = (await appConfiguration()).maximumTaxAllowance;
+      if (value.taxAllowance.value < 0 || value.taxAllowance.value > maximum) {
+        throw StateError(
+          'Der Freistellungsauftrag darf höchstens ${maximum.toStringAsFixed(2)} € betragen.',
+        );
+      }
+    }
     await into(userPreferences).insertOnConflictUpdate(value);
     await persistUserFile(value.userId.value);
   }

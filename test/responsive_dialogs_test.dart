@@ -93,6 +93,24 @@ void main() {
   testWidgets('investment editor stacks fields on a narrow viewport', (
     tester,
   ) async {
+    final now = DateTime.now();
+    final account = Account(
+      id: 'portfolio-account',
+      userId: 'responsive-user',
+      bankName: 'Testbank',
+      label: 'Portfolio',
+      holder: '',
+      iban: '',
+      bic: '',
+      accountNumber: '',
+      currency: 'EUR',
+      balance: 0,
+      availableBalance: 0,
+      usageType: 'portfolio',
+      notes: '',
+      createdAt: now,
+      updatedAt: now,
+    );
     await pumpPage(
       tester,
       const InvestmentsPage(),
@@ -106,6 +124,17 @@ void main() {
         stockMastersProvider.overrideWith(
           (_) => Stream.value(const <StockMaster>[]),
         ),
+        countryTaxRatesProvider.overrideWith(
+          (_) => Stream.value(const <CountryTaxRate>[]),
+        ),
+        accountsProvider.overrideWith((_) => Stream.value([account])),
+        ledgerEntriesProvider.overrideWith(
+          (_) => Stream.value(const <LedgerEntry>[]),
+        ),
+        physicalAssetsProvider.overrideWith(
+          (_) => Stream.value(const <PhysicalAsset>[]),
+        ),
+        preferencesProvider.overrideWith((_) => Stream.value(null)),
       ],
     );
 
@@ -155,6 +184,7 @@ void main() {
       currency: 'EUR',
       balance: 1234.56,
       availableBalance: 1234.56,
+      usageType: 'household',
       notes: '',
       createdAt: now,
       updatedAt: now,
@@ -166,6 +196,12 @@ void main() {
         accountsProvider.overrideWith((_) => Stream.value([account])),
         ledgerEntriesProvider.overrideWith(
           (_) => Stream.value(const <LedgerEntry>[]),
+        ),
+        investmentsProvider.overrideWith(
+          (_) => Stream.value(const <Investment>[]),
+        ),
+        physicalAssetsProvider.overrideWith(
+          (_) => Stream.value(const <PhysicalAsset>[]),
         ),
         vehiclesProvider.overrideWith((_) => Stream.value(const <Vehicle>[])),
         masterDataProvider.overrideWith(

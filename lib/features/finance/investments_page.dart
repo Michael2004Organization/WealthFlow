@@ -19,10 +19,30 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
   String _query = '';
   String _type = 'Alle';
   String _sort = 'Wert';
+  String? _selectedAccountId;
 
   @override
   Widget build(BuildContext context) {
     final asyncItems = ref.watch(investmentsProvider);
+    final accounts =
+        ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
+    final entries =
+        ref.watch(ledgerEntriesProvider).valueOrNull ?? const <LedgerEntry>[];
+    final physicalAssets =
+        ref.watch(physicalAssetsProvider).valueOrNull ??
+        const <PhysicalAsset>[];
+    final preference = ref.watch(preferencesProvider).valueOrNull;
+    final eligibleAccounts = accounts.where((account) {
+      if (account.usageType == 'portfolio') return true;
+      if (account.usageType != 'unassigned') return false;
+      return !entries.any((entry) => entry.accountId == account.id);
+    }).toList();
+    final eligibleIds = eligibleAccounts.map((account) => account.id).toSet();
+    final selectedAccountId = eligibleIds.contains(_selectedAccountId)
+        ? _selectedAccountId
+        : eligibleIds.contains(preference?.selectedPortfolioAccountId)
+        ? preference?.selectedPortfolioAccountId
+        : eligibleAccounts.firstOrNull?.id;
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -34,16 +54,63 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
               PageHeader(
                 title: 'Portfolio',
                 subtitle: 'Positionen, Performance und Erträge im Blick.',
-                action: FilledButton.icon(
-                  onPressed: () => showInvestmentEditor(context, ref),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Position'),
+                action: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: selectedAccountId == null
+                          ? null
+                          : () => showInvestmentEditor(
+                              context,
+                              ref,
+                              accountId: selectedAccountId,
+                            ),
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Position'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: selectedAccountId == null
+                          ? null
+                          : () => _showPhysicalAssetEditor(
+                              context,
+                              ref,
+                              accountId: selectedAccountId,
+                            ),
+                      icon: const Icon(Icons.diamond_outlined),
+                      label: const Text('Wertgegenstand'),
+                    ),
+                  ],
                 ),
               ),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
                 children: [
+                  SizedBox(
+                    width: 300,
+                    child: DropdownButtonFormField<String>(
+                      key: ValueKey(selectedAccountId),
+                      initialValue: selectedAccountId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Portfolio-Konto',
+                        prefixIcon: Icon(Icons.account_balance_rounded),
+                      ),
+                      items: eligibleAccounts
+                          .map(
+                            (account) => DropdownMenuItem(
+                              value: account.id,
+                              child: Text(
+                                '${account.label} · ${money(account.balance)} Cash',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) => _selectPortfolioAccount(value),
+                    ),
+                  ),
                   SizedBox(
                     width: 300,
                     child: TextField(
@@ -71,7 +138,6 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                                 'Kryptowährung',
                                 'Anleihe',
                                 'Fonds',
-                                'Edelmetall',
                                 'Hebelprodukt',
                               ]
                               .map(
@@ -125,7 +191,13 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                     ),
                   ),
                   data: (allItems) {
-                    final items = allItems.where((item) {
+                    final portfolioItems = allItems
+                        .where((item) => item.accountId == selectedAccountId)
+                        .toList();
+                    final accountAssets = physicalAssets
+                        .where((item) => item.accountId == selectedAccountId)
+                        .toList();
+                    final items = portfolioItems.where((item) {
                       final matchesType =
                           _type == 'Alle' || item.assetType == _type;
                       final text =
@@ -134,46 +206,106 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                       return matchesType && text.contains(_query);
                     }).toList();
                     items.sort(_compare);
-                    if (allItems.isEmpty) {
+                    if (selectedAccountId == null) {
+                      return EmptyState(
+                        icon: Icons.account_balance_outlined,
+                        title: 'Portfolio-Konto erforderlich',
+                        message:
+                            'Lege zuerst ein leeres Konto an oder wähle ein noch ungenutztes Konto als Portfolio-Konto.',
+                      );
+                    }
+                    if (portfolioItems.isEmpty && accountAssets.isEmpty) {
                       return EmptyState(
                         icon: Icons.candlestick_chart_rounded,
                         title: 'Dein Portfolio ist noch leer',
                         message:
                             'Erfasse eine Aktie, einen ETF oder eine andere Anlage. Wert und Performance werden automatisch berechnet.',
                         action: FilledButton.icon(
-                          onPressed: () => showInvestmentEditor(context, ref),
+                          onPressed: () => showInvestmentEditor(
+                            context,
+                            ref,
+                            accountId: selectedAccountId,
+                          ),
                           icon: const Icon(Icons.add_rounded),
                           label: const Text('Erste Position'),
                         ),
                       );
                     }
-                    if (items.isEmpty) {
-                      return const EmptyState(
-                        icon: Icons.filter_alt_off_rounded,
-                        title: 'Keine Treffer',
-                        message: 'Passe Suche oder Anlageklasse an.',
-                      );
-                    }
-                    final portfolio = allItems.fold<double>(
+                    final securitiesValue = portfolioItems.fold<double>(
                       0,
                       (sum, item) => sum + _value(item),
                     );
-                    final cost = allItems.fold<double>(
+                    final physicalValue = accountAssets.fold<double>(
                       0,
-                      (sum, item) => sum + _cost(item),
+                      (sum, item) => sum + item.currentValue,
                     );
+                    final cash =
+                        accounts
+                            .where((account) => account.id == selectedAccountId)
+                            .firstOrNull
+                            ?.balance ??
+                        0;
+                    final portfolio = securitiesValue + physicalValue + cash;
+                    final cost =
+                        portfolioItems.fold<double>(
+                          0,
+                          (sum, item) => sum + _cost(item),
+                        ) +
+                        accountAssets.fold<double>(
+                          0,
+                          (sum, item) => sum + item.purchasePrice,
+                        );
                     return ListView(
                       children: [
                         _PortfolioSummary(
                           value: portfolio,
                           cost: cost,
-                          positions: allItems.length,
+                          positions:
+                              portfolioItems.length + accountAssets.length,
+                          cash: cash,
                         ),
+                        const SizedBox(height: 12),
+                        _TaxAllowanceTile(preference: preference),
                         const SizedBox(height: 16),
+                        Text(
+                          'Wertpapiere',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 10),
                         for (final item in items) ...[
                           _InvestmentTile(item: item),
                           const SizedBox(height: 10),
                         ],
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Physische Wertgegenstände',
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Wertgegenstand hinzufügen',
+                              onPressed: () => _showPhysicalAssetEditor(
+                                context,
+                                ref,
+                                accountId: selectedAccountId,
+                              ),
+                              icon: const Icon(Icons.add_rounded),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        if (accountAssets.isEmpty)
+                          const Text('Noch keine physischen Werte erfasst.')
+                        else
+                          for (final asset in accountAssets) ...[
+                            _PhysicalAssetTile(asset: asset),
+                            const SizedBox(height: 10),
+                          ],
                       ],
                     );
                   },
@@ -199,6 +331,29 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
       item.quantity * item.purchasePrice + item.fees;
   double _performance(Investment item) =>
       _cost(item) == 0 ? 0 : (_value(item) - _cost(item)) / _cost(item);
+
+  Future<void> _selectPortfolioAccount(String? accountId) async {
+    if (accountId == null) return;
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    try {
+      await ref
+          .read(databaseProvider)
+          .selectAccountForUsage(
+            userId: userId,
+            accountId: accountId,
+            usageType: 'portfolio',
+          );
+      if (mounted) setState(() => _selectedAccountId = accountId);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Bad state: ', '')),
+        ),
+      );
+    }
+  }
 }
 
 class _PortfolioSummary extends StatelessWidget {
@@ -206,10 +361,12 @@ class _PortfolioSummary extends StatelessWidget {
     required this.value,
     required this.cost,
     required this.positions,
+    required this.cash,
   });
   final double value;
   final double cost;
   final int positions;
+  final double cash;
 
   @override
   Widget build(BuildContext context) {
@@ -243,6 +400,7 @@ class _PortfolioSummary extends StatelessWidget {
                   : Theme.of(context).colorScheme.error,
             ),
             _SummaryValue(label: 'Positionen', value: '$positions'),
+            _SummaryValue(label: 'Cash', value: money(cash)),
           ],
         ),
       ),
@@ -269,6 +427,305 @@ class _SummaryValue extends StatelessWidget {
       ),
     ],
   );
+}
+
+class _TaxAllowanceTile extends ConsumerWidget {
+  const _TaxAllowanceTile({required this.preference});
+
+  final UserPreference? preference;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final maximum =
+        ref.watch(appConfigurationProvider).valueOrNull?.maximumTaxAllowance ??
+        1000;
+    final allowance = preference?.taxAllowance ?? maximum.clamp(0, 1000);
+    return ListTile(
+      tileColor: Theme.of(context).colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      leading: const Icon(Icons.savings_outlined),
+      title: const Text('Freistellungsauftrag'),
+      subtitle: Text('Jährlich verfügbar · maximal ${money(maximum)}'),
+      trailing: TextButton(
+        onPressed: preference == null
+            ? null
+            : () => _editTaxAllowance(context, ref, preference!, maximum),
+        child: Text(money(allowance)),
+      ),
+    );
+  }
+}
+
+Future<void> _editTaxAllowance(
+  BuildContext context,
+  WidgetRef ref,
+  UserPreference preference,
+  double maximum,
+) async {
+  final controller = TextEditingController(
+    text: preference.taxAllowance.toStringAsFixed(2),
+  );
+  final key = GlobalKey<FormState>();
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Freistellungsauftrag'),
+      content: Form(
+        key: key,
+        child: TextFormField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: 'Jährlicher Betrag',
+            suffixText: '€',
+            helperText: 'Administrativer Höchstbetrag: ${money(maximum)}',
+          ),
+          validator: (value) {
+            final parsed = double.tryParse((value ?? '').replaceAll(',', '.'));
+            if (parsed == null || parsed < 0) return 'Ungültiger Betrag';
+            if (parsed > maximum) return 'Höchstbetrag überschritten';
+            return null;
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (key.currentState?.validate() ?? false) {
+              Navigator.pop(dialogContext, true);
+            }
+          },
+          child: const Text('Speichern'),
+        ),
+      ],
+    ),
+  );
+  if (saved == true) {
+    await ref
+        .read(databaseProvider)
+        .savePreferences(
+          preference
+              .toCompanion(false)
+              .copyWith(
+                taxAllowance: Value(
+                  double.parse(controller.text.replaceAll(',', '.')),
+                ),
+                updatedAt: Value(DateTime.now().toUtc()),
+              ),
+        );
+  }
+  controller.dispose();
+}
+
+class _PhysicalAssetTile extends ConsumerWidget {
+  const _PhysicalAssetTile({required this.asset});
+
+  final PhysicalAsset asset;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Card(
+    child: ListTile(
+      leading: const CircleAvatar(child: Icon(Icons.diamond_outlined)),
+      title: Text(asset.name),
+      subtitle: Text(
+        '${asset.category} · ${asset.quantity.toStringAsFixed(2)} Einheiten · Kauf ${money(asset.purchasePrice)}',
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            money(asset.currentValue),
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'edit') {
+                await _showPhysicalAssetEditor(
+                  context,
+                  ref,
+                  accountId: asset.accountId,
+                  asset: asset,
+                );
+              } else if (value == 'delete' &&
+                  await confirmDelete(
+                    context,
+                    title: 'Wertgegenstand löschen?',
+                    message: '${asset.name} wird aus dem Portfolio entfernt.',
+                  )) {
+                final userId = ref.read(currentUserIdProvider);
+                if (userId != null) {
+                  await ref
+                      .read(databaseProvider)
+                      .deletePhysicalAsset(asset.id, userId);
+                }
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+              PopupMenuItem(value: 'delete', child: Text('Löschen')),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Future<void> _showPhysicalAssetEditor(
+  BuildContext context,
+  WidgetRef ref, {
+  required String accountId,
+  PhysicalAsset? asset,
+}) async {
+  final name = TextEditingController(text: asset?.name);
+  final quantity = TextEditingController(
+    text: asset?.quantity.toString() ?? '1',
+  );
+  final purchasePrice = TextEditingController(
+    text: asset?.purchasePrice.toString() ?? '0',
+  );
+  final currentValue = TextEditingController(
+    text: asset?.currentValue.toString() ?? '0',
+  );
+  final notes = TextEditingController(text: asset?.notes);
+  var category = asset?.category ?? 'Edelmetall';
+  final key = GlobalKey<FormState>();
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: Text(
+          asset == null
+              ? 'Wertgegenstand hinzufügen'
+              : 'Wertgegenstand bearbeiten',
+        ),
+        content: SizedBox(
+          width: (MediaQuery.sizeOf(context).width - 64).clamp(280, 520),
+          child: Form(
+            key: key,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: name,
+                    decoration: const InputDecoration(labelText: 'Bezeichnung'),
+                    validator: (value) =>
+                        (value?.trim().isEmpty ?? true) ? 'Pflichtfeld' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: category,
+                    decoration: const InputDecoration(labelText: 'Kategorie'),
+                    items:
+                        const [
+                              'Edelmetall',
+                              'Schmuck',
+                              'Kunst',
+                              'Sammlerstück',
+                              'Sonstiges',
+                            ]
+                            .map(
+                              (value) => DropdownMenuItem(
+                                value: value,
+                                child: Text(value),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: (value) =>
+                        setDialogState(() => category = value ?? category),
+                  ),
+                  const SizedBox(height: 12),
+                  for (final field in [
+                    (quantity, 'Menge', ''),
+                    (purchasePrice, 'Kaufpreis gesamt', '€'),
+                    (currentValue, 'Aktueller Wert gesamt', '€'),
+                  ]) ...[
+                    TextFormField(
+                      controller: field.$1,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: field.$2,
+                        suffixText: field.$3,
+                      ),
+                      validator: (value) {
+                        final parsed = double.tryParse(
+                          (value ?? '').replaceAll(',', '.'),
+                        );
+                        return parsed == null || parsed < 0
+                            ? 'Ungültiger Wert'
+                            : null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  TextFormField(
+                    controller: notes,
+                    decoration: const InputDecoration(labelText: 'Notizen'),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (key.currentState?.validate() ?? false) {
+                Navigator.pop(dialogContext, true);
+              }
+            },
+            child: const Text('Speichern'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (saved == true) {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId != null) {
+      final now = DateTime.now().toUtc();
+      double number(TextEditingController value) =>
+          double.parse(value.text.replaceAll(',', '.'));
+      await ref
+          .read(databaseProvider)
+          .savePhysicalAsset(
+            PhysicalAssetsCompanion.insert(
+              id: asset?.id ?? const Uuid().v4(),
+              userId: userId,
+              accountId: Value(accountId),
+              name: name.text.trim(),
+              category: Value(category),
+              quantity: Value(number(quantity)),
+              purchasePrice: Value(number(purchasePrice)),
+              currentValue: Value(number(currentValue)),
+              notes: Value(notes.text.trim()),
+              createdAt: asset?.createdAt ?? now,
+              updatedAt: now,
+            ),
+          );
+    }
+  }
+  for (final controller in [
+    name,
+    quantity,
+    purchasePrice,
+    currentValue,
+    notes,
+  ]) {
+    controller.dispose();
+  }
 }
 
 class _InvestmentTile extends ConsumerWidget {
@@ -494,13 +951,20 @@ Future<void> showInvestmentEditor(
   BuildContext context,
   WidgetRef ref, {
   Investment? investment,
+  String? accountId,
 }) async {
+  final resolvedAccountId = investment?.accountId ?? accountId ?? '';
+  if (resolvedAccountId.isEmpty) return;
   final masterData =
       ref.read(masterDataProvider).valueOrNull ?? const <MasterDataData>[];
   final existingItems =
-      ref.read(investmentsProvider).valueOrNull ?? const <Investment>[];
+      (ref.read(investmentsProvider).valueOrNull ?? const <Investment>[])
+          .where((item) => item.accountId == resolvedAccountId)
+          .toList();
   final stockMasters =
       ref.read(stockMastersProvider).valueOrNull ?? const <StockMaster>[];
+  final countryTaxRates =
+      ref.read(countryTaxRatesProvider).valueOrNull ?? const <CountryTaxRate>[];
   final result = await showDialog<InvestmentsCompanion>(
     context: context,
     builder: (_) => _InvestmentEditor(
@@ -508,6 +972,8 @@ Future<void> showInvestmentEditor(
       masterData: masterData,
       existingItems: existingItems,
       stockMasters: stockMasters,
+      countryTaxRates: countryTaxRates,
+      accountId: resolvedAccountId,
     ),
   );
   if (result != null) {
@@ -542,6 +1008,7 @@ Future<void> showInvestmentEditor(
             id: duplicate.id,
             userId: duplicate.userId,
             stockId: result.stockId,
+            accountId: result.accountId,
             name: result.name.value,
             symbol: result.symbol,
             isin: result.isin,
@@ -608,12 +1075,16 @@ class _InvestmentEditor extends StatefulWidget {
     required this.masterData,
     required this.existingItems,
     required this.stockMasters,
+    required this.countryTaxRates,
+    required this.accountId,
     this.investment,
   });
   final Investment? investment;
   final List<MasterDataData> masterData;
   final List<Investment> existingItems;
   final List<StockMaster> stockMasters;
+  final List<CountryTaxRate> countryTaxRates;
+  final String accountId;
   @override
   State<_InvestmentEditor> createState() => _InvestmentEditorState();
 }
@@ -783,7 +1254,6 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                               'Kryptowährung',
                               'Anleihe',
                               'Fonds',
-                              'Edelmetall',
                               'Hebelprodukt',
                             ]
                             .map(
@@ -844,6 +1314,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                     'Quellensteuer',
                     number: true,
                     required: true,
+                    readOnly: true,
                     suffixText: '%',
                     maximum: 100,
                   ),
@@ -1059,8 +1530,8 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
           ? '1'
           : _dividendExchangeRate.text;
       _dividendWithholdingTax.text = _isUnitedStates(stock.country)
-          ? '15'
-          : '0';
+          ? _taxRateForCountry(stock.country, fallback: 15).toString()
+          : _taxRateForCountry(stock.country, fallback: 0).toString();
     });
   }
 
@@ -1091,6 +1562,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
         id: widget.investment?.id ?? const Uuid().v4(),
         userId: userId,
         stockId: Value(_selectedStockId),
+        accountId: Value(widget.accountId),
         name: _name.text.trim(),
         symbol: Value(_symbol.text.trim().toUpperCase()),
         isin: Value(_isin.text.trim().toUpperCase()),
@@ -1125,6 +1597,15 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
         normalized == 'us' ||
         normalized.contains('vereinigte staat') ||
         normalized.contains('united states');
+  }
+
+  double _taxRateForCountry(String country, {required double fallback}) {
+    final normalized = country.trim().toLowerCase();
+    return widget.countryTaxRates
+            .where((item) => item.country.trim().toLowerCase() == normalized)
+            .firstOrNull
+            ?.withholdingTaxRate ??
+        fallback;
   }
 }
 

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
@@ -26,20 +27,30 @@ class AdministrationPage extends ConsumerWidget {
       );
     }
     return const DefaultTabController(
-      length: 2,
+      length: 4,
       child: Column(
         children: [
           TabBar(
+            isScrollable: true,
             tabs: [
               Tab(icon: Icon(Icons.group_outlined), text: 'Benutzer'),
               Tab(
                 icon: Icon(Icons.candlestick_chart_rounded),
                 text: 'Aktien-Stammdaten',
               ),
+              Tab(icon: Icon(Icons.percent_rounded), text: 'Steuern'),
+              Tab(icon: Icon(Icons.error_outline_rounded), text: 'Fehlerlogs'),
             ],
           ),
           Expanded(
-            child: TabBarView(children: [_UsersAdmin(), _StocksAdmin()]),
+            child: TabBarView(
+              children: [
+                _UsersAdmin(),
+                _StocksAdmin(),
+                _TaxAdmin(),
+                _ErrorLogsAdmin(),
+              ],
+            ),
           ),
         ],
       ),
@@ -203,6 +214,285 @@ class _StocksAdmin extends ConsumerWidget {
                                 ),
                               ],
                             ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaxAdmin extends ConsumerWidget {
+  const _TaxAdmin();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rates =
+        ref.watch(countryTaxRatesProvider).valueOrNull ??
+        const <CountryTaxRate>[];
+    final configuration = ref.watch(appConfigurationProvider).valueOrNull;
+    return FutureBuilder<List<String>>(
+      future: ref.read(databaseProvider).availableCountries(),
+      builder: (context, snapshot) {
+        final countries = snapshot.data ?? const <String>[];
+        return ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            PageHeader(
+              title: 'Steuerregeln',
+              subtitle:
+                  'Quellensteuern gelten global nach Herkunftsland. Ohne Eintrag gelten 0 %, für die USA standardmäßig 15 %.',
+              action: OutlinedButton.icon(
+                onPressed: configuration == null
+                    ? null
+                    : () => _editMaximumAllowance(
+                        context,
+                        ref,
+                        configuration.maximumTaxAllowance,
+                      ),
+                icon: const Icon(Icons.savings_outlined),
+                label: Text(
+                  'Freibetrag max. ${money(configuration?.maximumTaxAllowance ?? 1000)}',
+                ),
+              ),
+            ),
+            for (final country in countries)
+              Card(
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.public_rounded),
+                  ),
+                  title: Text(country),
+                  subtitle: const Text('Quellensteuer auf Dividenden'),
+                  trailing: TextButton(
+                    onPressed: () => _editCountryTax(
+                      context,
+                      ref,
+                      country,
+                      _countryRate(country, rates),
+                    ),
+                    child: Text(
+                      '${_countryRate(country, rates).toStringAsFixed(2)} %',
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  double _countryRate(String country, List<CountryTaxRate> rates) {
+    final stored = rates
+        .where(
+          (rate) =>
+              rate.country.trim().toLowerCase() == country.trim().toLowerCase(),
+        )
+        .firstOrNull;
+    if (stored != null) return stored.withholdingTaxRate;
+    final normalized = country.trim().toLowerCase();
+    return normalized == 'usa' ||
+            normalized == 'us' ||
+            normalized.contains('united states') ||
+            normalized.contains('vereinigte staat')
+        ? 15
+        : 0;
+  }
+}
+
+Future<void> _editCountryTax(
+  BuildContext context,
+  WidgetRef ref,
+  String country,
+  double current,
+) async {
+  final controller = TextEditingController(text: current.toStringAsFixed(2));
+  final key = GlobalKey<FormState>();
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text('Quellensteuer · $country'),
+      content: Form(
+        key: key,
+        child: TextFormField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Steuersatz',
+            suffixText: '%',
+          ),
+          validator: (value) {
+            final parsed = double.tryParse((value ?? '').replaceAll(',', '.'));
+            return parsed == null || parsed < 0 || parsed > 100
+                ? 'Wert zwischen 0 und 100 eingeben.'
+                : null;
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (key.currentState?.validate() ?? false) {
+              Navigator.pop(dialogContext, true);
+            }
+          },
+          child: const Text('Speichern'),
+        ),
+      ],
+    ),
+  );
+  if (saved == true) {
+    final actor = ref.read(currentUserIdProvider);
+    if (actor != null) {
+      await ref
+          .read(databaseProvider)
+          .saveCountryTaxRate(
+            actorUserId: actor,
+            country: country,
+            rate: double.parse(controller.text.replaceAll(',', '.')),
+          );
+    }
+  }
+  controller.dispose();
+}
+
+Future<void> _editMaximumAllowance(
+  BuildContext context,
+  WidgetRef ref,
+  double current,
+) async {
+  final controller = TextEditingController(text: current.toStringAsFixed(2));
+  final key = GlobalKey<FormState>();
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Maximaler Freistellungsauftrag'),
+      content: Form(
+        key: key,
+        child: TextFormField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Höchstbetrag',
+            suffixText: '€',
+          ),
+          validator: (value) {
+            final parsed = double.tryParse((value ?? '').replaceAll(',', '.'));
+            return parsed == null || parsed < 0 ? 'Ungültiger Betrag' : null;
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (key.currentState?.validate() ?? false) {
+              Navigator.pop(dialogContext, true);
+            }
+          },
+          child: const Text('Speichern'),
+        ),
+      ],
+    ),
+  );
+  if (saved == true) {
+    final actor = ref.read(currentUserIdProvider);
+    if (actor != null) {
+      await ref
+          .read(databaseProvider)
+          .setMaximumTaxAllowance(
+            actorUserId: actor,
+            amount: double.parse(controller.text.replaceAll(',', '.')),
+          );
+    }
+  }
+  controller.dispose();
+}
+
+class _ErrorLogsAdmin extends ConsumerWidget {
+  const _ErrorLogsAdmin();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final logs = ref.watch(errorLogsProvider);
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PageHeader(
+            title: 'Fehlerprotokoll',
+            subtitle:
+                'Unbehandelte Flutter-, Plattform- und Hintergrundfehler.',
+            action: OutlinedButton.icon(
+              onPressed: () async {
+                final actor = ref.read(currentUserIdProvider);
+                if (actor != null) {
+                  await ref.read(databaseProvider).clearErrorLogs(actor);
+                }
+              },
+              icon: const Icon(Icons.delete_sweep_outlined),
+              label: const Text('Leeren'),
+            ),
+          ),
+          Expanded(
+            child: logs.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => Center(child: Text('$error')),
+              data: (items) => items.isEmpty
+                  ? const EmptyState(
+                      icon: Icons.check_circle_outline_rounded,
+                      title: 'Keine Fehler protokolliert',
+                      message: 'Aktuell liegen keine Anwendungsfehler vor.',
+                    )
+                  : ListView.builder(
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final log = items[index];
+                        return Card(
+                          child: ExpansionTile(
+                            leading: const Icon(Icons.error_outline_rounded),
+                            title: Text(
+                              log.message,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              '${log.source} · ${DateFormat('dd.MM.yyyy HH:mm:ss').format(log.occurredAt.toLocal())}',
+                            ),
+                            childrenPadding: const EdgeInsets.fromLTRB(
+                              16,
+                              0,
+                              16,
+                              16,
+                            ),
+                            expandedCrossAxisAlignment:
+                                CrossAxisAlignment.stretch,
+                            children: [
+                              if (log.details.isNotEmpty)
+                                SelectableText(log.details),
+                              if (log.stackTrace.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                SelectableText(
+                                  log.stackTrace,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ],
                           ),
                         );
                       },

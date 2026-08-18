@@ -142,6 +142,18 @@ void main() {
           updatedAt: now,
         ),
       );
+      await database.saveAccount(
+        AccountsCompanion.insert(
+          id: 'driver-giro',
+          userId: 'driver',
+          bankName: 'Bank',
+          label: 'Haushalt',
+          balance: const Value(500),
+          availableBalance: const Value(500),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
       await database.saveVehicle(
         VehiclesCompanion.insert(
           id: 'car',
@@ -175,6 +187,7 @@ void main() {
           sourceType: const Value('vehicle'),
           sourceId: const Value('fuel-cost'),
           vehicleId: const Value('car'),
+          accountId: const Value('driver-giro'),
           createdAt: now,
           updatedAt: now,
         ),
@@ -355,4 +368,93 @@ void main() {
       1500,
     );
   });
+
+  test('an account cannot be shared by household and portfolio', () async {
+    final now = DateTime.now();
+    await database.createUser(
+      UsersCompanion.insert(
+        id: 'usage-owner',
+        email: 'usage@example.test',
+        displayName: 'Usage',
+        passwordHash: 'hash',
+        passwordSalt: 'salt',
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await database.saveAccount(
+      AccountsCompanion.insert(
+        id: 'usage-account',
+        userId: 'usage-owner',
+        bankName: 'Bank',
+        label: 'Konto',
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    await database.selectAccountForUsage(
+      userId: 'usage-owner',
+      accountId: 'usage-account',
+      usageType: 'household',
+    );
+
+    await expectLater(
+      database.selectAccountForUsage(
+        userId: 'usage-owner',
+        accountId: 'usage-account',
+        usageType: 'portfolio',
+      ),
+      throwsStateError,
+    );
+  });
+
+  test(
+    'an account with household entries is not eligible for portfolio',
+    () async {
+      final now = DateTime.now();
+      await database.createUser(
+        UsersCompanion.insert(
+          id: 'entry-owner',
+          email: 'entry@example.test',
+          displayName: 'Entry',
+          passwordHash: 'hash',
+          passwordSalt: 'salt',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await database.saveAccount(
+        AccountsCompanion.insert(
+          id: 'entry-account',
+          userId: 'entry-owner',
+          bankName: 'Bank',
+          label: 'Konto',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await database.saveLedgerEntry(
+        LedgerEntriesCompanion.insert(
+          id: 'entry',
+          userId: 'entry-owner',
+          bookingDate: now,
+          amount: 10,
+          category: 'Test',
+          accountId: const Value('entry-account'),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+
+      expect(
+        await database.accountCanBeUsed(
+          'entry-owner',
+          'entry-account',
+          'portfolio',
+        ),
+        isFalse,
+      );
+    },
+  );
 }

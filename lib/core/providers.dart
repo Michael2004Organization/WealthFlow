@@ -58,6 +58,13 @@ final investmentPurchasesProvider = StreamProvider<List<InvestmentPurchase>>((
       : ref.watch(databaseProvider).watchInvestmentPurchases(userId);
 });
 
+final physicalAssetsProvider = StreamProvider<List<PhysicalAsset>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <PhysicalAsset>[])
+      : ref.watch(databaseProvider).watchPhysicalAssets(userId);
+});
+
 final dividendSchedulesProvider = StreamProvider<List<DividendSchedule>>((ref) {
   final userId = ref.watch(currentUserIdProvider);
   return userId == null
@@ -128,6 +135,21 @@ final stockMastersProvider = StreamProvider<List<StockMaster>>((ref) {
       : ref.watch(databaseProvider).watchStockMasters();
 });
 
+final countryTaxRatesProvider = StreamProvider<List<CountryTaxRate>>((ref) {
+  return ref.watch(databaseProvider).watchCountryTaxRates();
+});
+
+final appConfigurationProvider = StreamProvider<AppConfiguration>((ref) {
+  return ref.watch(databaseProvider).watchAppConfiguration();
+});
+
+final errorLogsProvider = StreamProvider<List<AppErrorLog>>((ref) {
+  final isAdmin = ref.watch(isAdminProvider);
+  return isAdmin
+      ? ref.watch(databaseProvider).watchErrorLogs()
+      : Stream.value(const <AppErrorLog>[]);
+});
+
 final currentRoleProvider = Provider<String>((ref) {
   final userId = ref.watch(currentUserIdProvider);
   final users = ref.watch(usersProvider).valueOrNull;
@@ -145,7 +167,7 @@ final themeModeProvider = Provider<ThemeMode>((ref) {
   return switch (preference?.themeMode) {
     'light' => ThemeMode.light,
     'dark' => ThemeMode.dark,
-    _ => ThemeMode.system,
+    _ => ThemeMode.dark,
   };
 });
 

@@ -365,42 +365,72 @@ class _PortfolioChart extends StatelessWidget {
       description: 'Aktueller Wert der größten Positionen',
       child: visible.isEmpty
           ? const Center(child: Text('Noch keine Portfoliodaten'))
-          : BarChart(
-              BarChartData(
-                borderData: FlBorderData(show: false),
-                gridData: const FlGridData(show: false),
-                titlesData: const FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                ),
-                barGroups: [
-                  for (var index = 0; index < visible.take(8).length; index++)
-                    BarChartGroupData(
-                      x: index,
-                      barRods: [
-                        BarChartRodData(
-                          toY:
-                              visible[index].quantity *
-                              visible[index].currentPrice,
-                          width: 18,
-                          color: Theme.of(context).colorScheme.primary,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                      ],
+          : _PositionBars(investments: visible.take(6).toList()),
+    );
+  }
+}
+
+class _PositionBars extends StatelessWidget {
+  const _PositionBars({required this.investments});
+
+  final List<Investment> investments;
+
+  @override
+  Widget build(BuildContext context) {
+    final maximum = investments
+        .map((item) => item.quantity * item.currentPrice)
+        .fold<double>(0, (max, value) => value > max ? value : max);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final item in investments)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: Column(
+                children: [
+                  Text(
+                    money(item.quantity * item.currentPrice),
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
                     ),
+                  ),
+                  const SizedBox(height: 5),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: FractionallySizedBox(
+                        heightFactor: maximum <= 0
+                            ? 0
+                            : (item.quantity * item.currentPrice / maximum)
+                                  .clamp(.04, 1),
+                        widthFactor: .62,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary,
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(5),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    item.name,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
                 ],
               ),
             ),
+          ),
+      ],
     );
   }
 }
@@ -472,51 +502,103 @@ class _CashflowChart extends StatelessWidget {
     return _ChartCard(
       title: 'Cashflow',
       description: 'Einnahmen und Ausgaben der letzten sechs Monate',
-      child: BarChart(
-        BarChartData(
-          barTouchData: BarTouchData(
-            touchTooltipData: BarTouchTooltipData(
-              getTooltipItem: (group, groupIndex, rod, rodIndex) =>
-                  BarTooltipItem(
-                    (rodIndex == 0 ? 'Einnahmen\n' : 'Ausgaben\n') +
-                        money(rod.toY),
-                    const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
+      child: Column(
+        children: [
+          Expanded(
+            child: BarChart(
+              BarChartData(
+                barTouchData: BarTouchData(enabled: false),
+                borderData: FlBorderData(show: false),
+                gridData: const FlGridData(show: false),
+                titlesData: FlTitlesData(
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 26,
+                      getTitlesWidget: (value, meta) {
+                        final date = DateTime(
+                          now.year,
+                          now.month - 5 + value.toInt(),
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 5),
+                          child: Text(
+                            _statisticsMonthNames[date.month - 1].substring(
+                              0,
+                              3,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
-            ),
-          ),
-          borderData: FlBorderData(show: false),
-          gridData: const FlGridData(show: false),
-          titlesData: const FlTitlesData(
-            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          ),
-          barGroups: [
-            for (var i = 0; i < 6; i++)
-              BarChartGroupData(
-                x: i,
-                barsSpace: 3,
-                barRods: [
-                  BarChartRodData(
-                    toY: income[i],
-                    width: 10,
-                    color: Colors.green,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  BarChartRodData(
-                    toY: expense[i],
-                    width: 10,
-                    color: Colors.orange,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+                ),
+                barGroups: [
+                  for (var i = 0; i < 6; i++)
+                    BarChartGroupData(
+                      x: i,
+                      barsSpace: 3,
+                      barRods: [
+                        BarChartRodData(
+                          toY: income[i],
+                          width: 10,
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        BarChartRodData(
+                          toY: expense[i],
+                          width: 10,
+                          color: Colors.orange,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ],
+                    ),
                 ],
               ),
-          ],
-        ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 66,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: 6,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final date = DateTime(now.year, now.month - 5 + index);
+                return SizedBox(
+                  width: 104,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _statisticsMonthNames[date.month - 1],
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      Text(
+                        'E ${money(income[index])}',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                      Text(
+                        'A ${money(expense[index])}',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

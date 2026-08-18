@@ -72,7 +72,14 @@ final class AuthController extends StateNotifier<AuthState> {
         user: user,
       );
       if (user == null && userId != null) await _sessionStore.clear();
-    } catch (_) {
+    } catch (error, stackTrace) {
+      unawaited(
+        _database.logError(
+          source: 'Sitzungswiederherstellung',
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
       state = const AuthState(status: AuthStatus.signedOut);
     }
   }
@@ -131,7 +138,14 @@ final class AuthController extends StateNotifier<AuthState> {
       unawaited(_database.seedDefaultMasterData(userId));
       unawaited(_database.captureNetWorth(userId));
       return true;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      unawaited(
+        _database.logError(
+          source: 'Registrierung',
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
       state = state.copyWith(
         isBusy: false,
         error: 'Das Konto konnte nicht angelegt werden.',
@@ -168,7 +182,14 @@ final class AuthController extends StateNotifier<AuthState> {
       unawaited(_database.seedDefaultMasterData(user.id));
       unawaited(_database.captureNetWorth(user.id));
       return true;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      unawaited(
+        _database.logError(
+          source: 'Anmeldung',
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
       state = const AuthState(
         status: AuthStatus.signedOut,
         error: 'Die Anmeldung ist momentan nicht möglich.',

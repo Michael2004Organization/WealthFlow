@@ -1266,6 +1266,7 @@ class _AccountTargetCalculatorState
     extends ConsumerState<_AccountTargetCalculator> {
   final _target = TextEditingController(text: '10000');
   String? _accountId;
+  DateTime _endMonth = DateTime(DateTime.now().year, DateTime.now().month + 12);
 
   @override
   void dispose() {
@@ -1287,7 +1288,7 @@ class _AccountTargetCalculatorState
     final target = _value(_target.text);
     final today = DateTime.now();
     final todayOnly = DateTime(today.year, today.month, today.day);
-    final planned =
+    final plannedAll =
         entries.where((entry) {
           final effective = ledgerEffectiveDate(
             entry.bookingDate,
@@ -1300,10 +1301,35 @@ class _AccountTargetCalculatorState
             a.budgetMonth,
           ).compareTo(ledgerEffectiveDate(b.bookingDate, b.budgetMonth)),
         );
-    var projected = account?.balance ?? 0;
+    var scanBalance = account?.balance ?? 0;
     DateTime? reachedAt = account != null && account.balance >= target
         ? todayOnly
         : null;
+    for (final entry in plannedAll) {
+      scanBalance += entry.isIncome ? entry.amount : -entry.amount;
+      final effective = ledgerEffectiveDate(
+        entry.bookingDate,
+        entry.budgetMonth,
+      );
+      if (reachedAt == null && scanBalance >= target) reachedAt = effective;
+    }
+    final startMonth = DateTime(today.year, today.month);
+    final minimumEndMonth = reachedAt == null
+        ? startMonth
+        : DateTime(reachedAt.year, reachedAt.month);
+    final configuredEnd = DateTime(_endMonth.year, _endMonth.month);
+    final effectiveEnd = configuredEnd.isBefore(minimumEndMonth)
+        ? minimumEndMonth
+        : configuredEnd;
+    final endExclusive = DateTime(effectiveEnd.year, effectiveEnd.month + 1);
+    final planned = plannedAll.where((entry) {
+      final effective = ledgerEffectiveDate(
+        entry.bookingDate,
+        entry.budgetMonth,
+      );
+      return effective.isBefore(endExclusive);
+    }).toList();
+    var projected = account?.balance ?? 0;
     final development = <(DateTime, double, LedgerEntry)>[];
     for (final entry in planned) {
       projected += entry.isIncome ? entry.amount : -entry.amount;
@@ -1312,7 +1338,6 @@ class _AccountTargetCalculatorState
         entry.budgetMonth,
       );
       development.add((effective, projected, entry));
-      if (reachedAt == null && projected >= target) reachedAt = effective;
     }
     return _CalculatorScaffold(
       title: 'Kontoziel-Rechner',
@@ -1349,6 +1374,27 @@ class _AccountTargetCalculatorState
             label: 'Gewünschter Kontostand',
             suffix: '€',
             onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Start'),
+                  child: Text(DateFormat('MM.yyyy').format(startMonth)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickEndMonth(minimumEndMonth, effectiveEnd),
+                  icon: const Icon(Icons.event_rounded),
+                  label: Text(
+                    'Ende ${DateFormat('MM.yyyy').format(effectiveEnd)}',
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           Text(
@@ -1393,7 +1439,8 @@ class _AccountTargetCalculatorState
                     _Result(label: 'Heute', value: money(account.balance)),
                     _Result(label: 'Ziel', value: money(target)),
                     _Result(
-                      label: 'Nach Planung',
+                      label:
+                          'Ende ${DateFormat('MM.yyyy').format(effectiveEnd)}',
                       value: money(projected),
                       color: projected >= target ? Colors.green : Colors.orange,
                     ),
@@ -1408,7 +1455,7 @@ class _AccountTargetCalculatorState
                     ),
                   ),
                   const SizedBox(height: 8),
-                  for (final item in development.take(12))
+                  for (final item in development)
                     ListTile(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
@@ -1438,6 +1485,19 @@ class _AccountTargetCalculatorState
               ],
             ),
     );
+  }
+
+  Future<void> _pickEndMonth(DateTime minimum, DateTime initial) async {
+    final selected = await showDatePicker(
+      context: context,
+      firstDate: minimum,
+      lastDate: DateTime(2100, 12, 31),
+      initialDate: initial.isBefore(minimum) ? minimum : initial,
+      helpText: 'Endmonat der Planung wählen',
+    );
+    if (selected != null) {
+      setState(() => _endMonth = DateTime(selected.year, selected.month));
+    }
   }
 }
 

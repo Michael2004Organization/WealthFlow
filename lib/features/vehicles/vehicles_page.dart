@@ -61,15 +61,44 @@ class VehiclesPage extends ConsumerWidget {
                       0,
                       (sum, cost) => sum + cost.amount,
                     );
+                    final fleetValue = items.fold<double>(
+                      0,
+                      (sum, vehicle) => sum + vehicle.currentValue,
+                    );
                     return ListView(
                       children: [
-                        MetricCard(
-                          title: 'Fahrzeugkosten gesamt',
-                          value: money(total),
-                          caption:
-                              '${costs.length} Einträge für ${items.length} Fahrzeuge',
-                          icon: Icons.car_repair_rounded,
-                          color: Colors.orange,
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final width = constraints.maxWidth < 700
+                                ? constraints.maxWidth
+                                : (constraints.maxWidth - 16) / 2;
+                            return Wrap(
+                              spacing: 16,
+                              runSpacing: 16,
+                              children: [
+                                SizedBox(
+                                  width: width,
+                                  child: MetricCard(
+                                    title: 'Aktueller Fuhrparkwert',
+                                    value: money(fleetValue),
+                                    caption: '${items.length} Fahrzeuge',
+                                    icon: Icons.directions_car_filled_rounded,
+                                    color: Colors.teal,
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: width,
+                                  child: MetricCard(
+                                    title: 'Fahrzeugkosten gesamt',
+                                    value: money(total),
+                                    caption: '${costs.length} Kosteneinträge',
+                                    icon: Icons.car_repair_rounded,
+                                    color: Colors.orange,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 16),
                         LayoutBuilder(
@@ -210,13 +239,15 @@ class _VehicleCard extends ConsumerWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              money(total),
+              money(vehicle.currentValue),
               style: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
+            Text('Aktueller Wert · Kaufpreis ${money(vehicle.purchasePrice)}'),
+            const SizedBox(height: 4),
             Text(
-              '${costs.length} Kosteneinträge · ${vehicle.fuelType} · ${vehicle.tankCapacity.toStringAsFixed(0)} l',
+              '${costs.length} Kosteneinträge (${money(total)}) · ${vehicle.fuelType} · ${vehicle.tankCapacity.toStringAsFixed(0)} l',
             ),
             const SizedBox(height: 16),
             FilledButton.tonalIcon(
@@ -261,6 +292,12 @@ class _VehicleEditorState extends State<_VehicleEditor> {
   late final _tank = TextEditingController(
     text: widget.vehicle?.tankCapacity.toString() ?? '50',
   );
+  late final _purchasePrice = TextEditingController(
+    text: widget.vehicle?.purchasePrice.toString() ?? '0',
+  );
+  late final _currentValue = TextEditingController(
+    text: widget.vehicle?.currentValue.toString() ?? '0',
+  );
   late String _type = widget.vehicle?.vehicleType ?? 'Auto';
   late String _fuel = widget.vehicle?.fuelType ?? 'Benzin';
   @override
@@ -270,6 +307,8 @@ class _VehicleEditorState extends State<_VehicleEditor> {
     _plate.dispose();
     _year.dispose();
     _tank.dispose();
+    _purchasePrice.dispose();
+    _currentValue.dispose();
     super.dispose();
   }
 
@@ -307,6 +346,33 @@ class _VehicleEditorState extends State<_VehicleEditor> {
               _responsiveFields([
                 _requiredField(_make, 'Marke'),
                 _requiredField(_model, 'Modell'),
+              ]),
+              const SizedBox(height: 12),
+              _responsiveFields([
+                TextFormField(
+                  controller: _purchasePrice,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Kaufpreis',
+                    suffixText: '€',
+                  ),
+                  validator: (value) =>
+                      (_number(value) ?? -1) < 0 ? 'Ungültig' : null,
+                ),
+                TextFormField(
+                  controller: _currentValue,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Aktueller Wert',
+                    suffixText: '€',
+                  ),
+                  validator: (value) =>
+                      (_number(value) ?? -1) < 0 ? 'Ungültig' : null,
+                ),
               ]),
               const SizedBox(height: 12),
               TextFormField(
@@ -421,6 +487,8 @@ class _VehicleEditorState extends State<_VehicleEditor> {
         year: int.parse(_year.text),
         fuelType: Value(_fuel),
         tankCapacity: Value(_number(_tank.text) ?? 0),
+        purchasePrice: Value(_number(_purchasePrice.text) ?? 0),
+        currentValue: Value(_number(_currentValue.text) ?? 0),
         createdAt: widget.vehicle?.createdAt ?? now,
         updatedAt: now,
       ),
@@ -433,9 +501,28 @@ Future<void> showVehicleCostEditor(
   WidgetRef ref,
   Vehicle vehicle,
 ) async {
+  final accounts = ref.read(accountsProvider).valueOrNull ?? const <Account>[];
+  final investments =
+      ref.read(investmentsProvider).valueOrNull ?? const <Investment>[];
+  final physicalAssets =
+      ref.read(physicalAssetsProvider).valueOrNull ?? const <PhysicalAsset>[];
+  final eligibleAccounts = accounts.where((account) {
+    if (account.usageType == 'household') return true;
+    if (account.usageType != 'unassigned') return false;
+    return !investments.any((item) => item.accountId == account.id) &&
+        !physicalAssets.any((item) => item.accountId == account.id);
+  }).toList();
+  final preferredId = ref
+      .read(preferencesProvider)
+      .valueOrNull
+      ?.selectedHouseholdAccountId;
   final result = await showDialog<_VehicleCostSubmission>(
     context: context,
-    builder: (_) => _CostEditor(vehicle: vehicle),
+    builder: (_) => _CostEditor(
+      vehicle: vehicle,
+      accounts: eligibleAccounts,
+      preferredAccountId: preferredId,
+    ),
   );
   if (result != null) {
     await ref
@@ -452,8 +539,14 @@ class _VehicleCostSubmission {
 }
 
 class _CostEditor extends StatefulWidget {
-  const _CostEditor({required this.vehicle});
+  const _CostEditor({
+    required this.vehicle,
+    required this.accounts,
+    required this.preferredAccountId,
+  });
   final Vehicle vehicle;
+  final List<Account> accounts;
+  final String? preferredAccountId;
   @override
   State<_CostEditor> createState() => _CostEditorState();
 }
@@ -465,6 +558,12 @@ class _CostEditorState extends State<_CostEditor> {
   final _notes = TextEditingController();
   String _category = 'Tanken';
   DateTime _date = DateTime.now();
+  late String? _accountId =
+      widget.accounts
+          .where((account) => account.id == widget.preferredAccountId)
+          .firstOrNull
+          ?.id ??
+      widget.accounts.firstOrNull?.id;
   @override
   void dispose() {
     _amount.dispose();
@@ -485,6 +584,30 @@ class _CostEditorState extends State<_CostEditor> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              DropdownButtonFormField<String>(
+                initialValue: _accountId,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Haushaltskonto',
+                  prefixIcon: Icon(Icons.account_balance_rounded),
+                ),
+                items: widget.accounts
+                    .map(
+                      (account) => DropdownMenuItem(
+                        value: account.id,
+                        child: Text(
+                          account.label,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                validator: (value) => value == null
+                    ? 'Bitte zuerst ein freies Haushaltskonto wählen.'
+                    : null,
+                onChanged: (value) => _accountId = value,
+              ),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _category,
                 decoration: const InputDecoration(labelText: 'Kostenart'),
@@ -617,6 +740,7 @@ class _CostEditorState extends State<_CostEditor> {
           sourceType: const Value('vehicle'),
           sourceId: Value(costId),
           vehicleId: Value(widget.vehicle.id),
+          accountId: Value(_accountId ?? ''),
           createdAt: now,
           updatedAt: now,
         ),

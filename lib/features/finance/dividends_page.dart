@@ -23,28 +23,34 @@ class DividendsPage extends ConsumerWidget {
         child: Text('Dividenden konnten nicht geladen werden: $error'),
       ),
       data: (items) {
-        final baseCurrency =
-            ref.watch(preferencesProvider).valueOrNull?.currency ?? 'EUR';
+        final preference = ref.watch(preferencesProvider).valueOrNull;
+        final baseCurrency = preference?.currency ?? 'EUR';
+        final taxAllowance = preference?.taxAllowance ?? 1000;
         final schedules =
             ref.watch(dividendSchedulesProvider).valueOrNull ??
             const <DividendSchedule>[];
-        final dividendItems =
-            items
-                .where(
-                  (item) =>
-                      item.annualDividend > 0 ||
-                      schedules.any((row) => row.investmentId == item.id),
-                )
-                .toList()
-              ..sort(
-                (a, b) => _annualDividend(
-                  b,
-                  schedules,
-                ).compareTo(_annualDividend(a, schedules)),
-              );
-        final yearly = dividendItems.fold<double>(
+        var dividendItems = items
+            .where(
+              (item) =>
+                  item.annualDividend > 0 ||
+                  schedules.any((row) => row.investmentId == item.id),
+            )
+            .toList()
+            .toList();
+        final projection = _buildDividendProjection(
+          dividendItems,
+          schedules,
+          taxAllowance,
+        );
+        dividendItems.sort(
+          (a, b) => _netForInvestment(
+            projection,
+            b.id,
+          ).compareTo(_netForInvestment(projection, a.id)),
+        );
+        final yearly = projection.fold<double>(
           0,
-          (sum, item) => sum + _annualDividend(item, schedules),
+          (sum, payment) => sum + payment.tax.net,
         );
         final monthly = yearly / 12;
         return SingleChildScrollView(
@@ -142,7 +148,7 @@ class DividendsPage extends ConsumerWidget {
                               height: 390,
                               child: _DividendChart(
                                 items: dividendItems,
-                                schedules: schedules,
+                                projection: projection,
                               ),
                             ),
                             SizedBox(
@@ -182,13 +188,13 @@ class DividendsPage extends ConsumerWidget {
                                           title: Text(item.name),
                                           subtitle: Text(
                                             '${item.dividendFrequency} · '
-                                            '${_perShareSummary(item, schedules, baseCurrency)} je Stück',
+                                            '${_perShareSummary(item, schedules)} je Stück',
                                           ),
                                           trailing: Text(
                                             money(
                                                   _annualDividend(
-                                                        item,
-                                                        schedules,
+                                                        projection,
+                                                        item.id,
                                                       ) /
                                                       12,
                                                   currency: baseCurrency,
@@ -213,6 +219,7 @@ class DividendsPage extends ConsumerWidget {
                     _DividendCalendar(
                       investments: dividendItems,
                       schedules: schedules,
+                      projection: projection,
                       baseCurrency: baseCurrency,
                     ),
                   ],
@@ -227,9 +234,9 @@ class DividendsPage extends ConsumerWidget {
 }
 
 class _DividendChart extends StatelessWidget {
-  const _DividendChart({required this.items, required this.schedules});
+  const _DividendChart({required this.items, required this.projection});
   final List<Investment> items;
-  final List<DividendSchedule> schedules;
+  final List<_ProjectedDividend> projection;
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +269,7 @@ class _DividendChart extends StatelessWidget {
                   sections: [
                     for (var index = 0; index < items.length; index++)
                       PieChartSectionData(
-                        value: _annualDividend(items[index], schedules),
+                        value: _annualDividend(projection, items[index].id),
                         title: items[index].symbol.isEmpty
                             ? items[index].name
                             : items[index].symbol,
@@ -286,82 +293,138 @@ class _DividendChart extends StatelessWidget {
 }
 
 double _annualDividend(
-  Investment investment,
+  List<_ProjectedDividend> projection,
+  String investmentId,
+) => _netForInvestment(projection, investmentId);
+
+double _netForInvestment(
+  List<_ProjectedDividend> projection,
+  String investmentId,
+) => projection
+    .where((payment) => payment.investment.id == investmentId)
+    .fold<double>(0, (sum, payment) => sum + payment.tax.net);
+
+final class _ProjectedDividend {
+  const _ProjectedDividend({
+    required this.investment,
+    required this.month,
+    required this.tax,
+  });
+
+  final Investment investment;
+  final int month;
+  final DividendTaxResult tax;
+}
+
+List<_ProjectedDividend> _buildDividendProjection(
+  List<Investment> investments,
   List<DividendSchedule> schedules,
-) => List.generate(
-  12,
-  (index) => _dividendForMonth(investment, schedules, index + 1),
-).fold<double>(0, (sum, value) => sum + value);
+  double allowance,
+) {
+  var remainingAllowance = allowance.clamp(0, double.infinity).toDouble();
+  final currentYear = DateTime.now().year;
+  final events =
+      <
+        ({
+          Investment investment,
+          int month,
+          double amount,
+          double exchangeRate,
+          double withholdingTaxRate,
+          DateTime date,
+        })
+      >[];
+  for (var month = 1; month <= 12; month++) {
+    for (final investment in investments) {
+      final exact = schedules
+          .where(
+            (row) =>
+                row.investmentId == investment.id && row.paymentMonth == month,
+          )
+          .toList();
+      if (exact.isNotEmpty) {
+        for (final row in exact) {
+          events.add((
+            investment: investment,
+            month: month,
+            amount: row.amountPerShare,
+            exchangeRate: row.exchangeRate,
+            withholdingTaxRate: row.withholdingTaxRate,
+            date: DateTime(
+              currentYear,
+              month,
+              (row.paymentDate ?? row.exDate)?.day ?? 1,
+            ),
+          ));
+        }
+      } else if (dividendPaymentMonths(
+        investment.dividendFrequency,
+        investment.dividendStartMonth,
+      ).contains(month)) {
+        events.add((
+          investment: investment,
+          month: month,
+          amount: investment.annualDividend,
+          exchangeRate: investment.dividendExchangeRate,
+          withholdingTaxRate: investment.dividendWithholdingTaxRate,
+          date: DateTime(currentYear, month),
+        ));
+      }
+    }
+  }
+  events.sort((a, b) {
+    final byDate = a.date.compareTo(b.date);
+    return byDate != 0
+        ? byDate
+        : a.investment.name.compareTo(b.investment.name);
+  });
+  final result = <_ProjectedDividend>[];
+  for (final event in events) {
+    if (event.amount <= 0 || event.investment.quantity <= 0) continue;
+    final tax = calculateGermanDividendTax(
+      grossAmount: event.amount * event.investment.quantity,
+      exchangeRate: event.exchangeRate,
+      withholdingTaxRate: event.withholdingTaxRate,
+      allowanceRemaining: remainingAllowance,
+    );
+    remainingAllowance = tax.allowanceRemaining;
+    result.add(
+      _ProjectedDividend(
+        investment: event.investment,
+        month: event.month,
+        tax: tax,
+      ),
+    );
+  }
+  return result;
+}
 
 String _perShareSummary(
   Investment investment,
   List<DividendSchedule> schedules,
-  String baseCurrency,
 ) {
   final schedule = schedules
       .where((row) => row.investmentId == investment.id)
       .firstOrNull;
   final gross = schedule?.amountPerShare ?? investment.annualDividend;
   final currency = schedule?.currency ?? investment.dividendCurrency;
-  final rate = schedule?.exchangeRate ?? investment.dividendExchangeRate;
   final tax =
       schedule?.withholdingTaxRate ?? investment.dividendWithholdingTaxRate;
-  final net = netDividendInBaseCurrency(
-    grossAmount: gross,
-    exchangeRate: rate,
-    withholdingTaxRate: tax,
-  );
   return '${money(gross, currency: currency)} brutto · '
-      '${money(net, currency: baseCurrency)} netto';
-}
-
-double _dividendForMonth(
-  Investment investment,
-  List<DividendSchedule> schedules,
-  int month,
-) {
-  final exact = schedules
-      .where((row) => row.investmentId == investment.id)
-      .toList();
-  final exactForMonth = exact
-      .where((row) => row.paymentMonth == month)
-      .toList();
-  if (exactForMonth.isNotEmpty) {
-    return exactForMonth.fold<double>(
-      0,
-      (sum, row) =>
-          sum +
-          netDividendInBaseCurrency(
-                grossAmount: row.amountPerShare,
-                exchangeRate: row.exchangeRate,
-                withholdingTaxRate: row.withholdingTaxRate,
-              ) *
-              investment.quantity,
-    );
-  }
-  final paymentMonths = dividendPaymentMonths(
-    investment.dividendFrequency,
-    investment.dividendStartMonth,
-  );
-  return paymentMonths.contains(month)
-      ? netDividendInBaseCurrency(
-              grossAmount: investment.annualDividend,
-              exchangeRate: investment.dividendExchangeRate,
-              withholdingTaxRate: investment.dividendWithholdingTaxRate,
-            ) *
-            investment.quantity
-      : 0;
+      '${tax.toStringAsFixed(2)} % Quellensteuer';
 }
 
 class _DividendCalendar extends ConsumerStatefulWidget {
   const _DividendCalendar({
     required this.investments,
     required this.schedules,
+    required this.projection,
     required this.baseCurrency,
   });
 
   final List<Investment> investments;
   final List<DividendSchedule> schedules;
+  final List<_ProjectedDividend> projection;
   final String baseCurrency;
 
   @override
@@ -456,8 +519,7 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                         width: width,
                         child: _DividendMonthCard(
                           month: month,
-                          investments: widget.investments,
-                          schedules: widget.schedules,
+                          projection: widget.projection,
                           baseCurrency: widget.baseCurrency,
                         ),
                       ),
@@ -477,7 +539,7 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
               height: 230,
               child: _AnnualDividendChart(
                 investment: selected,
-                schedules: widget.schedules,
+                projection: widget.projection,
                 baseCurrency: widget.baseCurrency,
               ),
             ),
@@ -497,10 +559,7 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                   ),
                   title: Text(
                     '${money(row.amountPerShare, currency: row.currency)} brutto · '
-                    '${money(
-                      netDividendInBaseCurrency(grossAmount: row.amountPerShare, exchangeRate: row.exchangeRate, withholdingTaxRate: row.withholdingTaxRate),
-                      currency: widget.baseCurrency,
-                    )} netto je Aktie',
+                    '${money(widget.projection.where((payment) => payment.investment.id == selected.id && payment.month == row.paymentMonth).firstOrNull?.tax.net ?? 0, currency: widget.baseCurrency)} netto gesamt',
                   ),
                   subtitle: Text(
                     [
@@ -749,12 +808,14 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
               width: 180,
               child: TextField(
                 controller: _taxRate,
+                readOnly: true,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
                 decoration: const InputDecoration(
                   labelText: 'Quellensteuer',
                   suffixText: '%',
+                  helperText: 'Aus Länder-Stammdaten',
                 ),
               ),
             ),
@@ -948,19 +1009,25 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
 class _AnnualDividendChart extends StatelessWidget {
   const _AnnualDividendChart({
     required this.investment,
-    required this.schedules,
+    required this.projection,
     required this.baseCurrency,
   });
 
   final Investment investment;
-  final List<DividendSchedule> schedules;
+  final List<_ProjectedDividend> projection;
   final String baseCurrency;
 
   @override
   Widget build(BuildContext context) {
     final values = List.generate(
       12,
-      (index) => _dividendForMonth(investment, schedules, index + 1),
+      (index) => projection
+          .where(
+            (payment) =>
+                payment.investment.id == investment.id &&
+                payment.month == index + 1,
+          )
+          .fold<double>(0, (sum, payment) => sum + payment.tax.net),
     );
     final maximum = values.fold<double>(
       0,
@@ -1028,23 +1095,23 @@ class _AnnualDividendChart extends StatelessWidget {
 class _DividendMonthCard extends StatelessWidget {
   const _DividendMonthCard({
     required this.month,
-    required this.investments,
-    required this.schedules,
+    required this.projection,
     required this.baseCurrency,
   });
 
   final int month;
-  final List<Investment> investments;
-  final List<DividendSchedule> schedules;
+  final List<_ProjectedDividend> projection;
   final String baseCurrency;
 
   @override
   Widget build(BuildContext context) {
-    final payments = investments
-        .map((item) => (item, _dividendForMonth(item, schedules, month)))
-        .where((entry) => entry.$2 > 0)
+    final payments = projection
+        .where((payment) => payment.month == month)
         .toList();
-    final total = payments.fold<double>(0, (sum, entry) => sum + entry.$2);
+    final total = payments.fold<double>(
+      0,
+      (sum, payment) => sum + payment.tax.net,
+    );
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerLow,
@@ -1074,14 +1141,27 @@ class _DividendMonthCard extends StatelessWidget {
               )
             else
               for (final payment in payments)
-                Text(
-                  (payment.$1.symbol.isEmpty
-                          ? payment.$1.name
-                          : payment.$1.symbol) +
-                      ' · ' +
-                      money(payment.$2, currency: baseCurrency),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        (payment.investment.symbol.isEmpty
+                                ? payment.investment.name
+                                : payment.investment.symbol) +
+                            ' · ' +
+                            money(payment.tax.net, currency: baseCurrency),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Brutto ${money(payment.tax.gross, currency: baseCurrency)} · '
+                        'Steuern ${money(payment.tax.withholdingTax + payment.tax.germanCapitalTax + payment.tax.solidaritySurcharge, currency: baseCurrency)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
           ],
         ),
@@ -1307,6 +1387,7 @@ Future<void> _showScheduleEditor(
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: taxRate,
+                    readOnly: true,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
@@ -1314,6 +1395,8 @@ Future<void> _showScheduleEditor(
                     decoration: const InputDecoration(
                       labelText: 'Quellensteuer',
                       suffixText: '%',
+                      helperText:
+                          'Wird über das Land in der Administration festgelegt.',
                     ),
                     validator: (value) {
                       final parsed = double.tryParse(
@@ -1338,8 +1421,18 @@ Future<void> _showScheduleEditor(
                       final tax =
                           double.tryParse(taxRate.text.replaceAll(',', '.')) ??
                           0;
-                      final converted = gross * rate;
-                      final deduction = converted * tax.clamp(0, 100) / 100;
+                      final allowance =
+                          ref
+                              .read(preferencesProvider)
+                              .valueOrNull
+                              ?.taxAllowance ??
+                          1000;
+                      final result = calculateGermanDividendTax(
+                        grossAmount: gross * investment.quantity,
+                        exchangeRate: rate,
+                        withholdingTaxRate: tax,
+                        allowanceRemaining: allowance,
+                      );
                       return DecoratedBox(
                         decoration: BoxDecoration(
                           color: Theme.of(
@@ -1360,12 +1453,15 @@ Future<void> _showScheduleEditor(
                               Text(
                                 '${money(gross, currency: currency.text.trim().toUpperCase())} brutto'
                                 ' × ${rate.toStringAsFixed(4)} = '
-                                '${money(converted, currency: baseCurrency)}',
+                                '${money(result.gross, currency: baseCurrency)} für ${investment.quantity.toStringAsFixed(2)} Stück',
                               ),
                               Text(
-                                '− ${money(deduction, currency: baseCurrency)} Quellensteuer '
-                                '(${tax.toStringAsFixed(2)} %) = '
-                                '${money(converted - deduction, currency: baseCurrency)} netto',
+                                '− ${money(result.withholdingTax, currency: baseCurrency)} Quellensteuer · '
+                                '− ${money(result.germanCapitalTax, currency: baseCurrency)} Kapitalertragsteuer · '
+                                '− ${money(result.solidaritySurcharge, currency: baseCurrency)} Soli',
+                              ),
+                              Text(
+                                '${money(result.net, currency: baseCurrency)} netto',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w800,
                                 ),

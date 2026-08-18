@@ -203,7 +203,7 @@ class SettingsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'WealthFlow 1.0.0 · Lokale Datenbankversion 7',
+                'WealthFlow 1.0.0 · Lokale Datenbankversion 10',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),

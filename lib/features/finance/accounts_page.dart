@@ -159,7 +159,11 @@ class _AccountCard extends ConsumerWidget {
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                         Text(
-                          account.bankName,
+                          '${account.bankName} · ${switch (account.usageType) {
+                            'household' => 'Haushaltskonto',
+                            'portfolio' => 'Portfolio-Konto',
+                            _ => 'Nicht zugeordnet',
+                          }}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -470,6 +474,7 @@ class _AccountEditorState extends State<_AccountEditor> {
     text: widget.account?.notes,
   );
   late String _currency = widget.account?.currency ?? 'EUR';
+  late String _usageType = widget.account?.usageType ?? 'unassigned';
 
   @override
   void dispose() {
@@ -507,6 +512,30 @@ class _AccountEditorState extends State<_AccountEditor> {
                   _field(_bank, 'Bankname', required: true),
                   _field(_label, 'Kontobezeichnung', required: true),
                 ]),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _usageType,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Verwendung'),
+                  items:
+                      const {
+                            'unassigned': 'Nicht zugeordnet',
+                            'household': 'Haushaltsbuch',
+                            'portfolio': 'Portfolio',
+                          }.entries
+                          .map(
+                            (entry) => DropdownMenuItem(
+                              value: entry.key,
+                              child: Text(entry.value),
+                            ),
+                          )
+                          .toList(),
+                  onChanged:
+                      widget.account != null &&
+                          widget.account!.usageType != 'unassigned'
+                      ? null
+                      : (value) => _usageType = value ?? 'unassigned',
+                ),
                 const SizedBox(height: 12),
                 _field(_holder, 'Kontoinhaber'),
                 const SizedBox(height: 12),
@@ -618,6 +647,7 @@ class _AccountEditorState extends State<_AccountEditor> {
         currency: Value(_currency),
         balance: Value(_parse(_balance.text) ?? 0),
         availableBalance: Value(_parse(_available.text) ?? 0),
+        usageType: Value(_usageType),
         notes: Value(_notes.text.trim()),
         createdAt: widget.account?.createdAt ?? now,
         updatedAt: now,
