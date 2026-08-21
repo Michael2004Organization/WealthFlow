@@ -99,6 +99,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                           : () => showEntryEditor(
                               context,
                               ref,
+                              initialDate: _initialBookingDate,
                               defaultAccountId: selectedAccountId,
                             ),
                       icon: const Icon(Icons.add_rounded),
@@ -203,12 +204,14 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                                   ? 'Erfasse eine einzelne Buchung oder plane eine monatliche Serie.'
                                   : 'Lege eine Buchung an oder passe die Filter an.',
                               action: FilledButton.icon(
-                                onPressed: () => showEntryEditor(
-                                  context,
-                                  ref,
-                                  initialDate: _selectedMonth,
-                                  defaultAccountId: selectedAccountId,
-                                ),
+                                onPressed: selectedAccountId == null
+                                    ? null
+                                    : () => showEntryEditor(
+                                        context,
+                                        ref,
+                                        initialDate: _initialBookingDate,
+                                        defaultAccountId: selectedAccountId,
+                                      ),
                                 icon: const Icon(Icons.add_rounded),
                                 label: const Text('Buchung erfassen'),
                               ),
@@ -243,6 +246,13 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
     );
   }
 
+  DateTime get _initialBookingDate {
+    final now = DateTime.now();
+    return now.year == _selectedMonth.year && now.month == _selectedMonth.month
+        ? now
+        : DateTime(_selectedMonth.year, _selectedMonth.month);
+  }
+
   String? _effectiveAccountId(
     List<Account> accounts,
     UserPreference? preference,
@@ -256,7 +266,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
         validIds.contains(preference.selectedHouseholdAccountId)) {
       return preference.selectedHouseholdAccountId;
     }
-    return accounts.first.id;
+    return null;
   }
 
   Future<void> _selectAccount(String? accountId) async {
@@ -558,6 +568,11 @@ class _EntryTile extends ConsumerWidget {
             itemBuilder: (_) => [
               if (entry.sourceType != 'vehicle' && !linked)
                 const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+              if (recurring && entry.sourceType != 'vehicle' && !linked)
+                const PopupMenuItem(
+                  value: 'edit-series',
+                  child: Text('Ganze Serie bearbeiten'),
+                ),
               const PopupMenuItem(value: 'delete', child: Text('Löschen')),
               if (recurring)
                 const PopupMenuItem(
@@ -578,6 +593,10 @@ class _EntryTile extends ConsumerWidget {
   ) async {
     if (value == 'edit') {
       await showEntryEditor(context, ref, entry: entry);
+      return;
+    }
+    if (value == 'edit-series') {
+      await showEntryEditor(context, ref, entry: entry, editSeries: true);
       return;
     }
     final series = value == 'delete-series';
@@ -615,6 +634,7 @@ Future<void> showEntryEditor(
   LedgerEntry? entry,
   DateTime? initialDate,
   String? defaultAccountId,
+  bool editSeries = false,
 }) async {
   final vehicles = ref.read(vehiclesProvider).valueOrNull ?? const <Vehicle>[];
   final accounts = ref.read(accountsProvider).valueOrNull ?? const <Account>[];
@@ -629,12 +649,21 @@ Future<void> showEntryEditor(
       accounts: accounts,
       defaultAccountId: defaultAccountId,
       masterData: masterData,
+      editSeries: editSeries,
     ),
   );
   if (result != null) {
     final database = ref.read(databaseProvider);
-    await database.saveLedgerEntries(result.entries);
     final userId = ref.read(currentUserIdProvider);
+    if (editSeries && entry != null && userId != null) {
+      await database.updateLedgerSeries(
+        entry.recurrenceId,
+        userId,
+        result.entries.first,
+      );
+    } else {
+      await database.saveLedgerEntries(result.entries);
+    }
     if (userId != null) {
       if (result.reminderTitle != null && result.reminderAt != null) {
         final reminderId = const Uuid().v4();
@@ -701,6 +730,7 @@ class _EntryEditor extends StatefulWidget {
     required this.accounts,
     required this.defaultAccountId,
     required this.masterData,
+    required this.editSeries,
     this.entry,
     this.initialDate,
   });
@@ -711,6 +741,7 @@ class _EntryEditor extends StatefulWidget {
   final List<Account> accounts;
   final String? defaultAccountId;
   final List<MasterDataData> masterData;
+  final bool editSeries;
 
   @override
   State<_EntryEditor> createState() => _EntryEditorState();
@@ -766,7 +797,11 @@ class _EntryEditorState extends State<_EntryEditor> {
   Widget build(BuildContext context) => AlertDialog(
     insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
     title: Text(
-      widget.entry == null ? 'Buchung erfassen' : 'Buchung bearbeiten',
+      widget.entry == null
+          ? 'Buchung erfassen'
+          : widget.editSeries
+          ? 'Ganze Serie bearbeiten'
+          : 'Buchung bearbeiten',
     ),
     content: SizedBox(
       width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 560.0),
@@ -1082,11 +1117,22 @@ class _EntryEditorState extends State<_EntryEditor> {
                         ),
                       ),
                       SizedBox(
-                        width: 76,
-                        child: Text(
-                          '$_months Monate',
-                          textAlign: TextAlign.end,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        width: 132,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '$_months Monate',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              'bis ${_monthLabel(DateTime(_date.year, _date.month + _months - 1))}',
+                              textAlign: TextAlign.end,
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ],
                         ),
                       ),
                     ],

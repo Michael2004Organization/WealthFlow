@@ -504,15 +504,41 @@ class _CashflowChart extends StatelessWidget {
       description: 'Einnahmen und Ausgaben der letzten sechs Monate',
       child: Column(
         children: [
+          Row(
+            children: [
+              _LegendDot(color: Colors.green, label: 'Einnahmen'),
+              const SizedBox(width: 18),
+              _LegendDot(color: Colors.redAccent, label: 'Ausgaben'),
+            ],
+          ),
+          const SizedBox(height: 10),
           Expanded(
             child: BarChart(
               BarChartData(
                 barTouchData: BarTouchData(enabled: false),
                 borderData: FlBorderData(show: false),
-                gridData: const FlGridData(show: false),
+                gridData: FlGridData(
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: Theme.of(
+                      context,
+                    ).dividerColor.withValues(alpha: .18),
+                  ),
+                ),
                 titlesData: FlTitlesData(
-                  leftTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 54,
+                      getTitlesWidget: (value, meta) => Text(
+                        NumberFormat.compactCurrency(
+                          locale: 'de_DE',
+                          symbol: '€',
+                          decimalDigits: 0,
+                        ).format(value),
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ),
                   ),
                   topTitles: const AxisTitles(
                     sideTitles: SideTitles(showTitles: false),
@@ -550,14 +576,14 @@ class _CashflowChart extends StatelessWidget {
                       barRods: [
                         BarChartRodData(
                           toY: income[i],
-                          width: 10,
+                          width: 14,
                           color: Colors.green,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         BarChartRodData(
                           toY: expense[i],
-                          width: 10,
-                          color: Colors.orange,
+                          width: 14,
+                          color: Colors.redAccent,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ],
@@ -568,7 +594,7 @@ class _CashflowChart extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           SizedBox(
-            height: 66,
+            height: 92,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: 6,
@@ -576,7 +602,7 @@ class _CashflowChart extends StatelessWidget {
               itemBuilder: (context, index) {
                 final date = DateTime(now.year, now.month - 5 + index);
                 return SizedBox(
-                  width: 104,
+                  width: 148,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -585,11 +611,21 @@ class _CashflowChart extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       Text(
-                        'E ${money(income[index])}',
-                        style: Theme.of(context).textTheme.labelSmall,
+                        'Einnahmen  ${money(income[index])}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       Text(
-                        'A ${money(expense[index])}',
+                        'Ausgaben  ${money(expense[index])}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        'Saldo  ${money(income[index] - expense[index])}',
                         style: Theme.of(context).textTheme.labelSmall,
                       ),
                     ],
@@ -617,48 +653,68 @@ class _VehicleCostChart extends StatelessWidget {
         ifAbsent: () => cost.amount,
       );
     }
-    final spots = categories.values.indexed
-        .map((entry) => FlSpot(entry.$1.toDouble(), entry.$2))
-        .toList();
+    final sorted = categories.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final total = sorted.fold<double>(0, (sum, item) => sum + item.value);
     return _ChartCard(
       title: 'Fahrzeugkosten',
-      description: 'Summen nach Kostenart',
-      child: spots.isEmpty
+      description: 'Kostenarten im direkten Vergleich',
+      child: sorted.isEmpty
           ? const Center(child: Text('Noch keine Fahrzeugkosten'))
-          : LineChart(
-              LineChartData(
-                borderData: FlBorderData(show: false),
-                gridData: const FlGridData(show: false),
-                titlesData: const FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: spots,
-                    isCurved: true,
-                    barWidth: 4,
-                    color: Colors.cyan,
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: Colors.cyan.withValues(alpha: .14),
+          : ListView.separated(
+              itemCount: sorted.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final item = sorted[index];
+                final share = total <= 0 ? 0.0 : item.value / total;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.key,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        Text(
+                          '${money(item.value)}  ·  ${(share * 100).toStringAsFixed(1)} %',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(height: 5),
+                    LinearProgressIndicator(
+                      value: share,
+                      minHeight: 10,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ],
+                );
+              },
             ),
     );
   }
+}
+
+class _LegendDot extends StatelessWidget {
+  const _LegendDot({required this.color, required this.label});
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      DecoratedBox(
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        child: const SizedBox.square(dimension: 10),
+      ),
+      const SizedBox(width: 6),
+      Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+    ],
+  );
 }
 
 class _SavingsChart extends StatelessWidget {

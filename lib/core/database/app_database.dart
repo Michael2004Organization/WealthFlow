@@ -40,6 +40,7 @@ class Accounts extends Table {
   TextColumn get usageType =>
       text().withDefault(const Constant('unassigned'))();
   TextColumn get notes => text().withDefault(const Constant(''))();
+  IntColumn get displayOrder => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
@@ -130,10 +131,18 @@ class StockMasters extends Table {
   TextColumn get name => text()();
   TextColumn get symbol => text().unique()();
   TextColumn get isin => text().withDefault(const Constant(''))();
+  TextColumn get wkn => text().withDefault(const Constant(''))();
   TextColumn get currency => text().withDefault(const Constant('EUR'))();
+  TextColumn get dividendCurrency =>
+      text().withDefault(const Constant('EUR'))();
   TextColumn get country => text().withDefault(const Constant(''))();
   TextColumn get exchange => text().withDefault(const Constant(''))();
+  TextColumn get broker => text().withDefault(const Constant(''))();
   TextColumn get sector => text().withDefault(const Constant(''))();
+  TextColumn get dividendFrequency =>
+      text().withDefault(const Constant('jährlich'))();
+  IntColumn get dividendStartMonth =>
+      integer().withDefault(const Constant(1))();
   TextColumn get companyData => text().withDefault(const Constant(''))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -168,7 +177,10 @@ class PhysicalAssets extends Table {
   TextColumn get accountId => text().withDefault(const Constant(''))();
   TextColumn get name => text()();
   TextColumn get category => text().withDefault(const Constant('Sonstiges'))();
+  TextColumn get metalType => text().withDefault(const Constant(''))();
   RealColumn get quantity => real().withDefault(const Constant(1))();
+  RealColumn get weightGrams => real().withDefault(const Constant(0))();
+  DateTimeColumn get purchaseDate => dateTime().nullable()();
   RealColumn get purchasePrice => real().withDefault(const Constant(0))();
   RealColumn get currentValue => real().withDefault(const Constant(0))();
   TextColumn get notes => text().withDefault(const Constant(''))();
@@ -436,7 +448,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -554,6 +566,24 @@ final class AppDatabase extends _$AppDatabase {
           "WHERE theme_mode = 'system'",
         );
       }
+      if (from < 11) {
+        await migrator.addColumn(accounts, accounts.displayOrder);
+        await migrator.addColumn(stockMasters, stockMasters.wkn);
+        await migrator.addColumn(stockMasters, stockMasters.dividendCurrency);
+        await migrator.addColumn(stockMasters, stockMasters.broker);
+        await migrator.addColumn(stockMasters, stockMasters.dividendFrequency);
+        await migrator.addColumn(stockMasters, stockMasters.dividendStartMonth);
+        await migrator.addColumn(physicalAssets, physicalAssets.metalType);
+        await migrator.addColumn(physicalAssets, physicalAssets.weightGrams);
+        await migrator.addColumn(physicalAssets, physicalAssets.purchaseDate);
+        await customStatement(
+          'UPDATE stock_masters SET dividend_currency = currency '
+          "WHERE dividend_currency = 'EUR' AND currency != 'EUR'",
+        );
+        await customStatement(
+          'UPDATE accounts SET display_order = rowid WHERE display_order = 0',
+        );
+      }
     },
   );
 
@@ -610,7 +640,48 @@ final class AppDatabase extends _$AppDatabase {
     StockMastersCompanion value,
   ) async {
     await _requireAdmin(actorUserId);
-    await into(stockMasters).insertOnConflictUpdate(value);
+    await transaction(() async {
+      await into(stockMasters).insertOnConflictUpdate(value);
+      final stock = await (select(
+        stockMasters,
+      )..where((row) => row.id.equals(value.id.value))).getSingle();
+      final rates = await select(countryTaxRates).get();
+      final normalizedCountry = stock.country.trim().toLowerCase();
+      final configuredRate = rates
+          .where(
+            (rate) => rate.country.trim().toLowerCase() == normalizedCountry,
+          )
+          .firstOrNull
+          ?.withholdingTaxRate;
+      final fallbackRate =
+          const {
+            'usa',
+            'us',
+            'united states',
+            'vereinigte staaten',
+          }.contains(normalizedCountry)
+          ? 15.0
+          : 0.0;
+      await (update(investments)..where(
+            (row) => row.stockId.equals(stock.id) & row.deletedAt.isNull(),
+          ))
+          .write(
+            InvestmentsCompanion(
+              name: Value(stock.name),
+              symbol: Value(stock.symbol),
+              isin: Value(stock.isin),
+              wkn: Value(stock.wkn),
+              broker: Value(stock.broker),
+              country: Value(stock.country),
+              sector: Value(stock.sector),
+              dividendCurrency: Value(stock.dividendCurrency),
+              dividendFrequency: Value(stock.dividendFrequency),
+              dividendStartMonth: Value(stock.dividendStartMonth),
+              dividendWithholdingTaxRate: Value(configuredRate ?? fallbackRate),
+              updatedAt: Value(DateTime.now().toUtc()),
+            ),
+          );
+    });
   }
 
   Future<void> deleteStockMaster(String actorUserId, String id) async {
@@ -851,7 +922,10 @@ final class AppDatabase extends _$AppDatabase {
     }
     yield* (select(accounts)
           ..where((row) => row.userId.equals(userId) & row.deletedAt.isNull())
-          ..orderBy([(row) => OrderingTerm.asc(row.label)]))
+          ..orderBy([
+            (row) => OrderingTerm.asc(row.displayOrder),
+            (row) => OrderingTerm.asc(row.label),
+          ]))
         .watch();
   }
 
@@ -871,8 +945,43 @@ final class AppDatabase extends _$AppDatabase {
         throw StateError('Das Konto enthält Daten aus einem anderen Modul.');
       }
     }
-    await into(accounts).insertOnConflictUpdate(value);
+    var valueToSave = value;
+    if (old == null && !value.displayOrder.present) {
+      final siblings =
+          await (select(accounts)..where(
+                (row) =>
+                    row.userId.equals(value.userId.value) &
+                    row.deletedAt.isNull(),
+              ))
+              .get();
+      final nextOrder =
+          siblings.fold<int>(
+            0,
+            (maximum, account) =>
+                account.displayOrder > maximum ? account.displayOrder : maximum,
+          ) +
+          1;
+      valueToSave = value.copyWith(displayOrder: Value(nextOrder));
+    }
+    await into(accounts).insertOnConflictUpdate(valueToSave);
     await captureNetWorth(value.userId.value);
+  }
+
+  Future<void> reorderAccounts(String userId, List<String> accountIds) async {
+    await transaction(() async {
+      for (final indexed in accountIds.indexed) {
+        await (update(accounts)..where(
+              (row) => row.id.equals(indexed.$2) & row.userId.equals(userId),
+            ))
+            .write(
+              AccountsCompanion(
+                displayOrder: Value(indexed.$1 + 1),
+                updatedAt: Value(DateTime.now().toUtc()),
+              ),
+            );
+      }
+    });
+    await persistUserFile(userId);
   }
 
   Future<void> selectAccountForUsage({
@@ -1260,6 +1369,36 @@ final class AppDatabase extends _$AppDatabase {
     for (final userId in entriesToSave.map((e) => e.userId.value).toSet()) {
       await captureNetWorth(userId);
     }
+  }
+
+  Future<void> updateLedgerSeries(
+    String recurrenceId,
+    String userId,
+    LedgerEntriesCompanion template,
+  ) async {
+    if (recurrenceId.isEmpty) return;
+    final existing =
+        await (select(ledgerEntries)..where(
+              (row) =>
+                  row.recurrenceId.equals(recurrenceId) &
+                  row.userId.equals(userId) &
+                  row.deletedAt.isNull(),
+            ))
+            .get();
+    final replacements = existing
+        .map(
+          (entry) => template.copyWith(
+            id: Value(entry.id),
+            userId: Value(entry.userId),
+            bookingDate: Value(entry.bookingDate),
+            budgetMonth: Value(entry.budgetMonth),
+            recurrenceId: Value(entry.recurrenceId),
+            createdAt: Value(entry.createdAt),
+            updatedAt: Value(DateTime.now().toUtc()),
+          ),
+        )
+        .toList();
+    await saveLedgerEntries(replacements);
   }
 
   Future<void> deleteLedgerEntry(String id, String userId) async {

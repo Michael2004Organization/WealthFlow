@@ -108,6 +108,7 @@ void main() {
       availableBalance: 0,
       usageType: 'portfolio',
       notes: '',
+      displayOrder: 0,
       createdAt: now,
       updatedAt: now,
     );
@@ -186,6 +187,7 @@ void main() {
       availableBalance: 1234.56,
       usageType: 'household',
       notes: '',
+      displayOrder: 0,
       createdAt: now,
       updatedAt: now,
     );

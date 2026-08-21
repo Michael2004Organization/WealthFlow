@@ -11,6 +11,9 @@ import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 import 'investments_page.dart';
 
+final _dividendInvestmentFilterProvider = StateProvider<String?>((_) => null);
+const _allDividendInvestments = '__all__';
+
 class DividendsPage extends ConsumerWidget {
   const DividendsPage({super.key});
 
@@ -37,22 +40,47 @@ class DividendsPage extends ConsumerWidget {
             )
             .toList()
             .toList();
-        final projection = _buildDividendProjection(
+        final fullProjection = _buildDividendProjection(
           dividendItems,
           schedules,
           taxAllowance,
         );
         dividendItems.sort(
           (a, b) => _netForInvestment(
-            projection,
+            fullProjection,
             b.id,
-          ).compareTo(_netForInvestment(projection, a.id)),
+          ).compareTo(_netForInvestment(fullProjection, a.id)),
         );
+        final requestedSelection = ref.watch(_dividendInvestmentFilterProvider);
+        final selectedId = requestedSelection == _allDividendInvestments
+            ? _allDividendInvestments
+            : dividendItems.any((item) => item.id == requestedSelection)
+            ? requestedSelection!
+            : dividendItems.firstOrNull?.id;
+        final visibleItems = selectedId == _allDividendInvestments
+            ? dividendItems
+            : dividendItems.where((item) => item.id == selectedId).toList();
+        final projection = selectedId == _allDividendInvestments
+            ? fullProjection
+            : fullProjection
+                  .where((payment) => payment.investment.id == selectedId)
+                  .toList();
         final yearly = projection.fold<double>(
           0,
           (sum, payment) => sum + payment.tax.net,
         );
-        final monthly = yearly / 12;
+        final now = DateTime.now();
+        final quarterStart = ((now.month - 1) ~/ 3) * 3 + 1;
+        final quarterly = projection
+            .where(
+              (payment) =>
+                  payment.month >= quarterStart &&
+                  payment.month < quarterStart + 3,
+            )
+            .fold<double>(0, (sum, payment) => sum + payment.tax.net);
+        final monthly = projection
+            .where((payment) => payment.month == now.month)
+            .fold<double>(0, (sum, payment) => sum + payment.tax.net);
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Center(
@@ -65,10 +93,53 @@ class DividendsPage extends ConsumerWidget {
                     title: 'Dividenden',
                     subtitle:
                         'Erträge und Ausschüttungsrhythmus deiner Positionen.',
-                    action: FilledButton.icon(
-                      onPressed: () => openFinance(ref, 1),
-                      icon: const Icon(Icons.edit_rounded),
-                      label: const Text('Positionen verwalten'),
+                    action: Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (dividendItems.isNotEmpty)
+                          SizedBox(
+                            width: 290,
+                            child: DropdownButtonFormField<String>(
+                              key: ValueKey(selectedId),
+                              initialValue: selectedId,
+                              isExpanded: true,
+                              decoration: const InputDecoration(
+                                labelText: 'Aktienansicht',
+                                prefixIcon: Icon(Icons.filter_alt_rounded),
+                              ),
+                              items: [
+                                const DropdownMenuItem(
+                                  value: _allDividendInvestments,
+                                  child: Text('Alle Aktien'),
+                                ),
+                                ...dividendItems.map(
+                                  (item) => DropdownMenuItem(
+                                    value: item.id,
+                                    child: Text(
+                                      item.name,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (value) =>
+                                  ref
+                                          .read(
+                                            _dividendInvestmentFilterProvider
+                                                .notifier,
+                                          )
+                                          .state =
+                                      value,
+                            ),
+                          ),
+                        FilledButton.icon(
+                          onPressed: () => openFinance(ref, 1),
+                          icon: const Icon(Icons.edit_rounded),
+                          label: const Text('Positionen verwalten'),
+                        ),
+                      ],
                     ),
                   ),
                   LayoutBuilder(
@@ -82,32 +153,50 @@ class DividendsPage extends ConsumerWidget {
                         children: [
                           SizedBox(
                             width: width,
-                            child: MetricCard(
+                            child: _DividendMetric(
                               title: 'Pro Jahr',
-                              value: money(yearly, currency: baseCurrency),
+                              value: yearly,
                               icon: Icons.calendar_today_rounded,
                               color: Colors.green,
+                              currency: baseCurrency,
+                              payments: projection,
+                              periodLabel: '${now.year}',
                             ),
                           ),
                           SizedBox(
                             width: width,
-                            child: MetricCard(
+                            child: _DividendMetric(
                               title: 'Pro Quartal',
-                              value: money(
-                                dividendPerQuarterFromMonth(monthly),
-                                currency: baseCurrency,
-                              ),
+                              value: quarterly,
                               icon: Icons.date_range_rounded,
                               color: Colors.teal,
+                              currency: baseCurrency,
+                              payments: projection
+                                  .where(
+                                    (payment) =>
+                                        payment.month >= quarterStart &&
+                                        payment.month < quarterStart + 3,
+                                  )
+                                  .toList(),
+                              periodLabel:
+                                  '${((now.month - 1) ~/ 3) + 1}. Quartal ${now.year}',
                             ),
                           ),
                           SizedBox(
                             width: width,
-                            child: MetricCard(
+                            child: _DividendMetric(
                               title: 'Pro Monat',
-                              value: money(monthly, currency: baseCurrency),
+                              value: monthly,
                               icon: Icons.today_rounded,
                               color: Colors.cyan,
+                              currency: baseCurrency,
+                              payments: projection
+                                  .where(
+                                    (payment) => payment.month == now.month,
+                                  )
+                                  .toList(),
+                              periodLabel:
+                                  '${_monthNames[now.month - 1]} ${now.year}',
                             ),
                           ),
                         ],
@@ -147,7 +236,7 @@ class DividendsPage extends ConsumerWidget {
                               width: chartWidth,
                               height: 390,
                               child: _DividendChart(
-                                items: dividendItems,
+                                items: visibleItems,
                                 projection: projection,
                               ),
                             ),
@@ -170,7 +259,7 @@ class DividendsPage extends ConsumerWidget {
                                             ),
                                       ),
                                       const SizedBox(height: 12),
-                                      for (final item in dividendItems)
+                                      for (final item in visibleItems)
                                         ListTile(
                                           contentPadding: EdgeInsets.zero,
                                           onTap: () => showInvestmentEditor(
@@ -221,6 +310,14 @@ class DividendsPage extends ConsumerWidget {
                       schedules: schedules,
                       projection: projection,
                       baseCurrency: baseCurrency,
+                      selectedInvestmentId: selectedId,
+                      onSelected: (value) =>
+                          ref
+                                  .read(
+                                    _dividendInvestmentFilterProvider.notifier,
+                                  )
+                                  .state =
+                              value,
                     ),
                   ],
                 ],
@@ -231,6 +328,47 @@ class DividendsPage extends ConsumerWidget {
       },
     );
   }
+}
+
+class _DividendMetric extends StatelessWidget {
+  const _DividendMetric({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.currency,
+    required this.payments,
+    required this.periodLabel,
+  });
+
+  final String title;
+  final double value;
+  final IconData icon;
+  final Color color;
+  final String currency;
+  final List<_ProjectedDividend> payments;
+  final String periodLabel;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: '$title Details',
+    child: InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => _showDividendPayments(
+        context,
+        title: '$title · $periodLabel',
+        payments: payments,
+        baseCurrency: currency,
+      ),
+      child: MetricCard(
+        title: title,
+        value: money(value, currency: currency),
+        icon: icon,
+        color: color,
+      ),
+    ),
+  );
 }
 
 class _DividendChart extends StatelessWidget {
@@ -248,6 +386,10 @@ class _DividendChart extends StatelessWidget {
       Colors.cyan,
       Colors.pink,
     ];
+    final total = items.fold<double>(
+      0,
+      (sum, item) => sum + _annualDividend(projection, item.id),
+    );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -285,6 +427,45 @@ class _DividendChart extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+            Text(
+              'Betrag · Anteil im Dividendenportfolio',
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+            SizedBox(
+              height: 94,
+              child: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) => Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: palette[index % palette.length],
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          items[index].name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '${money(_annualDividend(projection, items[index].id))} · '
+                        '${(total <= 0 ? 0 : _annualDividend(projection, items[index].id) / total * 100).toStringAsFixed(1)} %',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -309,11 +490,13 @@ final class _ProjectedDividend {
     required this.investment,
     required this.month,
     required this.tax,
+    required this.withholdingTaxRate,
   });
 
   final Investment investment;
   final int month;
   final DividendTaxResult tax;
+  final double withholdingTaxRate;
 }
 
 List<_ProjectedDividend> _buildDividendProjection(
@@ -393,6 +576,7 @@ List<_ProjectedDividend> _buildDividendProjection(
         investment: event.investment,
         month: event.month,
         tax: tax,
+        withholdingTaxRate: event.withholdingTaxRate,
       ),
     );
   }
@@ -408,42 +592,37 @@ String _perShareSummary(
       .firstOrNull;
   final gross = schedule?.amountPerShare ?? investment.annualDividend;
   final currency = schedule?.currency ?? investment.dividendCurrency;
-  final tax =
-      schedule?.withholdingTaxRate ?? investment.dividendWithholdingTaxRate;
-  return '${money(gross, currency: currency)} brutto · '
-      '${tax.toStringAsFixed(2)} % Quellensteuer';
+  return money(gross, currency: currency);
 }
 
-class _DividendCalendar extends ConsumerStatefulWidget {
+class _DividendCalendar extends ConsumerWidget {
   const _DividendCalendar({
     required this.investments,
     required this.schedules,
     required this.projection,
     required this.baseCurrency,
+    required this.selectedInvestmentId,
+    required this.onSelected,
   });
 
   final List<Investment> investments;
   final List<DividendSchedule> schedules;
   final List<_ProjectedDividend> projection;
   final String baseCurrency;
+  final String? selectedInvestmentId;
+  final ValueChanged<String?> onSelected;
 
   @override
-  ConsumerState<_DividendCalendar> createState() => _DividendCalendarState();
-}
-
-class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
-  String? _selectedInvestmentId;
-
-  @override
-  Widget build(BuildContext context) {
-    final ids = widget.investments.map((item) => item.id).toSet();
-    final selectedId = ids.contains(_selectedInvestmentId)
-        ? _selectedInvestmentId!
-        : widget.investments.first.id;
-    final selected = widget.investments.firstWhere(
-      (item) => item.id == selectedId,
-    );
-    final exact = widget.schedules
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedId = selectedInvestmentId == _allDividendInvestments
+        ? _allDividendInvestments
+        : investments.any((item) => item.id == selectedInvestmentId)
+        ? selectedInvestmentId!
+        : investments.first.id;
+    final selected = selectedId == _allDividendInvestments
+        ? null
+        : investments.firstWhere((item) => item.id == selectedId);
+    final exact = schedules
         .where((row) => row.investmentId == selectedId)
         .toList();
     return Card(
@@ -472,31 +651,38 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                     decoration: const InputDecoration(
                       labelText: 'Aktienansicht',
                     ),
-                    items: widget.investments
-                        .map(
-                          (item) => DropdownMenuItem(
-                            value: item.id,
-                            child: Text(item.name),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) =>
-                        setState(() => _selectedInvestmentId = value),
+                    items: [
+                      const DropdownMenuItem(
+                        value: _allDividendInvestments,
+                        child: Text('Alle Aktien'),
+                      ),
+                      ...investments.map(
+                        (item) => DropdownMenuItem(
+                          value: item.id,
+                          child: Text(item.name),
+                        ),
+                      ),
+                    ],
+                    onChanged: onSelected,
                   ),
                 ),
                 FilledButton.icon(
-                  onPressed: () => _showQuickEntry(
-                    context,
-                    ref,
-                    investment: selected,
-                    schedules: exact,
-                    baseCurrency: widget.baseCurrency,
-                  ),
+                  onPressed: selected == null
+                      ? null
+                      : () => _showQuickEntry(
+                          context,
+                          ref,
+                          investment: selected,
+                          schedules: exact,
+                          baseCurrency: baseCurrency,
+                        ),
                   icon: const Icon(Icons.edit_calendar_rounded),
                   label: const Text('Schnellerfassung'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => _showHistoryLoader(context, selected),
+                  onPressed: selected == null
+                      ? null
+                      : () => _showHistoryLoader(context, selected),
                   icon: const Icon(Icons.history_rounded),
                   label: const Text('Historie nachladen'),
                 ),
@@ -519,8 +705,8 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                         width: width,
                         child: _DividendMonthCard(
                           month: month,
-                          projection: widget.projection,
-                          baseCurrency: widget.baseCurrency,
+                          projection: projection,
+                          baseCurrency: baseCurrency,
                         ),
                       ),
                   ],
@@ -529,7 +715,7 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
             ),
             const SizedBox(height: 20),
             Text(
-              selected.name + ' im Jahresverlauf',
+              (selected?.name ?? 'Alle Aktien') + ' im Jahresverlauf',
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
@@ -539,12 +725,16 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
               height: 230,
               child: _AnnualDividendChart(
                 investment: selected,
-                projection: widget.projection,
-                baseCurrency: widget.baseCurrency,
+                projection: projection,
+                baseCurrency: baseCurrency,
               ),
             ),
             const SizedBox(height: 12),
-            if (exact.isEmpty)
+            if (selected == null)
+              const Text(
+                'Für Bearbeitung und Schnellerfassung bitte eine einzelne Aktie auswählen.',
+              )
+            else if (exact.isEmpty)
               const Text(
                 'Noch kein genauer Zahlungsplan: Die Monatswerte werden aus dem bisherigen Rhythmus hochgerechnet.',
               )
@@ -558,8 +748,7 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                     ),
                   ),
                   title: Text(
-                    '${money(row.amountPerShare, currency: row.currency)} brutto · '
-                    '${money(widget.projection.where((payment) => payment.investment.id == selected.id && payment.month == row.paymentMonth).firstOrNull?.tax.net ?? 0, currency: widget.baseCurrency)} netto gesamt',
+                    '${money(projection.where((payment) => payment.investment.id == selected.id && payment.month == row.paymentMonth).firstOrNull?.tax.net ?? 0, currency: baseCurrency)} netto',
                   ),
                   subtitle: Text(
                     [
@@ -586,7 +775,7 @@ class _DividendCalendarState extends ConsumerState<_DividendCalendar> {
                           ref,
                           investment: selected,
                           schedule: row,
-                          baseCurrency: widget.baseCurrency,
+                          baseCurrency: baseCurrency,
                         ),
                         icon: const Icon(Icons.edit_outlined),
                       ),
@@ -1013,7 +1202,7 @@ class _AnnualDividendChart extends StatelessWidget {
     required this.baseCurrency,
   });
 
-  final Investment investment;
+  final Investment? investment;
   final List<_ProjectedDividend> projection;
   final String baseCurrency;
 
@@ -1024,7 +1213,8 @@ class _AnnualDividendChart extends StatelessWidget {
       (index) => projection
           .where(
             (payment) =>
-                payment.investment.id == investment.id &&
+                (investment == null ||
+                    payment.investment.id == investment!.id) &&
                 payment.month == index + 1,
           )
           .fold<double>(0, (sum, payment) => sum + payment.tax.net),
@@ -1112,62 +1302,247 @@ class _DividendMonthCard extends StatelessWidget {
       0,
       (sum, payment) => sum + payment.tax.net,
     );
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              _monthNames[month - 1],
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            Text(
-              money(total, currency: baseCurrency),
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.green,
-                fontWeight: FontWeight.w800,
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: payments.isEmpty
+            ? null
+            : () => _showDividendPayments(
+                context,
+                title: _monthNames[month - 1],
+                payments: payments,
+                baseCurrency: baseCurrency,
               ),
-            ),
-            const SizedBox(height: 6),
-            if (payments.isEmpty)
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               Text(
-                'Keine Zahlung',
-                style: Theme.of(context).textTheme.bodySmall,
-              )
-            else
-              for (final payment in payments)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        (payment.investment.symbol.isEmpty
-                                ? payment.investment.name
-                                : payment.investment.symbol) +
-                            ' · ' +
-                            money(payment.tax.net, currency: baseCurrency),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        'Brutto ${money(payment.tax.gross, currency: baseCurrency)} · '
-                        'Steuern ${money(payment.tax.withholdingTax + payment.tax.germanCapitalTax + payment.tax.solidaritySurcharge, currency: baseCurrency)}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
+                _monthNames[month - 1],
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              Text(
+                money(total, currency: baseCurrency),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.green,
+                  fontWeight: FontWeight.w800,
                 ),
-          ],
+              ),
+              const SizedBox(height: 6),
+              if (payments.isEmpty)
+                Text(
+                  'Keine Zahlung',
+                  style: Theme.of(context).textTheme.bodySmall,
+                )
+              else
+                for (final payment in payments)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          (payment.investment.symbol.isEmpty
+                                  ? payment.investment.name
+                                  : payment.investment.symbol) +
+                              ' · ' +
+                              money(payment.tax.net, currency: baseCurrency),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          'Netto nach Steuern · Details öffnen',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+Future<void> _showDividendPayments(
+  BuildContext context, {
+  required String title,
+  required List<_ProjectedDividend> payments,
+  required String baseCurrency,
+}) => showDialog<void>(
+  context: context,
+  builder: (dialogContext) => AlertDialog(
+    title: Text(title),
+    content: SizedBox(
+      width: (MediaQuery.sizeOf(context).width - 64).clamp(280, 620),
+      child: payments.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: Text(
+                'In diesem Zeitraum sind keine Dividenden eingegangen.',
+                textAlign: TextAlign.center,
+              ),
+            )
+          : ListView.separated(
+              shrinkWrap: true,
+              itemCount: payments.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final payment = payments[index];
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    child: Text(
+                      payment.investment.symbol.isEmpty
+                          ? payment.investment.name.substring(0, 1)
+                          : payment.investment.symbol.substring(0, 1),
+                    ),
+                  ),
+                  title: Text(payment.investment.name),
+                  subtitle: Text(
+                    '${_monthNames[payment.month - 1]} · '
+                    '${payment.investment.quantity.toStringAsFixed(2)} Stück',
+                  ),
+                  trailing: Text(
+                    money(payment.tax.net, currency: baseCurrency),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  onTap: () => _showDividendPaymentDetail(
+                    context,
+                    payment: payment,
+                    baseCurrency: baseCurrency,
+                  ),
+                );
+              },
+            ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(dialogContext),
+        child: const Text('Schließen'),
+      ),
+    ],
+  ),
+);
+
+Future<void> _showDividendPaymentDetail(
+  BuildContext context, {
+  required _ProjectedDividend payment,
+  required String baseCurrency,
+}) => showDialog<void>(
+  context: context,
+  builder: (dialogContext) {
+    final tax = payment.tax;
+    return AlertDialog(
+      title: Text(payment.investment.name),
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _DividendTaxRow(
+              label: 'Brutto',
+              value: tax.gross,
+              currency: baseCurrency,
+              emphasized: true,
+            ),
+            _DividendTaxRow(
+              label:
+                  'Quellensteuer (${payment.withholdingTaxRate.toStringAsFixed(2)} % · ${payment.investment.country})',
+              value: -tax.withholdingTax,
+              currency: baseCurrency,
+            ),
+            if (tax.creditableWithholdingTax > 0)
+              _DividendTaxRow(
+                label: 'Davon anrechenbare Quellensteuer',
+                value: tax.creditableWithholdingTax,
+                currency: baseCurrency,
+                informational: true,
+              ),
+            _DividendTaxRow(
+              label: 'Kapitalertragsteuer ($germanCapitalGainsTaxRate %)',
+              value: -tax.germanCapitalTax,
+              currency: baseCurrency,
+            ),
+            _DividendTaxRow(
+              label:
+                  'Solidaritätszuschlag ($solidaritySurchargeRate % auf Kapitalertragsteuer)',
+              value: -tax.solidaritySurcharge,
+              currency: baseCurrency,
+            ),
+            if (tax.allowanceUsed > 0)
+              _DividendTaxRow(
+                label: 'Genutzter Freistellungsauftrag',
+                value: tax.allowanceUsed,
+                currency: baseCurrency,
+                informational: true,
+              ),
+            const Divider(height: 24),
+            _DividendTaxRow(
+              label: 'Netto',
+              value: tax.net,
+              currency: baseCurrency,
+              emphasized: true,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Fertig'),
+        ),
+      ],
+    );
+  },
+);
+
+class _DividendTaxRow extends StatelessWidget {
+  const _DividendTaxRow({
+    required this.label,
+    required this.value,
+    required this.currency,
+    this.emphasized = false,
+    this.informational = false,
+  });
+
+  final String label;
+  final double value;
+  final String currency;
+  final bool emphasized;
+  final bool informational;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 7),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: emphasized ? FontWeight.w800 : FontWeight.w500,
+              color: informational
+                  ? Theme.of(context).colorScheme.onSurfaceVariant
+                  : null,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          '${value < 0 ? '−' : ''}${money(value.abs(), currency: currency)}',
+          style: TextStyle(
+            fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
+            color: value < 0 ? Theme.of(context).colorScheme.error : null,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 Future<void> _showScheduleEditor(

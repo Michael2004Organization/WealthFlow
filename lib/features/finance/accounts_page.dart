@@ -8,11 +8,18 @@ import '../../core/database/app_database.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
-class AccountsPage extends ConsumerWidget {
+class AccountsPage extends ConsumerStatefulWidget {
   const AccountsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AccountsPage> createState() => _AccountsPageState();
+}
+
+class _AccountsPageState extends ConsumerState<AccountsPage> {
+  String _sortMode = 'custom';
+
+  @override
+  Widget build(BuildContext context) {
     final accounts = ref.watch(accountsProvider);
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -56,6 +63,7 @@ class AccountsPage extends ConsumerWidget {
                       0,
                       (sum, item) => sum + item.balance,
                     );
+                    final sorted = _sortedAccounts(items);
                     return ListView(
                       children: [
                         Card(
@@ -89,6 +97,40 @@ class AccountsPage extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: SizedBox(
+                            width: 260,
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _sortMode,
+                              decoration: const InputDecoration(
+                                labelText: 'Konten sortieren',
+                                prefixIcon: Icon(Icons.sort_rounded),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'custom',
+                                  child: Text('Eigene Reihenfolge'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'value-desc',
+                                  child: Text('Größter Wert zuerst'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'value-asc',
+                                  child: Text('Kleinster Wert zuerst'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'name',
+                                  child: Text('Name A–Z'),
+                                ),
+                              ],
+                              onChanged: (value) =>
+                                  setState(() => _sortMode = value ?? 'custom'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         LayoutBuilder(
                           builder: (context, constraints) {
                             final cardWidth = constraints.maxWidth < 700
@@ -98,10 +140,30 @@ class AccountsPage extends ConsumerWidget {
                               spacing: 16,
                               runSpacing: 16,
                               children: [
-                                for (final account in items)
+                                for (
+                                  var index = 0;
+                                  index < sorted.length;
+                                  index++
+                                )
                                   SizedBox(
                                     width: cardWidth,
-                                    child: _AccountCard(account: account),
+                                    child: _AccountCard(
+                                      account: sorted[index],
+                                      onMoveUp: index == 0
+                                          ? null
+                                          : () => _moveAccount(
+                                              sorted,
+                                              index,
+                                              index - 1,
+                                            ),
+                                      onMoveDown: index == sorted.length - 1
+                                          ? null
+                                          : () => _moveAccount(
+                                              sorted,
+                                              index,
+                                              index + 1,
+                                            ),
+                                    ),
                                   ),
                               ],
                             );
@@ -118,11 +180,53 @@ class AccountsPage extends ConsumerWidget {
       ),
     );
   }
+
+  List<Account> _sortedAccounts(List<Account> accounts) {
+    final result = [...accounts];
+    switch (_sortMode) {
+      case 'value-desc':
+        result.sort((a, b) => b.balance.compareTo(a.balance));
+      case 'value-asc':
+        result.sort((a, b) => a.balance.compareTo(b.balance));
+      case 'name':
+        result.sort(
+          (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()),
+        );
+      default:
+        result.sort((a, b) {
+          final order = a.displayOrder.compareTo(b.displayOrder);
+          return order == 0 ? a.label.compareTo(b.label) : order;
+        });
+    }
+    return result;
+  }
+
+  Future<void> _moveAccount(
+    List<Account> visible,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    final reordered = [...visible];
+    final account = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, account);
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    setState(() => _sortMode = 'custom');
+    await ref
+        .read(databaseProvider)
+        .reorderAccounts(userId, reordered.map((item) => item.id).toList());
+  }
 }
 
 class _AccountCard extends ConsumerWidget {
-  const _AccountCard({required this.account});
+  const _AccountCard({
+    required this.account,
+    required this.onMoveUp,
+    required this.onMoveDown,
+  });
   final Account account;
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -132,12 +236,16 @@ class _AccountCard extends ConsumerWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
-        onTap: () => _showAccountActivity(
-          context,
-          ref,
-          account,
-          entries.where((entry) => entry.accountId == account.id).toList(),
-        ),
+        onTap: account.usageType == 'portfolio'
+            ? null
+            : () => _showAccountActivity(
+                context,
+                ref,
+                account,
+                entries
+                    .where((entry) => entry.accountId == account.id)
+                    .toList(),
+              ),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -181,6 +289,10 @@ class _AccountCard extends ConsumerWidget {
                               .where((entry) => entry.accountId == account.id)
                               .toList(),
                         );
+                      } else if (value == 'up') {
+                        onMoveUp?.call();
+                      } else if (value == 'down') {
+                        onMoveDown?.call();
                       } else if (value == 'edit') {
                         await showAccountEditor(context, ref, account: account);
                       } else if (value == 'delete' &&
@@ -198,13 +310,30 @@ class _AccountCard extends ConsumerWidget {
                         }
                       }
                     },
-                    itemBuilder: (_) => const [
+                    itemBuilder: (_) => [
+                      if (account.usageType != 'portfolio')
+                        const PopupMenuItem(
+                          value: 'activity',
+                          child: Text('Buchungen anzeigen'),
+                        ),
                       PopupMenuItem(
-                        value: 'activity',
-                        child: Text('Buchungen anzeigen'),
+                        value: 'up',
+                        enabled: onMoveUp != null,
+                        child: const Text('Nach oben'),
                       ),
-                      PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-                      PopupMenuItem(value: 'delete', child: Text('Löschen')),
+                      PopupMenuItem(
+                        value: 'down',
+                        enabled: onMoveDown != null,
+                        child: const Text('Nach unten'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Text('Bearbeiten'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Löschen'),
+                      ),
                     ],
                   ),
                 ],

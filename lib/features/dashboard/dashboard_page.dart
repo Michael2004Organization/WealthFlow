@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/finance/budget_period.dart';
@@ -404,6 +405,14 @@ class _NetWorthChart extends StatelessWidget {
     final accountSpots = visible.indexed
         .map((item) => FlSpot(item.$1.toDouble(), item.$2.accountBalance))
         .toList();
+    final maximum = visible.fold<double>(
+      0,
+      (value, item) => item.totalNetWorth > value ? item.totalNetWorth : value,
+    );
+    final leftInterval = maximum <= 0 ? 1.0 : maximum / 4;
+    final bottomInterval = visible.length <= 4
+        ? 1.0
+        : (visible.length / 4).ceilToDouble();
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(22),
@@ -418,6 +427,26 @@ class _NetWorthChart extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             const Text('Gesamtvermögen und Kontostand bei jeder Wertänderung'),
+            if (visible.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 18,
+                runSpacing: 8,
+                children: [
+                  Text(
+                    'Gesamt  ${money(visible.last.totalNetWorth)}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    'Konten  ${money(visible.last.accountBalance)}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    'Stand  ${DateFormat('dd.MM.yyyy').format(visible.last.capturedAt)}',
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 20),
             SizedBox(
               height: 260,
@@ -438,18 +467,51 @@ class _NetWorthChart extends StatelessWidget {
                             ).dividerColor.withValues(alpha: .22),
                           ),
                         ),
-                        titlesData: const FlTitlesData(
+                        titlesData: FlTitlesData(
                           leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 70,
+                              interval: leftInterval,
+                              getTitlesWidget: (value, meta) => Text(
+                                NumberFormat.compactCurrency(
+                                  locale: 'de_DE',
+                                  symbol: '€',
+                                  decimalDigits: 0,
+                                ).format(value),
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                            ),
+                          ),
+                          topTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
-                          topTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: AxisTitles(
+                          rightTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
                           bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 34,
+                              interval: bottomInterval,
+                              getTitlesWidget: (value, meta) {
+                                final index = value.round();
+                                if (index < 0 || index >= visible.length) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    DateFormat(
+                                      'dd.MM.',
+                                    ).format(visible[index].capturedAt),
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.labelSmall,
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ),
                         lineTouchData: LineTouchData(

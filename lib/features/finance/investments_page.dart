@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -533,7 +534,16 @@ class _PhysicalAssetTile extends ConsumerWidget {
       leading: const CircleAvatar(child: Icon(Icons.diamond_outlined)),
       title: Text(asset.name),
       subtitle: Text(
-        '${asset.category} · ${asset.quantity.toStringAsFixed(2)} Einheiten · Kauf ${money(asset.purchasePrice)}',
+        [
+          asset.category,
+          if (asset.metalType.isNotEmpty) asset.metalType,
+          '${asset.quantity.toStringAsFixed(2)} Einheiten',
+          if (asset.weightGrams > 0)
+            '${asset.weightGrams.toStringAsFixed(2)} g',
+          if (asset.purchaseDate != null)
+            'Kauf ${DateFormat('dd.MM.yyyy').format(asset.purchaseDate!)}',
+          money(asset.purchasePrice),
+        ].join(' · '),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -586,6 +596,9 @@ Future<void> _showPhysicalAssetEditor(
   final quantity = TextEditingController(
     text: asset?.quantity.toString() ?? '1',
   );
+  final weightGrams = TextEditingController(
+    text: asset?.weightGrams.toString() ?? '0',
+  );
   final purchasePrice = TextEditingController(
     text: asset?.purchasePrice.toString() ?? '0',
   );
@@ -594,6 +607,8 @@ Future<void> _showPhysicalAssetEditor(
   );
   final notes = TextEditingController(text: asset?.notes);
   var category = asset?.category ?? 'Edelmetall';
+  var metalType = asset?.metalType ?? 'Gold';
+  DateTime? purchaseDate = asset?.purchaseDate;
   final key = GlobalKey<FormState>();
   final saved = await showDialog<bool>(
     context: context,
@@ -639,9 +654,29 @@ Future<void> _showPhysicalAssetEditor(
                     onChanged: (value) =>
                         setDialogState(() => category = value ?? category),
                   ),
+                  if (category == 'Edelmetall') ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: metalType,
+                      decoration: const InputDecoration(
+                        labelText: 'Edelmetall',
+                      ),
+                      items: const ['Gold', 'Silber', 'Platin']
+                          .map(
+                            (value) => DropdownMenuItem(
+                              value: value,
+                              child: Text(value),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) =>
+                          setDialogState(() => metalType = value ?? metalType),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   for (final field in [
                     (quantity, 'Menge', ''),
+                    (weightGrams, 'Gewicht', 'g'),
                     (purchasePrice, 'Kaufpreis gesamt', '€'),
                     (currentValue, 'Aktueller Wert gesamt', '€'),
                   ]) ...[
@@ -665,6 +700,29 @@ Future<void> _showPhysicalAssetEditor(
                     ),
                     const SizedBox(height: 12),
                   ],
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final selected = await showDatePicker(
+                          context: context,
+                          firstDate: DateTime(1900),
+                          lastDate: DateTime.now(),
+                          initialDate: purchaseDate ?? DateTime.now(),
+                        );
+                        if (selected != null) {
+                          setDialogState(() => purchaseDate = selected);
+                        }
+                      },
+                      icon: const Icon(Icons.calendar_month_rounded),
+                      label: Text(
+                        purchaseDate == null
+                            ? 'Kaufdatum angeben'
+                            : 'Kaufdatum: ${DateFormat('dd.MM.yyyy').format(purchaseDate!)}',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   TextFormField(
                     controller: notes,
                     decoration: const InputDecoration(labelText: 'Notizen'),
@@ -707,7 +765,10 @@ Future<void> _showPhysicalAssetEditor(
               accountId: Value(accountId),
               name: name.text.trim(),
               category: Value(category),
+              metalType: Value(category == 'Edelmetall' ? metalType : ''),
               quantity: Value(number(quantity)),
+              weightGrams: Value(number(weightGrams)),
+              purchaseDate: Value(purchaseDate),
               purchasePrice: Value(number(purchasePrice)),
               currentValue: Value(number(currentValue)),
               notes: Value(notes.text.trim()),
@@ -720,6 +781,7 @@ Future<void> _showPhysicalAssetEditor(
   for (final controller in [
     name,
     quantity,
+    weightGrams,
     purchasePrice,
     currentValue,
     notes,
@@ -769,7 +831,7 @@ class _InvestmentTile extends ConsumerWidget {
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         subtitle: Text(
-          '${item.assetType} · ${item.quantity.toStringAsFixed(4).replaceFirst(RegExp(r'\.?0+$'), '')} Stück${item.broker.isEmpty ? '' : ' · ${item.broker}'}',
+          '${item.assetType} · ${item.quantity.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '')} Stück${item.broker.isEmpty ? '' : ' · ${item.broker}'}',
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -874,7 +936,7 @@ Future<void> _showInvestmentDetails(
                 Chip(
                   avatar: const Icon(Icons.inventory_2_outlined, size: 18),
                   label: Text(
-                    investment.quantity.toStringAsFixed(4) + ' Stück',
+                    investment.quantity.toStringAsFixed(2) + ' Stück',
                   ),
                 ),
                 Chip(
@@ -911,7 +973,7 @@ Future<void> _showInvestmentDetails(
                             child: Icon(Icons.add_chart_rounded),
                           ),
                           title: Text(
-                            purchase.quantity.toStringAsFixed(4) +
+                            purchase.quantity.toStringAsFixed(2) +
                                 ' Stück · ' +
                                 money(purchase.purchasePrice),
                           ),
@@ -997,7 +1059,8 @@ Future<void> showInvestmentEditor(
         await database.saveInvestment(result);
       } else {
         final addedQuantity = result.quantity.value;
-        final totalQuantity = duplicate.quantity + addedQuantity;
+        final totalQuantity =
+            ((duplicate.quantity + addedQuantity) * 100).round() / 100;
         final averagePrice = totalQuantity == 0
             ? 0.0
             : (duplicate.quantity * duplicate.purchasePrice +
@@ -1237,7 +1300,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                 const SizedBox(height: 12),
                 _responsiveFields([
                   _field(_isin, 'ISIN', readOnly: true),
-                  _field(_wkn, 'WKN'),
+                  _field(_wkn, 'WKN', readOnly: true),
                 ]),
                 const SizedBox(height: 12),
                 _responsiveFields([
@@ -1262,12 +1325,17 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                             .toList(),
                     onChanged: (v) => _type = v ?? 'Aktie',
                   ),
-                  _masterField(_broker, 'Broker', 'broker'),
+                  _field(_broker, 'Broker', readOnly: true),
                 ]),
                 const SizedBox(height: 12),
                 _responsiveFields([
-                  _masterField(_country, 'Land', 'country'),
-                  _masterField(_sector, 'Branche', 'sector'),
+                  _masterField(
+                    _country,
+                    'Land',
+                    'country',
+                    onSelected: _countryChanged,
+                  ),
+                  _field(_sector, 'Branche', readOnly: true),
                 ]),
                 const SizedBox(height: 12),
                 _responsiveFields([
@@ -1277,7 +1345,13 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                     number: true,
                     required: true,
                   ),
-                  _field(_quantity, 'Stückzahl', number: true, required: true),
+                  _field(
+                    _quantity,
+                    'Stückzahl',
+                    number: true,
+                    required: true,
+                    decimalPlaces: 2,
+                  ),
                   _field(_fees, 'Gebühren', number: true, required: true),
                 ]),
                 const SizedBox(height: 12),
@@ -1301,6 +1375,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                     _dividendCurrency,
                     'Dividendenwährung',
                     required: true,
+                    readOnly: true,
                   ),
                   _field(
                     _dividendExchangeRate,
@@ -1329,42 +1404,10 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                 ),
                 const SizedBox(height: 12),
                 _responsiveFields([
-                  DropdownButtonFormField<String>(
-                    initialValue: _frequency,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Auszahlungsrhythmus',
-                    ),
-                    items:
-                        const [
-                              'monatlich',
-                              'vierteljährlich',
-                              'halbjährlich',
-                              'jährlich',
-                              'Sonderdividende',
-                            ]
-                            .map(
-                              (v) => DropdownMenuItem(value: v, child: Text(v)),
-                            )
-                            .toList(),
-                    onChanged: (v) =>
-                        setState(() => _frequency = v ?? 'jährlich'),
-                  ),
-                  DropdownButtonFormField<int>(
-                    initialValue: _startMonth,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Startmonat des Rhythmus',
-                    ),
-                    items: List.generate(
-                      12,
-                      (index) => DropdownMenuItem(
-                        value: index + 1,
-                        child: Text(_investmentMonthNames[index]),
-                      ),
-                    ),
-                    onChanged: (value) =>
-                        setState(() => _startMonth = value ?? 1),
+                  _readOnlyValue('Auszahlungsrhythmus', _frequency),
+                  _readOnlyValue(
+                    'Startmonat des Rhythmus',
+                    _investmentMonthNames[_startMonth - 1],
                   ),
                 ]),
                 const SizedBox(height: 12),
@@ -1404,6 +1447,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     String? suffixText,
     double? minimum,
     double? maximum,
+    int? decimalPlaces,
   }) => TextFormField(
     controller: controller,
     readOnly: readOnly,
@@ -1411,14 +1455,27 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     keyboardType: number
         ? const TextInputType.numberWithOptions(decimal: true)
         : null,
+    inputFormatters: decimalPlaces == null
+        ? null
+        : [
+            FilteringTextInputFormatter.allow(
+              RegExp('^\\d*([,.]\\d{0,$decimalPlaces})?'),
+            ),
+          ],
+    mouseCursor: readOnly ? SystemMouseCursors.basic : null,
+    enableInteractiveSelection: !readOnly,
+    style: readOnly
+        ? TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          )
+        : null,
     decoration: InputDecoration(
       labelText: label,
       suffixText: suffixText,
-      suffixIcon: readOnly
-          ? const Tooltip(
-              message: 'Wird aus den Aktien-Stammdaten übernommen',
-              child: Icon(Icons.lock_outline_rounded),
-            )
+      filled: readOnly,
+      fillColor: readOnly
+          ? Theme.of(context).colorScheme.surfaceContainerHighest
           : null,
     ),
     validator: (value) {
@@ -1434,6 +1491,22 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       }
       return null;
     },
+  );
+
+  Widget _readOnlyValue(String label, String value) => TextFormField(
+    initialValue: value,
+    readOnly: true,
+    enableInteractiveSelection: false,
+    mouseCursor: SystemMouseCursors.basic,
+    style: TextStyle(
+      color: Theme.of(context).colorScheme.onSurface,
+      fontWeight: FontWeight.w600,
+    ),
+    decoration: InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+    ),
   );
 
   Widget _responsiveFields(List<Widget> fields) => LayoutBuilder(
@@ -1462,8 +1535,9 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
   Widget _masterField(
     TextEditingController controller,
     String label,
-    String kind,
-  ) => TextFormField(
+    String kind, {
+    ValueChanged<String>? onSelected,
+  }) => TextFormField(
     controller: controller,
     decoration: InputDecoration(
       labelText: label,
@@ -1474,6 +1548,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
           controller
             ..text = value
             ..selection = TextSelection.collapsed(offset: value.length);
+          onSelected?.call(value);
         },
         itemBuilder: (context) => widget.masterData
             .where((item) => item.kind == kind)
@@ -1525,8 +1600,12 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       _isin.text = stock.isin;
       _country.text = stock.country;
       _sector.text = stock.sector;
-      _dividendCurrency.text = stock.currency.toUpperCase();
-      _dividendExchangeRate.text = stock.currency.toUpperCase() == 'EUR'
+      _wkn.text = stock.wkn;
+      _broker.text = stock.broker;
+      _dividendCurrency.text = stock.dividendCurrency.toUpperCase();
+      _frequency = stock.dividendFrequency;
+      _startMonth = stock.dividendStartMonth;
+      _dividendExchangeRate.text = stock.dividendCurrency.toUpperCase() == 'EUR'
           ? '1'
           : _dividendExchangeRate.text;
       _dividendWithholdingTax.text = _isUnitedStates(stock.country)
@@ -1537,6 +1616,15 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
 
   double? _number(String? value) =>
       double.tryParse((value ?? '').replaceAll(',', '.'));
+
+  void _countryChanged(String value) {
+    setState(() {
+      _dividendWithholdingTax.text = _taxRateForCountry(
+        value,
+        fallback: _isUnitedStates(value) ? 15 : 0,
+      ).toStringAsFixed(2);
+    });
+  }
 
   Future<void> _pickDate() async {
     final selected = await showDatePicker(
@@ -1573,7 +1661,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
         sector: Value(_sector.text.trim()),
         purchaseDate: _date,
         purchasePrice: _number(_purchasePrice.text) ?? 0,
-        quantity: _number(_quantity.text) ?? 0,
+        quantity: ((_number(_quantity.text) ?? 0) * 100).round() / 100,
         fees: Value(_number(_fees.text) ?? 0),
         currentPrice: _number(_currentPrice.text) ?? 0,
         annualDividend: Value(_number(_dividend.text) ?? 0),

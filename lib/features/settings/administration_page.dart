@@ -513,66 +513,184 @@ Future<void> _editStock(
   final name = TextEditingController(text: stock?.name);
   final symbol = TextEditingController(text: stock?.symbol);
   final isin = TextEditingController(text: stock?.isin);
+  final wkn = TextEditingController(text: stock?.wkn);
   final currency = TextEditingController(text: stock?.currency ?? 'EUR');
+  final dividendCurrency = TextEditingController(
+    text: stock?.dividendCurrency ?? stock?.currency ?? 'EUR',
+  );
   final country = TextEditingController(text: stock?.country);
   final exchange = TextEditingController(text: stock?.exchange);
+  final broker = TextEditingController(text: stock?.broker);
   final sector = TextEditingController(text: stock?.sector);
   final companyData = TextEditingController(text: stock?.companyData);
+  var dividendFrequency = stock?.dividendFrequency ?? 'jährlich';
+  var dividendStartMonth = stock?.dividendStartMonth ?? 1;
+  final rates = ref.read(countryTaxRatesProvider).valueOrNull ?? const [];
+  final countries = <String>{
+    ...ref
+            .read(masterDataProvider)
+            .valueOrNull
+            ?.where((item) => item.kind == 'country')
+            .map((item) => item.value) ??
+        const <String>[],
+    ...rates.map((rate) => rate.country),
+    ...ref
+            .read(stockMastersProvider)
+            .valueOrNull
+            ?.map((item) => item.country) ??
+        const <String>[],
+  }.where((value) => value.trim().isNotEmpty).toList()..sort();
+  double countryRate() {
+    final normalized = country.text.trim().toLowerCase();
+    return rates
+            .where((rate) => rate.country.trim().toLowerCase() == normalized)
+            .firstOrNull
+            ?.withholdingTaxRate ??
+        (const {
+              'usa',
+              'us',
+              'united states',
+              'vereinigte staaten',
+            }.contains(normalized)
+            ? 15
+            : 0);
+  }
+
   final key = GlobalKey<FormState>();
   final saved = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(stock == null ? 'Aktie anlegen' : 'Aktie bearbeiten'),
-      content: SizedBox(
-        width: 620,
-        child: Form(
-          key: key,
-          child: SingleChildScrollView(
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                for (final field in [
-                  (name, 'Name', true),
-                  (symbol, 'Symbol / Ticker', true),
-                  (isin, 'ISIN', false),
-                  (currency, 'Währung', true),
-                  (country, 'Land', false),
-                  (exchange, 'Börse', false),
-                  (sector, 'Branche / Sektor', false),
-                  (companyData, 'Optionale Unternehmensdaten', false),
-                ])
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: Text(stock == null ? 'Aktie anlegen' : 'Aktie bearbeiten'),
+        content: SizedBox(
+          width: 620,
+          child: Form(
+            key: key,
+            child: SingleChildScrollView(
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final field in [
+                    (name, 'Name', true),
+                    (symbol, 'Symbol / Ticker', true),
+                    (isin, 'ISIN', false),
+                    (wkn, 'WKN', false),
+                    (currency, 'Kurswährung', true),
+                    (dividendCurrency, 'Dividendenwährung', true),
+                    (exchange, 'Börse', false),
+                    (broker, 'Broker', false),
+                    (sector, 'Branche / Sektor', false),
+                    (companyData, 'Optionale Unternehmensdaten', false),
+                  ])
+                    SizedBox(
+                      width: 285,
+                      child: TextFormField(
+                        controller: field.$1,
+                        decoration: InputDecoration(labelText: field.$2),
+                        validator: field.$3
+                            ? (value) => (value?.trim().isEmpty ?? true)
+                                  ? 'Pflichtfeld'
+                                  : null
+                            : null,
+                      ),
+                    ),
                   SizedBox(
                     width: 285,
                     child: TextFormField(
-                      controller: field.$1,
-                      decoration: InputDecoration(labelText: field.$2),
-                      validator: field.$3
-                          ? (value) => (value?.trim().isEmpty ?? true)
-                                ? 'Pflichtfeld'
-                                : null
-                          : null,
+                      controller: country,
+                      onChanged: (_) => setDialogState(() {}),
+                      decoration: InputDecoration(
+                        labelText: 'Land',
+                        helperText:
+                            'Quellensteuer: ${countryRate().toStringAsFixed(2)} %',
+                        suffixIcon: PopupMenuButton<String>(
+                          tooltip: 'Land auswählen',
+                          icon: const Icon(Icons.arrow_drop_down_rounded),
+                          onSelected: (value) => setDialogState(() {
+                            country.text = value;
+                            country.selection = TextSelection.collapsed(
+                              offset: value.length,
+                            );
+                          }),
+                          itemBuilder: (_) => countries
+                              .map(
+                                (value) => PopupMenuItem(
+                                  value: value,
+                                  child: Text(value),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
                     ),
                   ),
-              ],
+                  SizedBox(
+                    width: 285,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: dividendFrequency,
+                      decoration: const InputDecoration(
+                        labelText: 'Auszahlungsrhythmus',
+                      ),
+                      items:
+                          const [
+                                'monatlich',
+                                'vierteljährlich',
+                                'halbjährlich',
+                                'jährlich',
+                                'Sonderdividende',
+                              ]
+                              .map(
+                                (value) => DropdownMenuItem(
+                                  value: value,
+                                  child: Text(value),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (value) => setDialogState(
+                        () => dividendFrequency = value ?? dividendFrequency,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 285,
+                    child: DropdownButtonFormField<int>(
+                      initialValue: dividendStartMonth,
+                      decoration: const InputDecoration(
+                        labelText: 'Startmonat',
+                      ),
+                      items: List.generate(
+                        12,
+                        (index) => DropdownMenuItem(
+                          value: index + 1,
+                          child: Text(_adminMonthNames[index]),
+                        ),
+                      ),
+                      onChanged: (value) => setDialogState(
+                        () => dividendStartMonth = value ?? dividendStartMonth,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (key.currentState?.validate() ?? false) {
+                Navigator.pop(dialogContext, true);
+              }
+            },
+            child: const Text('Speichern'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, false),
-          child: const Text('Abbrechen'),
-        ),
-        FilledButton(
-          onPressed: () {
-            if (key.currentState?.validate() ?? false) {
-              Navigator.pop(dialogContext, true);
-            }
-          },
-          child: const Text('Speichern'),
-        ),
-      ],
     ),
   );
   if (saved == true) {
@@ -588,10 +706,15 @@ Future<void> _editStock(
             name: name.text.trim(),
             symbol: symbol.text.trim().toUpperCase(),
             isin: Value(isin.text.trim().toUpperCase()),
+            wkn: Value(wkn.text.trim().toUpperCase()),
             currency: Value(currency.text.trim().toUpperCase()),
+            dividendCurrency: Value(dividendCurrency.text.trim().toUpperCase()),
             country: Value(country.text.trim()),
             exchange: Value(exchange.text.trim()),
+            broker: Value(broker.text.trim()),
             sector: Value(sector.text.trim()),
+            dividendFrequency: Value(dividendFrequency),
+            dividendStartMonth: Value(dividendStartMonth),
             companyData: Value(companyData.text.trim()),
             createdAt: stock?.createdAt ?? now,
             updatedAt: now,
@@ -602,12 +725,30 @@ Future<void> _editStock(
     name,
     symbol,
     isin,
+    wkn,
     currency,
+    dividendCurrency,
     country,
     exchange,
+    broker,
     sector,
     companyData,
   ]) {
     controller.dispose();
   }
 }
+
+const _adminMonthNames = [
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
+];

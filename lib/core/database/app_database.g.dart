@@ -726,6 +726,18 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _displayOrderMeta = const VerificationMeta(
+    'displayOrder',
+  );
+  @override
+  late final GeneratedColumn<int> displayOrder = GeneratedColumn<int>(
+    'display_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -774,6 +786,7 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     availableBalance,
     usageType,
     notes,
+    displayOrder,
     createdAt,
     updatedAt,
     deletedAt,
@@ -879,6 +892,15 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
       );
     }
+    if (data.containsKey('display_order')) {
+      context.handle(
+        _displayOrderMeta,
+        displayOrder.isAcceptableOrUnknown(
+          data['display_order']!,
+          _displayOrderMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -962,6 +984,10 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
       )!,
+      displayOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}display_order'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -997,6 +1023,7 @@ class Account extends DataClass implements Insertable<Account> {
   final double availableBalance;
   final String usageType;
   final String notes;
+  final int displayOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -1014,6 +1041,7 @@ class Account extends DataClass implements Insertable<Account> {
     required this.availableBalance,
     required this.usageType,
     required this.notes,
+    required this.displayOrder,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -1034,6 +1062,7 @@ class Account extends DataClass implements Insertable<Account> {
     map['available_balance'] = Variable<double>(availableBalance);
     map['usage_type'] = Variable<String>(usageType);
     map['notes'] = Variable<String>(notes);
+    map['display_order'] = Variable<int>(displayOrder);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -1057,6 +1086,7 @@ class Account extends DataClass implements Insertable<Account> {
       availableBalance: Value(availableBalance),
       usageType: Value(usageType),
       notes: Value(notes),
+      displayOrder: Value(displayOrder),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -1084,6 +1114,7 @@ class Account extends DataClass implements Insertable<Account> {
       availableBalance: serializer.fromJson<double>(json['availableBalance']),
       usageType: serializer.fromJson<String>(json['usageType']),
       notes: serializer.fromJson<String>(json['notes']),
+      displayOrder: serializer.fromJson<int>(json['displayOrder']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -1106,6 +1137,7 @@ class Account extends DataClass implements Insertable<Account> {
       'availableBalance': serializer.toJson<double>(availableBalance),
       'usageType': serializer.toJson<String>(usageType),
       'notes': serializer.toJson<String>(notes),
+      'displayOrder': serializer.toJson<int>(displayOrder),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -1126,6 +1158,7 @@ class Account extends DataClass implements Insertable<Account> {
     double? availableBalance,
     String? usageType,
     String? notes,
+    int? displayOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -1143,6 +1176,7 @@ class Account extends DataClass implements Insertable<Account> {
     availableBalance: availableBalance ?? this.availableBalance,
     usageType: usageType ?? this.usageType,
     notes: notes ?? this.notes,
+    displayOrder: displayOrder ?? this.displayOrder,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -1166,6 +1200,9 @@ class Account extends DataClass implements Insertable<Account> {
           : this.availableBalance,
       usageType: data.usageType.present ? data.usageType.value : this.usageType,
       notes: data.notes.present ? data.notes.value : this.notes,
+      displayOrder: data.displayOrder.present
+          ? data.displayOrder.value
+          : this.displayOrder,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -1188,6 +1225,7 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('availableBalance: $availableBalance, ')
           ..write('usageType: $usageType, ')
           ..write('notes: $notes, ')
+          ..write('displayOrder: $displayOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -1210,6 +1248,7 @@ class Account extends DataClass implements Insertable<Account> {
     availableBalance,
     usageType,
     notes,
+    displayOrder,
     createdAt,
     updatedAt,
     deletedAt,
@@ -1231,6 +1270,7 @@ class Account extends DataClass implements Insertable<Account> {
           other.availableBalance == this.availableBalance &&
           other.usageType == this.usageType &&
           other.notes == this.notes &&
+          other.displayOrder == this.displayOrder &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -1250,6 +1290,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<double> availableBalance;
   final Value<String> usageType;
   final Value<String> notes;
+  final Value<int> displayOrder;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
@@ -1268,6 +1309,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.availableBalance = const Value.absent(),
     this.usageType = const Value.absent(),
     this.notes = const Value.absent(),
+    this.displayOrder = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -1287,6 +1329,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.availableBalance = const Value.absent(),
     this.usageType = const Value.absent(),
     this.notes = const Value.absent(),
+    this.displayOrder = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.deletedAt = const Value.absent(),
@@ -1311,6 +1354,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<double>? availableBalance,
     Expression<String>? usageType,
     Expression<String>? notes,
+    Expression<int>? displayOrder,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
@@ -1330,6 +1374,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (availableBalance != null) 'available_balance': availableBalance,
       if (usageType != null) 'usage_type': usageType,
       if (notes != null) 'notes': notes,
+      if (displayOrder != null) 'display_order': displayOrder,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -1351,6 +1396,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<double>? availableBalance,
     Value<String>? usageType,
     Value<String>? notes,
+    Value<int>? displayOrder,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
@@ -1370,6 +1416,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       availableBalance: availableBalance ?? this.availableBalance,
       usageType: usageType ?? this.usageType,
       notes: notes ?? this.notes,
+      displayOrder: displayOrder ?? this.displayOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -1419,6 +1466,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (displayOrder.present) {
+      map['display_order'] = Variable<int>(displayOrder.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1450,6 +1500,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('availableBalance: $availableBalance, ')
           ..write('usageType: $usageType, ')
           ..write('notes: $notes, ')
+          ..write('displayOrder: $displayOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -9305,12 +9356,34 @@ class $StockMastersTable extends StockMasters
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _wknMeta = const VerificationMeta('wkn');
+  @override
+  late final GeneratedColumn<String> wkn = GeneratedColumn<String>(
+    'wkn',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _currencyMeta = const VerificationMeta(
     'currency',
   );
   @override
   late final GeneratedColumn<String> currency = GeneratedColumn<String>(
     'currency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('EUR'),
+  );
+  static const VerificationMeta _dividendCurrencyMeta = const VerificationMeta(
+    'dividendCurrency',
+  );
+  @override
+  late final GeneratedColumn<String> dividendCurrency = GeneratedColumn<String>(
+    'dividend_currency',
     aliasedName,
     false,
     type: DriftSqlType.string,
@@ -9341,6 +9414,16 @@ class $StockMastersTable extends StockMasters
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _brokerMeta = const VerificationMeta('broker');
+  @override
+  late final GeneratedColumn<String> broker = GeneratedColumn<String>(
+    'broker',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _sectorMeta = const VerificationMeta('sector');
   @override
   late final GeneratedColumn<String> sector = GeneratedColumn<String>(
@@ -9350,6 +9433,30 @@ class $StockMastersTable extends StockMasters
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _dividendFrequencyMeta = const VerificationMeta(
+    'dividendFrequency',
+  );
+  @override
+  late final GeneratedColumn<String> dividendFrequency =
+      GeneratedColumn<String>(
+        'dividend_frequency',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('jährlich'),
+      );
+  static const VerificationMeta _dividendStartMonthMeta =
+      const VerificationMeta('dividendStartMonth');
+  @override
+  late final GeneratedColumn<int> dividendStartMonth = GeneratedColumn<int>(
+    'dividend_start_month',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
   );
   static const VerificationMeta _companyDataMeta = const VerificationMeta(
     'companyData',
@@ -9402,10 +9509,15 @@ class $StockMastersTable extends StockMasters
     name,
     symbol,
     isin,
+    wkn,
     currency,
+    dividendCurrency,
     country,
     exchange,
+    broker,
     sector,
+    dividendFrequency,
+    dividendStartMonth,
     companyData,
     createdAt,
     updatedAt,
@@ -9450,10 +9562,25 @@ class $StockMastersTable extends StockMasters
         isin.isAcceptableOrUnknown(data['isin']!, _isinMeta),
       );
     }
+    if (data.containsKey('wkn')) {
+      context.handle(
+        _wknMeta,
+        wkn.isAcceptableOrUnknown(data['wkn']!, _wknMeta),
+      );
+    }
     if (data.containsKey('currency')) {
       context.handle(
         _currencyMeta,
         currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
+      );
+    }
+    if (data.containsKey('dividend_currency')) {
+      context.handle(
+        _dividendCurrencyMeta,
+        dividendCurrency.isAcceptableOrUnknown(
+          data['dividend_currency']!,
+          _dividendCurrencyMeta,
+        ),
       );
     }
     if (data.containsKey('country')) {
@@ -9468,10 +9595,34 @@ class $StockMastersTable extends StockMasters
         exchange.isAcceptableOrUnknown(data['exchange']!, _exchangeMeta),
       );
     }
+    if (data.containsKey('broker')) {
+      context.handle(
+        _brokerMeta,
+        broker.isAcceptableOrUnknown(data['broker']!, _brokerMeta),
+      );
+    }
     if (data.containsKey('sector')) {
       context.handle(
         _sectorMeta,
         sector.isAcceptableOrUnknown(data['sector']!, _sectorMeta),
+      );
+    }
+    if (data.containsKey('dividend_frequency')) {
+      context.handle(
+        _dividendFrequencyMeta,
+        dividendFrequency.isAcceptableOrUnknown(
+          data['dividend_frequency']!,
+          _dividendFrequencyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('dividend_start_month')) {
+      context.handle(
+        _dividendStartMonthMeta,
+        dividendStartMonth.isAcceptableOrUnknown(
+          data['dividend_start_month']!,
+          _dividendStartMonthMeta,
+        ),
       );
     }
     if (data.containsKey('company_data')) {
@@ -9530,9 +9681,17 @@ class $StockMastersTable extends StockMasters
         DriftSqlType.string,
         data['${effectivePrefix}isin'],
       )!,
+      wkn: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}wkn'],
+      )!,
       currency: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}currency'],
+      )!,
+      dividendCurrency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dividend_currency'],
       )!,
       country: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -9542,9 +9701,21 @@ class $StockMastersTable extends StockMasters
         DriftSqlType.string,
         data['${effectivePrefix}exchange'],
       )!,
+      broker: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}broker'],
+      )!,
       sector: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sector'],
+      )!,
+      dividendFrequency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dividend_frequency'],
+      )!,
+      dividendStartMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}dividend_start_month'],
       )!,
       companyData: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -9576,10 +9747,15 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
   final String name;
   final String symbol;
   final String isin;
+  final String wkn;
   final String currency;
+  final String dividendCurrency;
   final String country;
   final String exchange;
+  final String broker;
   final String sector;
+  final String dividendFrequency;
+  final int dividendStartMonth;
   final String companyData;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -9589,10 +9765,15 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
     required this.name,
     required this.symbol,
     required this.isin,
+    required this.wkn,
     required this.currency,
+    required this.dividendCurrency,
     required this.country,
     required this.exchange,
+    required this.broker,
     required this.sector,
+    required this.dividendFrequency,
+    required this.dividendStartMonth,
     required this.companyData,
     required this.createdAt,
     required this.updatedAt,
@@ -9605,10 +9786,15 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
     map['name'] = Variable<String>(name);
     map['symbol'] = Variable<String>(symbol);
     map['isin'] = Variable<String>(isin);
+    map['wkn'] = Variable<String>(wkn);
     map['currency'] = Variable<String>(currency);
+    map['dividend_currency'] = Variable<String>(dividendCurrency);
     map['country'] = Variable<String>(country);
     map['exchange'] = Variable<String>(exchange);
+    map['broker'] = Variable<String>(broker);
     map['sector'] = Variable<String>(sector);
+    map['dividend_frequency'] = Variable<String>(dividendFrequency);
+    map['dividend_start_month'] = Variable<int>(dividendStartMonth);
     map['company_data'] = Variable<String>(companyData);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -9624,10 +9810,15 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
       name: Value(name),
       symbol: Value(symbol),
       isin: Value(isin),
+      wkn: Value(wkn),
       currency: Value(currency),
+      dividendCurrency: Value(dividendCurrency),
       country: Value(country),
       exchange: Value(exchange),
+      broker: Value(broker),
       sector: Value(sector),
+      dividendFrequency: Value(dividendFrequency),
+      dividendStartMonth: Value(dividendStartMonth),
       companyData: Value(companyData),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -9647,10 +9838,15 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
       name: serializer.fromJson<String>(json['name']),
       symbol: serializer.fromJson<String>(json['symbol']),
       isin: serializer.fromJson<String>(json['isin']),
+      wkn: serializer.fromJson<String>(json['wkn']),
       currency: serializer.fromJson<String>(json['currency']),
+      dividendCurrency: serializer.fromJson<String>(json['dividendCurrency']),
       country: serializer.fromJson<String>(json['country']),
       exchange: serializer.fromJson<String>(json['exchange']),
+      broker: serializer.fromJson<String>(json['broker']),
       sector: serializer.fromJson<String>(json['sector']),
+      dividendFrequency: serializer.fromJson<String>(json['dividendFrequency']),
+      dividendStartMonth: serializer.fromJson<int>(json['dividendStartMonth']),
       companyData: serializer.fromJson<String>(json['companyData']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -9665,10 +9861,15 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
       'name': serializer.toJson<String>(name),
       'symbol': serializer.toJson<String>(symbol),
       'isin': serializer.toJson<String>(isin),
+      'wkn': serializer.toJson<String>(wkn),
       'currency': serializer.toJson<String>(currency),
+      'dividendCurrency': serializer.toJson<String>(dividendCurrency),
       'country': serializer.toJson<String>(country),
       'exchange': serializer.toJson<String>(exchange),
+      'broker': serializer.toJson<String>(broker),
       'sector': serializer.toJson<String>(sector),
+      'dividendFrequency': serializer.toJson<String>(dividendFrequency),
+      'dividendStartMonth': serializer.toJson<int>(dividendStartMonth),
       'companyData': serializer.toJson<String>(companyData),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -9681,10 +9882,15 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
     String? name,
     String? symbol,
     String? isin,
+    String? wkn,
     String? currency,
+    String? dividendCurrency,
     String? country,
     String? exchange,
+    String? broker,
     String? sector,
+    String? dividendFrequency,
+    int? dividendStartMonth,
     String? companyData,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -9694,10 +9900,15 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
     name: name ?? this.name,
     symbol: symbol ?? this.symbol,
     isin: isin ?? this.isin,
+    wkn: wkn ?? this.wkn,
     currency: currency ?? this.currency,
+    dividendCurrency: dividendCurrency ?? this.dividendCurrency,
     country: country ?? this.country,
     exchange: exchange ?? this.exchange,
+    broker: broker ?? this.broker,
     sector: sector ?? this.sector,
+    dividendFrequency: dividendFrequency ?? this.dividendFrequency,
+    dividendStartMonth: dividendStartMonth ?? this.dividendStartMonth,
     companyData: companyData ?? this.companyData,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -9709,10 +9920,21 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
       name: data.name.present ? data.name.value : this.name,
       symbol: data.symbol.present ? data.symbol.value : this.symbol,
       isin: data.isin.present ? data.isin.value : this.isin,
+      wkn: data.wkn.present ? data.wkn.value : this.wkn,
       currency: data.currency.present ? data.currency.value : this.currency,
+      dividendCurrency: data.dividendCurrency.present
+          ? data.dividendCurrency.value
+          : this.dividendCurrency,
       country: data.country.present ? data.country.value : this.country,
       exchange: data.exchange.present ? data.exchange.value : this.exchange,
+      broker: data.broker.present ? data.broker.value : this.broker,
       sector: data.sector.present ? data.sector.value : this.sector,
+      dividendFrequency: data.dividendFrequency.present
+          ? data.dividendFrequency.value
+          : this.dividendFrequency,
+      dividendStartMonth: data.dividendStartMonth.present
+          ? data.dividendStartMonth.value
+          : this.dividendStartMonth,
       companyData: data.companyData.present
           ? data.companyData.value
           : this.companyData,
@@ -9729,10 +9951,15 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
           ..write('name: $name, ')
           ..write('symbol: $symbol, ')
           ..write('isin: $isin, ')
+          ..write('wkn: $wkn, ')
           ..write('currency: $currency, ')
+          ..write('dividendCurrency: $dividendCurrency, ')
           ..write('country: $country, ')
           ..write('exchange: $exchange, ')
+          ..write('broker: $broker, ')
           ..write('sector: $sector, ')
+          ..write('dividendFrequency: $dividendFrequency, ')
+          ..write('dividendStartMonth: $dividendStartMonth, ')
           ..write('companyData: $companyData, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -9747,10 +9974,15 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
     name,
     symbol,
     isin,
+    wkn,
     currency,
+    dividendCurrency,
     country,
     exchange,
+    broker,
     sector,
+    dividendFrequency,
+    dividendStartMonth,
     companyData,
     createdAt,
     updatedAt,
@@ -9764,10 +9996,15 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
           other.name == this.name &&
           other.symbol == this.symbol &&
           other.isin == this.isin &&
+          other.wkn == this.wkn &&
           other.currency == this.currency &&
+          other.dividendCurrency == this.dividendCurrency &&
           other.country == this.country &&
           other.exchange == this.exchange &&
+          other.broker == this.broker &&
           other.sector == this.sector &&
+          other.dividendFrequency == this.dividendFrequency &&
+          other.dividendStartMonth == this.dividendStartMonth &&
           other.companyData == this.companyData &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -9779,10 +10016,15 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
   final Value<String> name;
   final Value<String> symbol;
   final Value<String> isin;
+  final Value<String> wkn;
   final Value<String> currency;
+  final Value<String> dividendCurrency;
   final Value<String> country;
   final Value<String> exchange;
+  final Value<String> broker;
   final Value<String> sector;
+  final Value<String> dividendFrequency;
+  final Value<int> dividendStartMonth;
   final Value<String> companyData;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -9793,10 +10035,15 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
     this.name = const Value.absent(),
     this.symbol = const Value.absent(),
     this.isin = const Value.absent(),
+    this.wkn = const Value.absent(),
     this.currency = const Value.absent(),
+    this.dividendCurrency = const Value.absent(),
     this.country = const Value.absent(),
     this.exchange = const Value.absent(),
+    this.broker = const Value.absent(),
     this.sector = const Value.absent(),
+    this.dividendFrequency = const Value.absent(),
+    this.dividendStartMonth = const Value.absent(),
     this.companyData = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -9808,10 +10055,15 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
     required String name,
     required String symbol,
     this.isin = const Value.absent(),
+    this.wkn = const Value.absent(),
     this.currency = const Value.absent(),
+    this.dividendCurrency = const Value.absent(),
     this.country = const Value.absent(),
     this.exchange = const Value.absent(),
+    this.broker = const Value.absent(),
     this.sector = const Value.absent(),
+    this.dividendFrequency = const Value.absent(),
+    this.dividendStartMonth = const Value.absent(),
     this.companyData = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -9827,10 +10079,15 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
     Expression<String>? name,
     Expression<String>? symbol,
     Expression<String>? isin,
+    Expression<String>? wkn,
     Expression<String>? currency,
+    Expression<String>? dividendCurrency,
     Expression<String>? country,
     Expression<String>? exchange,
+    Expression<String>? broker,
     Expression<String>? sector,
+    Expression<String>? dividendFrequency,
+    Expression<int>? dividendStartMonth,
     Expression<String>? companyData,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -9842,10 +10099,16 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
       if (name != null) 'name': name,
       if (symbol != null) 'symbol': symbol,
       if (isin != null) 'isin': isin,
+      if (wkn != null) 'wkn': wkn,
       if (currency != null) 'currency': currency,
+      if (dividendCurrency != null) 'dividend_currency': dividendCurrency,
       if (country != null) 'country': country,
       if (exchange != null) 'exchange': exchange,
+      if (broker != null) 'broker': broker,
       if (sector != null) 'sector': sector,
+      if (dividendFrequency != null) 'dividend_frequency': dividendFrequency,
+      if (dividendStartMonth != null)
+        'dividend_start_month': dividendStartMonth,
       if (companyData != null) 'company_data': companyData,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -9859,10 +10122,15 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
     Value<String>? name,
     Value<String>? symbol,
     Value<String>? isin,
+    Value<String>? wkn,
     Value<String>? currency,
+    Value<String>? dividendCurrency,
     Value<String>? country,
     Value<String>? exchange,
+    Value<String>? broker,
     Value<String>? sector,
+    Value<String>? dividendFrequency,
+    Value<int>? dividendStartMonth,
     Value<String>? companyData,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -9874,10 +10142,15 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
       name: name ?? this.name,
       symbol: symbol ?? this.symbol,
       isin: isin ?? this.isin,
+      wkn: wkn ?? this.wkn,
       currency: currency ?? this.currency,
+      dividendCurrency: dividendCurrency ?? this.dividendCurrency,
       country: country ?? this.country,
       exchange: exchange ?? this.exchange,
+      broker: broker ?? this.broker,
       sector: sector ?? this.sector,
+      dividendFrequency: dividendFrequency ?? this.dividendFrequency,
+      dividendStartMonth: dividendStartMonth ?? this.dividendStartMonth,
       companyData: companyData ?? this.companyData,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -9901,8 +10174,14 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
     if (isin.present) {
       map['isin'] = Variable<String>(isin.value);
     }
+    if (wkn.present) {
+      map['wkn'] = Variable<String>(wkn.value);
+    }
     if (currency.present) {
       map['currency'] = Variable<String>(currency.value);
+    }
+    if (dividendCurrency.present) {
+      map['dividend_currency'] = Variable<String>(dividendCurrency.value);
     }
     if (country.present) {
       map['country'] = Variable<String>(country.value);
@@ -9910,8 +10189,17 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
     if (exchange.present) {
       map['exchange'] = Variable<String>(exchange.value);
     }
+    if (broker.present) {
+      map['broker'] = Variable<String>(broker.value);
+    }
     if (sector.present) {
       map['sector'] = Variable<String>(sector.value);
+    }
+    if (dividendFrequency.present) {
+      map['dividend_frequency'] = Variable<String>(dividendFrequency.value);
+    }
+    if (dividendStartMonth.present) {
+      map['dividend_start_month'] = Variable<int>(dividendStartMonth.value);
     }
     if (companyData.present) {
       map['company_data'] = Variable<String>(companyData.value);
@@ -9938,10 +10226,15 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
           ..write('name: $name, ')
           ..write('symbol: $symbol, ')
           ..write('isin: $isin, ')
+          ..write('wkn: $wkn, ')
           ..write('currency: $currency, ')
+          ..write('dividendCurrency: $dividendCurrency, ')
           ..write('country: $country, ')
           ..write('exchange: $exchange, ')
+          ..write('broker: $broker, ')
           ..write('sector: $sector, ')
+          ..write('dividendFrequency: $dividendFrequency, ')
+          ..write('dividendStartMonth: $dividendStartMonth, ')
           ..write('companyData: $companyData, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -11890,6 +12183,18 @@ class $PhysicalAssetsTable extends PhysicalAssets
     requiredDuringInsert: false,
     defaultValue: const Constant('Sonstiges'),
   );
+  static const VerificationMeta _metalTypeMeta = const VerificationMeta(
+    'metalType',
+  );
+  @override
+  late final GeneratedColumn<String> metalType = GeneratedColumn<String>(
+    'metal_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _quantityMeta = const VerificationMeta(
     'quantity',
   );
@@ -11901,6 +12206,29 @@ class $PhysicalAssetsTable extends PhysicalAssets
     type: DriftSqlType.double,
     requiredDuringInsert: false,
     defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _weightGramsMeta = const VerificationMeta(
+    'weightGrams',
+  );
+  @override
+  late final GeneratedColumn<double> weightGrams = GeneratedColumn<double>(
+    'weight_grams',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _purchaseDateMeta = const VerificationMeta(
+    'purchaseDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> purchaseDate = GeneratedColumn<DateTime>(
+    'purchase_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _purchasePriceMeta = const VerificationMeta(
     'purchasePrice',
@@ -11976,7 +12304,10 @@ class $PhysicalAssetsTable extends PhysicalAssets
     accountId,
     name,
     category,
+    metalType,
     quantity,
+    weightGrams,
+    purchaseDate,
     purchasePrice,
     currentValue,
     notes,
@@ -12029,10 +12360,34 @@ class $PhysicalAssetsTable extends PhysicalAssets
         category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
       );
     }
+    if (data.containsKey('metal_type')) {
+      context.handle(
+        _metalTypeMeta,
+        metalType.isAcceptableOrUnknown(data['metal_type']!, _metalTypeMeta),
+      );
+    }
     if (data.containsKey('quantity')) {
       context.handle(
         _quantityMeta,
         quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    }
+    if (data.containsKey('weight_grams')) {
+      context.handle(
+        _weightGramsMeta,
+        weightGrams.isAcceptableOrUnknown(
+          data['weight_grams']!,
+          _weightGramsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('purchase_date')) {
+      context.handle(
+        _purchaseDateMeta,
+        purchaseDate.isAcceptableOrUnknown(
+          data['purchase_date']!,
+          _purchaseDateMeta,
+        ),
       );
     }
     if (data.containsKey('purchase_price')) {
@@ -12110,10 +12465,22 @@ class $PhysicalAssetsTable extends PhysicalAssets
         DriftSqlType.string,
         data['${effectivePrefix}category'],
       )!,
+      metalType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}metal_type'],
+      )!,
       quantity: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}quantity'],
       )!,
+      weightGrams: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}weight_grams'],
+      )!,
+      purchaseDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}purchase_date'],
+      ),
       purchasePrice: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}purchase_price'],
@@ -12153,7 +12520,10 @@ class PhysicalAsset extends DataClass implements Insertable<PhysicalAsset> {
   final String accountId;
   final String name;
   final String category;
+  final String metalType;
   final double quantity;
+  final double weightGrams;
+  final DateTime? purchaseDate;
   final double purchasePrice;
   final double currentValue;
   final String notes;
@@ -12166,7 +12536,10 @@ class PhysicalAsset extends DataClass implements Insertable<PhysicalAsset> {
     required this.accountId,
     required this.name,
     required this.category,
+    required this.metalType,
     required this.quantity,
+    required this.weightGrams,
+    this.purchaseDate,
     required this.purchasePrice,
     required this.currentValue,
     required this.notes,
@@ -12182,7 +12555,12 @@ class PhysicalAsset extends DataClass implements Insertable<PhysicalAsset> {
     map['account_id'] = Variable<String>(accountId);
     map['name'] = Variable<String>(name);
     map['category'] = Variable<String>(category);
+    map['metal_type'] = Variable<String>(metalType);
     map['quantity'] = Variable<double>(quantity);
+    map['weight_grams'] = Variable<double>(weightGrams);
+    if (!nullToAbsent || purchaseDate != null) {
+      map['purchase_date'] = Variable<DateTime>(purchaseDate);
+    }
     map['purchase_price'] = Variable<double>(purchasePrice);
     map['current_value'] = Variable<double>(currentValue);
     map['notes'] = Variable<String>(notes);
@@ -12201,7 +12579,12 @@ class PhysicalAsset extends DataClass implements Insertable<PhysicalAsset> {
       accountId: Value(accountId),
       name: Value(name),
       category: Value(category),
+      metalType: Value(metalType),
       quantity: Value(quantity),
+      weightGrams: Value(weightGrams),
+      purchaseDate: purchaseDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(purchaseDate),
       purchasePrice: Value(purchasePrice),
       currentValue: Value(currentValue),
       notes: Value(notes),
@@ -12224,7 +12607,10 @@ class PhysicalAsset extends DataClass implements Insertable<PhysicalAsset> {
       accountId: serializer.fromJson<String>(json['accountId']),
       name: serializer.fromJson<String>(json['name']),
       category: serializer.fromJson<String>(json['category']),
+      metalType: serializer.fromJson<String>(json['metalType']),
       quantity: serializer.fromJson<double>(json['quantity']),
+      weightGrams: serializer.fromJson<double>(json['weightGrams']),
+      purchaseDate: serializer.fromJson<DateTime?>(json['purchaseDate']),
       purchasePrice: serializer.fromJson<double>(json['purchasePrice']),
       currentValue: serializer.fromJson<double>(json['currentValue']),
       notes: serializer.fromJson<String>(json['notes']),
@@ -12242,7 +12628,10 @@ class PhysicalAsset extends DataClass implements Insertable<PhysicalAsset> {
       'accountId': serializer.toJson<String>(accountId),
       'name': serializer.toJson<String>(name),
       'category': serializer.toJson<String>(category),
+      'metalType': serializer.toJson<String>(metalType),
       'quantity': serializer.toJson<double>(quantity),
+      'weightGrams': serializer.toJson<double>(weightGrams),
+      'purchaseDate': serializer.toJson<DateTime?>(purchaseDate),
       'purchasePrice': serializer.toJson<double>(purchasePrice),
       'currentValue': serializer.toJson<double>(currentValue),
       'notes': serializer.toJson<String>(notes),
@@ -12258,7 +12647,10 @@ class PhysicalAsset extends DataClass implements Insertable<PhysicalAsset> {
     String? accountId,
     String? name,
     String? category,
+    String? metalType,
     double? quantity,
+    double? weightGrams,
+    Value<DateTime?> purchaseDate = const Value.absent(),
     double? purchasePrice,
     double? currentValue,
     String? notes,
@@ -12271,7 +12663,10 @@ class PhysicalAsset extends DataClass implements Insertable<PhysicalAsset> {
     accountId: accountId ?? this.accountId,
     name: name ?? this.name,
     category: category ?? this.category,
+    metalType: metalType ?? this.metalType,
     quantity: quantity ?? this.quantity,
+    weightGrams: weightGrams ?? this.weightGrams,
+    purchaseDate: purchaseDate.present ? purchaseDate.value : this.purchaseDate,
     purchasePrice: purchasePrice ?? this.purchasePrice,
     currentValue: currentValue ?? this.currentValue,
     notes: notes ?? this.notes,
@@ -12286,7 +12681,14 @@ class PhysicalAsset extends DataClass implements Insertable<PhysicalAsset> {
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
       name: data.name.present ? data.name.value : this.name,
       category: data.category.present ? data.category.value : this.category,
+      metalType: data.metalType.present ? data.metalType.value : this.metalType,
       quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      weightGrams: data.weightGrams.present
+          ? data.weightGrams.value
+          : this.weightGrams,
+      purchaseDate: data.purchaseDate.present
+          ? data.purchaseDate.value
+          : this.purchaseDate,
       purchasePrice: data.purchasePrice.present
           ? data.purchasePrice.value
           : this.purchasePrice,
@@ -12308,7 +12710,10 @@ class PhysicalAsset extends DataClass implements Insertable<PhysicalAsset> {
           ..write('accountId: $accountId, ')
           ..write('name: $name, ')
           ..write('category: $category, ')
+          ..write('metalType: $metalType, ')
           ..write('quantity: $quantity, ')
+          ..write('weightGrams: $weightGrams, ')
+          ..write('purchaseDate: $purchaseDate, ')
           ..write('purchasePrice: $purchasePrice, ')
           ..write('currentValue: $currentValue, ')
           ..write('notes: $notes, ')
@@ -12326,7 +12731,10 @@ class PhysicalAsset extends DataClass implements Insertable<PhysicalAsset> {
     accountId,
     name,
     category,
+    metalType,
     quantity,
+    weightGrams,
+    purchaseDate,
     purchasePrice,
     currentValue,
     notes,
@@ -12343,7 +12751,10 @@ class PhysicalAsset extends DataClass implements Insertable<PhysicalAsset> {
           other.accountId == this.accountId &&
           other.name == this.name &&
           other.category == this.category &&
+          other.metalType == this.metalType &&
           other.quantity == this.quantity &&
+          other.weightGrams == this.weightGrams &&
+          other.purchaseDate == this.purchaseDate &&
           other.purchasePrice == this.purchasePrice &&
           other.currentValue == this.currentValue &&
           other.notes == this.notes &&
@@ -12358,7 +12769,10 @@ class PhysicalAssetsCompanion extends UpdateCompanion<PhysicalAsset> {
   final Value<String> accountId;
   final Value<String> name;
   final Value<String> category;
+  final Value<String> metalType;
   final Value<double> quantity;
+  final Value<double> weightGrams;
+  final Value<DateTime?> purchaseDate;
   final Value<double> purchasePrice;
   final Value<double> currentValue;
   final Value<String> notes;
@@ -12372,7 +12786,10 @@ class PhysicalAssetsCompanion extends UpdateCompanion<PhysicalAsset> {
     this.accountId = const Value.absent(),
     this.name = const Value.absent(),
     this.category = const Value.absent(),
+    this.metalType = const Value.absent(),
     this.quantity = const Value.absent(),
+    this.weightGrams = const Value.absent(),
+    this.purchaseDate = const Value.absent(),
     this.purchasePrice = const Value.absent(),
     this.currentValue = const Value.absent(),
     this.notes = const Value.absent(),
@@ -12387,7 +12804,10 @@ class PhysicalAssetsCompanion extends UpdateCompanion<PhysicalAsset> {
     this.accountId = const Value.absent(),
     required String name,
     this.category = const Value.absent(),
+    this.metalType = const Value.absent(),
     this.quantity = const Value.absent(),
+    this.weightGrams = const Value.absent(),
+    this.purchaseDate = const Value.absent(),
     this.purchasePrice = const Value.absent(),
     this.currentValue = const Value.absent(),
     this.notes = const Value.absent(),
@@ -12406,7 +12826,10 @@ class PhysicalAssetsCompanion extends UpdateCompanion<PhysicalAsset> {
     Expression<String>? accountId,
     Expression<String>? name,
     Expression<String>? category,
+    Expression<String>? metalType,
     Expression<double>? quantity,
+    Expression<double>? weightGrams,
+    Expression<DateTime>? purchaseDate,
     Expression<double>? purchasePrice,
     Expression<double>? currentValue,
     Expression<String>? notes,
@@ -12421,7 +12844,10 @@ class PhysicalAssetsCompanion extends UpdateCompanion<PhysicalAsset> {
       if (accountId != null) 'account_id': accountId,
       if (name != null) 'name': name,
       if (category != null) 'category': category,
+      if (metalType != null) 'metal_type': metalType,
       if (quantity != null) 'quantity': quantity,
+      if (weightGrams != null) 'weight_grams': weightGrams,
+      if (purchaseDate != null) 'purchase_date': purchaseDate,
       if (purchasePrice != null) 'purchase_price': purchasePrice,
       if (currentValue != null) 'current_value': currentValue,
       if (notes != null) 'notes': notes,
@@ -12438,7 +12864,10 @@ class PhysicalAssetsCompanion extends UpdateCompanion<PhysicalAsset> {
     Value<String>? accountId,
     Value<String>? name,
     Value<String>? category,
+    Value<String>? metalType,
     Value<double>? quantity,
+    Value<double>? weightGrams,
+    Value<DateTime?>? purchaseDate,
     Value<double>? purchasePrice,
     Value<double>? currentValue,
     Value<String>? notes,
@@ -12453,7 +12882,10 @@ class PhysicalAssetsCompanion extends UpdateCompanion<PhysicalAsset> {
       accountId: accountId ?? this.accountId,
       name: name ?? this.name,
       category: category ?? this.category,
+      metalType: metalType ?? this.metalType,
       quantity: quantity ?? this.quantity,
+      weightGrams: weightGrams ?? this.weightGrams,
+      purchaseDate: purchaseDate ?? this.purchaseDate,
       purchasePrice: purchasePrice ?? this.purchasePrice,
       currentValue: currentValue ?? this.currentValue,
       notes: notes ?? this.notes,
@@ -12482,8 +12914,17 @@ class PhysicalAssetsCompanion extends UpdateCompanion<PhysicalAsset> {
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
+    if (metalType.present) {
+      map['metal_type'] = Variable<String>(metalType.value);
+    }
     if (quantity.present) {
       map['quantity'] = Variable<double>(quantity.value);
+    }
+    if (weightGrams.present) {
+      map['weight_grams'] = Variable<double>(weightGrams.value);
+    }
+    if (purchaseDate.present) {
+      map['purchase_date'] = Variable<DateTime>(purchaseDate.value);
     }
     if (purchasePrice.present) {
       map['purchase_price'] = Variable<double>(purchasePrice.value);
@@ -12517,7 +12958,10 @@ class PhysicalAssetsCompanion extends UpdateCompanion<PhysicalAsset> {
           ..write('accountId: $accountId, ')
           ..write('name: $name, ')
           ..write('category: $category, ')
+          ..write('metalType: $metalType, ')
           ..write('quantity: $quantity, ')
+          ..write('weightGrams: $weightGrams, ')
+          ..write('purchaseDate: $purchaseDate, ')
           ..write('purchasePrice: $purchasePrice, ')
           ..write('currentValue: $currentValue, ')
           ..write('notes: $notes, ')
@@ -14488,6 +14932,7 @@ typedef $$AccountsTableCreateCompanionBuilder =
       Value<double> availableBalance,
       Value<String> usageType,
       Value<String> notes,
+      Value<int> displayOrder,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<DateTime?> deletedAt,
@@ -14508,6 +14953,7 @@ typedef $$AccountsTableUpdateCompanionBuilder =
       Value<double> availableBalance,
       Value<String> usageType,
       Value<String> notes,
+      Value<int> displayOrder,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
@@ -14602,6 +15048,11 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<String> get notes => $composableBuilder(
     column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get displayOrder => $composableBuilder(
+    column: $table.displayOrder,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14713,6 +15164,11 @@ class $$AccountsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get displayOrder => $composableBuilder(
+    column: $table.displayOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -14801,6 +15257,11 @@ class $$AccountsTableAnnotationComposer
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
+  GeneratedColumn<int> get displayOrder => $composableBuilder(
+    column: $table.displayOrder,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -14875,6 +15336,7 @@ class $$AccountsTableTableManager
                 Value<double> availableBalance = const Value.absent(),
                 Value<String> usageType = const Value.absent(),
                 Value<String> notes = const Value.absent(),
+                Value<int> displayOrder = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -14893,6 +15355,7 @@ class $$AccountsTableTableManager
                 availableBalance: availableBalance,
                 usageType: usageType,
                 notes: notes,
+                displayOrder: displayOrder,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -14913,6 +15376,7 @@ class $$AccountsTableTableManager
                 Value<double> availableBalance = const Value.absent(),
                 Value<String> usageType = const Value.absent(),
                 Value<String> notes = const Value.absent(),
+                Value<int> displayOrder = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -14931,6 +15395,7 @@ class $$AccountsTableTableManager
                 availableBalance: availableBalance,
                 usageType: usageType,
                 notes: notes,
+                displayOrder: displayOrder,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -20456,10 +20921,15 @@ typedef $$StockMastersTableCreateCompanionBuilder =
       required String name,
       required String symbol,
       Value<String> isin,
+      Value<String> wkn,
       Value<String> currency,
+      Value<String> dividendCurrency,
       Value<String> country,
       Value<String> exchange,
+      Value<String> broker,
       Value<String> sector,
+      Value<String> dividendFrequency,
+      Value<int> dividendStartMonth,
       Value<String> companyData,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -20472,10 +20942,15 @@ typedef $$StockMastersTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> symbol,
       Value<String> isin,
+      Value<String> wkn,
       Value<String> currency,
+      Value<String> dividendCurrency,
       Value<String> country,
       Value<String> exchange,
+      Value<String> broker,
       Value<String> sector,
+      Value<String> dividendFrequency,
+      Value<int> dividendStartMonth,
       Value<String> companyData,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -20553,8 +21028,18 @@ class $$StockMastersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get wkn => $composableBuilder(
+    column: $table.wkn,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get currency => $composableBuilder(
     column: $table.currency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dividendCurrency => $composableBuilder(
+    column: $table.dividendCurrency,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20568,8 +21053,23 @@ class $$StockMastersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get broker => $composableBuilder(
+    column: $table.broker,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get sector => $composableBuilder(
     column: $table.sector,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dividendFrequency => $composableBuilder(
+    column: $table.dividendFrequency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get dividendStartMonth => $composableBuilder(
+    column: $table.dividendStartMonth,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20673,8 +21173,18 @@ class $$StockMastersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get wkn => $composableBuilder(
+    column: $table.wkn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get currency => $composableBuilder(
     column: $table.currency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dividendCurrency => $composableBuilder(
+    column: $table.dividendCurrency,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -20688,8 +21198,23 @@ class $$StockMastersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get broker => $composableBuilder(
+    column: $table.broker,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get sector => $composableBuilder(
     column: $table.sector,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dividendFrequency => $composableBuilder(
+    column: $table.dividendFrequency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get dividendStartMonth => $composableBuilder(
+    column: $table.dividendStartMonth,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -20735,8 +21260,16 @@ class $$StockMastersTableAnnotationComposer
   GeneratedColumn<String> get isin =>
       $composableBuilder(column: $table.isin, builder: (column) => column);
 
+  GeneratedColumn<String> get wkn =>
+      $composableBuilder(column: $table.wkn, builder: (column) => column);
+
   GeneratedColumn<String> get currency =>
       $composableBuilder(column: $table.currency, builder: (column) => column);
+
+  GeneratedColumn<String> get dividendCurrency => $composableBuilder(
+    column: $table.dividendCurrency,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get country =>
       $composableBuilder(column: $table.country, builder: (column) => column);
@@ -20744,8 +21277,21 @@ class $$StockMastersTableAnnotationComposer
   GeneratedColumn<String> get exchange =>
       $composableBuilder(column: $table.exchange, builder: (column) => column);
 
+  GeneratedColumn<String> get broker =>
+      $composableBuilder(column: $table.broker, builder: (column) => column);
+
   GeneratedColumn<String> get sector =>
       $composableBuilder(column: $table.sector, builder: (column) => column);
+
+  GeneratedColumn<String> get dividendFrequency => $composableBuilder(
+    column: $table.dividendFrequency,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get dividendStartMonth => $composableBuilder(
+    column: $table.dividendStartMonth,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get companyData => $composableBuilder(
     column: $table.companyData,
@@ -20847,10 +21393,15 @@ class $$StockMastersTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> symbol = const Value.absent(),
                 Value<String> isin = const Value.absent(),
+                Value<String> wkn = const Value.absent(),
                 Value<String> currency = const Value.absent(),
+                Value<String> dividendCurrency = const Value.absent(),
                 Value<String> country = const Value.absent(),
                 Value<String> exchange = const Value.absent(),
+                Value<String> broker = const Value.absent(),
                 Value<String> sector = const Value.absent(),
+                Value<String> dividendFrequency = const Value.absent(),
+                Value<int> dividendStartMonth = const Value.absent(),
                 Value<String> companyData = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -20861,10 +21412,15 @@ class $$StockMastersTableTableManager
                 name: name,
                 symbol: symbol,
                 isin: isin,
+                wkn: wkn,
                 currency: currency,
+                dividendCurrency: dividendCurrency,
                 country: country,
                 exchange: exchange,
+                broker: broker,
                 sector: sector,
+                dividendFrequency: dividendFrequency,
+                dividendStartMonth: dividendStartMonth,
                 companyData: companyData,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -20877,10 +21433,15 @@ class $$StockMastersTableTableManager
                 required String name,
                 required String symbol,
                 Value<String> isin = const Value.absent(),
+                Value<String> wkn = const Value.absent(),
                 Value<String> currency = const Value.absent(),
+                Value<String> dividendCurrency = const Value.absent(),
                 Value<String> country = const Value.absent(),
                 Value<String> exchange = const Value.absent(),
+                Value<String> broker = const Value.absent(),
                 Value<String> sector = const Value.absent(),
+                Value<String> dividendFrequency = const Value.absent(),
+                Value<int> dividendStartMonth = const Value.absent(),
                 Value<String> companyData = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -20891,10 +21452,15 @@ class $$StockMastersTableTableManager
                 name: name,
                 symbol: symbol,
                 isin: isin,
+                wkn: wkn,
                 currency: currency,
+                dividendCurrency: dividendCurrency,
                 country: country,
                 exchange: exchange,
+                broker: broker,
                 sector: sector,
+                dividendFrequency: dividendFrequency,
+                dividendStartMonth: dividendStartMonth,
                 companyData: companyData,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -22346,7 +22912,10 @@ typedef $$PhysicalAssetsTableCreateCompanionBuilder =
       Value<String> accountId,
       required String name,
       Value<String> category,
+      Value<String> metalType,
       Value<double> quantity,
+      Value<double> weightGrams,
+      Value<DateTime?> purchaseDate,
       Value<double> purchasePrice,
       Value<double> currentValue,
       Value<String> notes,
@@ -22362,7 +22931,10 @@ typedef $$PhysicalAssetsTableUpdateCompanionBuilder =
       Value<String> accountId,
       Value<String> name,
       Value<String> category,
+      Value<String> metalType,
       Value<double> quantity,
+      Value<double> weightGrams,
+      Value<DateTime?> purchaseDate,
       Value<double> purchasePrice,
       Value<double> currentValue,
       Value<String> notes,
@@ -22427,8 +22999,23 @@ class $$PhysicalAssetsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get metalType => $composableBuilder(
+    column: $table.metalType,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<double> get quantity => $composableBuilder(
     column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get weightGrams => $composableBuilder(
+    column: $table.weightGrams,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get purchaseDate => $composableBuilder(
+    column: $table.purchaseDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -22515,8 +23102,23 @@ class $$PhysicalAssetsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get metalType => $composableBuilder(
+    column: $table.metalType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get quantity => $composableBuilder(
     column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get weightGrams => $composableBuilder(
+    column: $table.weightGrams,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get purchaseDate => $composableBuilder(
+    column: $table.purchaseDate,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -22595,8 +23197,21 @@ class $$PhysicalAssetsTableAnnotationComposer
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
 
+  GeneratedColumn<String> get metalType =>
+      $composableBuilder(column: $table.metalType, builder: (column) => column);
+
   GeneratedColumn<double> get quantity =>
       $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<double> get weightGrams => $composableBuilder(
+    column: $table.weightGrams,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get purchaseDate => $composableBuilder(
+    column: $table.purchaseDate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get purchasePrice => $composableBuilder(
     column: $table.purchasePrice,
@@ -22679,7 +23294,10 @@ class $$PhysicalAssetsTableTableManager
                 Value<String> accountId = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> category = const Value.absent(),
+                Value<String> metalType = const Value.absent(),
                 Value<double> quantity = const Value.absent(),
+                Value<double> weightGrams = const Value.absent(),
+                Value<DateTime?> purchaseDate = const Value.absent(),
                 Value<double> purchasePrice = const Value.absent(),
                 Value<double> currentValue = const Value.absent(),
                 Value<String> notes = const Value.absent(),
@@ -22693,7 +23311,10 @@ class $$PhysicalAssetsTableTableManager
                 accountId: accountId,
                 name: name,
                 category: category,
+                metalType: metalType,
                 quantity: quantity,
+                weightGrams: weightGrams,
+                purchaseDate: purchaseDate,
                 purchasePrice: purchasePrice,
                 currentValue: currentValue,
                 notes: notes,
@@ -22709,7 +23330,10 @@ class $$PhysicalAssetsTableTableManager
                 Value<String> accountId = const Value.absent(),
                 required String name,
                 Value<String> category = const Value.absent(),
+                Value<String> metalType = const Value.absent(),
                 Value<double> quantity = const Value.absent(),
+                Value<double> weightGrams = const Value.absent(),
+                Value<DateTime?> purchaseDate = const Value.absent(),
                 Value<double> purchasePrice = const Value.absent(),
                 Value<double> currentValue = const Value.absent(),
                 Value<String> notes = const Value.absent(),
@@ -22723,7 +23347,10 @@ class $$PhysicalAssetsTableTableManager
                 accountId: accountId,
                 name: name,
                 category: category,
+                metalType: metalType,
                 quantity: quantity,
+                weightGrams: weightGrams,
+                purchaseDate: purchaseDate,
                 purchasePrice: purchasePrice,
                 currentValue: currentValue,
                 notes: notes,
