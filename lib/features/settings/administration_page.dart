@@ -246,18 +246,29 @@ class _TaxAdmin extends ConsumerWidget {
               title: 'Steuerregeln',
               subtitle:
                   'Quellensteuern gelten global nach Herkunftsland. Ohne Eintrag gelten 0 %, für die USA standardmäßig 15 %.',
-              action: OutlinedButton.icon(
-                onPressed: configuration == null
-                    ? null
-                    : () => _editMaximumAllowance(
-                        context,
-                        ref,
-                        configuration.maximumTaxAllowance,
-                      ),
-                icon: const Icon(Icons.savings_outlined),
-                label: Text(
-                  'Freibetrag max. ${money(configuration?.maximumTaxAllowance ?? 1000)}',
-                ),
+              action: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => _addCountryTax(context, ref),
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Land hinzufügen'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: configuration == null
+                        ? null
+                        : () => _editMaximumAllowance(
+                            context,
+                            ref,
+                            configuration.maximumTaxAllowance,
+                          ),
+                    icon: const Icon(Icons.savings_outlined),
+                    label: Text(
+                      'Freibetrag max. ${money(configuration?.maximumTaxAllowance ?? 1000)}',
+                    ),
+                  ),
+                ],
               ),
             ),
             for (final country in countries)
@@ -364,6 +375,81 @@ Future<void> _editCountryTax(
     }
   }
   controller.dispose();
+}
+
+Future<void> _addCountryTax(BuildContext context, WidgetRef ref) async {
+  final country = TextEditingController();
+  final rate = TextEditingController(text: '0');
+  final key = GlobalKey<FormState>();
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Steuerland hinzufügen'),
+      content: Form(
+        key: key,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: country,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Land'),
+              validator: (value) => (value?.trim().isEmpty ?? true)
+                  ? 'Bitte ein Land eingeben.'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: rate,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Quellensteuer',
+                suffixText: '%',
+              ),
+              validator: (value) {
+                final parsed = double.tryParse(
+                  (value ?? '').replaceAll(',', '.'),
+                );
+                return parsed == null || parsed < 0 || parsed > 100
+                    ? 'Wert zwischen 0 und 100 eingeben.'
+                    : null;
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (key.currentState?.validate() ?? false) {
+              Navigator.pop(dialogContext, true);
+            }
+          },
+          child: const Text('Hinzufügen'),
+        ),
+      ],
+    ),
+  );
+  if (saved == true) {
+    final actor = ref.read(currentUserIdProvider);
+    if (actor != null) {
+      await ref
+          .read(databaseProvider)
+          .saveCountryTaxRate(
+            actorUserId: actor,
+            country: country.text.trim(),
+            rate: double.parse(rate.text.replaceAll(',', '.')),
+          );
+    }
+  }
+  country.dispose();
+  rate.dispose();
 }
 
 Future<void> _editMaximumAllowance(

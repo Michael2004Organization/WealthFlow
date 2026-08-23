@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/finance/dividend_math.dart';
+import '../../core/finance/portfolio_tax_summary.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 import 'investments_page.dart';
@@ -14,11 +15,18 @@ import 'investments_page.dart';
 final _dividendInvestmentFilterProvider = StateProvider<String?>((_) => null);
 const _allDividendInvestments = '__all__';
 
-class DividendsPage extends ConsumerWidget {
+class DividendsPage extends ConsumerStatefulWidget {
   const DividendsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DividendsPage> createState() => _DividendsPageState();
+}
+
+class _DividendsPageState extends ConsumerState<DividendsPage> {
+  int _selectedYear = DateTime.now().year;
+
+  @override
+  Widget build(BuildContext context) {
     final investments = ref.watch(investmentsProvider);
     return investments.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -32,6 +40,19 @@ class DividendsPage extends ConsumerWidget {
         final schedules =
             ref.watch(dividendSchedulesProvider).valueOrNull ??
             const <DividendSchedule>[];
+        final sales =
+            ref.watch(portfolioSalesProvider).valueOrNull ??
+            const <PortfolioSale>[];
+        final taxYear = calculatePortfolioTaxYear(
+          year: _selectedYear,
+          allowance: taxAllowance,
+          investments: items,
+          schedules: schedules,
+          sales: sales,
+          through: _selectedYear == DateTime.now().year
+              ? DateTime.now()
+              : DateTime(_selectedYear + 1),
+        );
         var dividendItems = items
             .where(
               (item) =>
@@ -44,6 +65,7 @@ class DividendsPage extends ConsumerWidget {
           dividendItems,
           schedules,
           taxAllowance,
+          _selectedYear,
         );
         dividendItems.sort(
           (a, b) => _netForInvestment(
@@ -69,7 +91,8 @@ class DividendsPage extends ConsumerWidget {
           0,
           (sum, payment) => sum + payment.tax.net,
         );
-        final now = DateTime.now();
+        final current = DateTime.now();
+        final now = DateTime(_selectedYear, current.month, current.day);
         final quarterStart = ((now.month - 1) ~/ 3) * 3 + 1;
         final quarterly = projection
             .where(
@@ -98,6 +121,41 @@ class DividendsPage extends ConsumerWidget {
                       runSpacing: 10,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
+                        Card(
+                          margin: EdgeInsets.zero,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: 'Vorheriges Jahr',
+                                onPressed: () =>
+                                    setState(() => _selectedYear--),
+                                icon: const Icon(Icons.chevron_left_rounded),
+                              ),
+                              Text(
+                                '$_selectedYear',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Nächstes Jahr',
+                                onPressed: _selectedYear >= current.year
+                                    ? null
+                                    : () => setState(() => _selectedYear++),
+                                icon: const Icon(Icons.chevron_right_rounded),
+                              ),
+                              if (_selectedYear != current.year)
+                                IconButton(
+                                  tooltip: 'Aktuelles Jahr',
+                                  onPressed: () => setState(
+                                    () => _selectedYear = current.year,
+                                  ),
+                                  icon: const Icon(Icons.today_rounded),
+                                ),
+                            ],
+                          ),
+                        ),
                         if (dividendItems.isNotEmpty)
                           SizedBox(
                             width: 290,
@@ -202,6 +260,25 @@ class DividendsPage extends ConsumerWidget {
                         ],
                       );
                     },
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: [
+                      Chip(
+                        avatar: const Icon(Icons.savings_outlined, size: 18),
+                        label: Text(
+                          'Freistellung: ${money(taxYear.allowanceUsed)} genutzt · '
+                          '${money(taxYear.allowanceRemaining)} frei',
+                        ),
+                      ),
+                      if (taxYear.taxPaid > 0)
+                        Chip(
+                          avatar: const Icon(Icons.receipt_outlined, size: 18),
+                          label: Text('Steuern: ${money(taxYear.taxPaid)}'),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   if (dividendItems.isEmpty)
@@ -311,6 +388,7 @@ class DividendsPage extends ConsumerWidget {
                       projection: projection,
                       baseCurrency: baseCurrency,
                       selectedInvestmentId: selectedId,
+                      year: _selectedYear,
                       onSelected: (value) =>
                           ref
                                   .read(
@@ -491,21 +569,25 @@ final class _ProjectedDividend {
     required this.month,
     required this.tax,
     required this.withholdingTaxRate,
+    required this.date,
+    required this.paymentDateKnown,
   });
 
   final Investment investment;
   final int month;
   final DividendTaxResult tax;
   final double withholdingTaxRate;
+  final DateTime date;
+  final bool paymentDateKnown;
 }
 
 List<_ProjectedDividend> _buildDividendProjection(
   List<Investment> investments,
   List<DividendSchedule> schedules,
   double allowance,
+  int year,
 ) {
   var remainingAllowance = allowance.clamp(0, double.infinity).toDouble();
-  final currentYear = DateTime.now().year;
   final events =
       <
         ({
@@ -522,7 +604,10 @@ List<_ProjectedDividend> _buildDividendProjection(
       final exact = schedules
           .where(
             (row) =>
-                row.investmentId == investment.id && row.paymentMonth == month,
+                row.investmentId == investment.id &&
+                row.paymentMonth == month &&
+                (row.paymentYear == year ||
+                    (row.paymentYear == 0 && year == DateTime.now().year)),
           )
           .toList();
       if (exact.isNotEmpty) {
@@ -533,11 +618,7 @@ List<_ProjectedDividend> _buildDividendProjection(
             amount: row.amountPerShare,
             exchangeRate: row.exchangeRate,
             withholdingTaxRate: row.withholdingTaxRate,
-            date: DateTime(
-              currentYear,
-              month,
-              (row.paymentDate ?? row.exDate)?.day ?? 1,
-            ),
+            date: row.paymentDate ?? row.exDate ?? DateTime(year, month, 1),
           ));
         }
       } else if (dividendPaymentMonths(
@@ -550,7 +631,7 @@ List<_ProjectedDividend> _buildDividendProjection(
           amount: investment.annualDividend,
           exchangeRate: investment.dividendExchangeRate,
           withholdingTaxRate: investment.dividendWithholdingTaxRate,
-          date: DateTime(currentYear, month),
+          date: DateTime(year, month),
         ));
       }
     }
@@ -577,6 +658,15 @@ List<_ProjectedDividend> _buildDividendProjection(
         month: event.month,
         tax: tax,
         withholdingTaxRate: event.withholdingTaxRate,
+        date: event.date,
+        paymentDateKnown: schedules.any(
+          (row) =>
+              row.investmentId == event.investment.id &&
+              row.paymentMonth == event.month &&
+              row.paymentDate != null &&
+              (row.paymentYear == year ||
+                  (row.paymentYear == 0 && year == DateTime.now().year)),
+        ),
       ),
     );
   }
@@ -602,6 +692,7 @@ class _DividendCalendar extends ConsumerWidget {
     required this.projection,
     required this.baseCurrency,
     required this.selectedInvestmentId,
+    required this.year,
     required this.onSelected,
   });
 
@@ -610,6 +701,7 @@ class _DividendCalendar extends ConsumerWidget {
   final List<_ProjectedDividend> projection;
   final String baseCurrency;
   final String? selectedInvestmentId;
+  final int year;
   final ValueChanged<String?> onSelected;
 
   @override
@@ -623,7 +715,12 @@ class _DividendCalendar extends ConsumerWidget {
         ? null
         : investments.firstWhere((item) => item.id == selectedId);
     final exact = schedules
-        .where((row) => row.investmentId == selectedId)
+        .where(
+          (row) =>
+              row.investmentId == selectedId &&
+              (row.paymentYear == year ||
+                  (row.paymentYear == 0 && year == DateTime.now().year)),
+        )
         .toList();
     return Card(
       child: Padding(
@@ -675,6 +772,7 @@ class _DividendCalendar extends ConsumerWidget {
                           investment: selected,
                           schedules: exact,
                           baseCurrency: baseCurrency,
+                          year: year,
                         ),
                   icon: const Icon(Icons.edit_calendar_rounded),
                   label: const Text('Schnellerfassung'),
@@ -682,7 +780,7 @@ class _DividendCalendar extends ConsumerWidget {
                 OutlinedButton.icon(
                   onPressed: selected == null
                       ? null
-                      : () => _showHistoryLoader(context, selected),
+                      : () => _showHistoryLoader(context, ref, selected),
                   icon: const Icon(Icons.history_rounded),
                   label: const Text('Historie nachladen'),
                 ),
@@ -796,10 +894,11 @@ class _DividendCalendar extends ConsumerWidget {
 
 Future<void> _showHistoryLoader(
   BuildContext context,
+  WidgetRef ref,
   Investment investment,
 ) async {
   var year = DateTime.now().year - 1;
-  await showDialog<void>(
+  final load = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => StatefulBuilder(
       builder: (context, setDialogState) => AlertDialog(
@@ -826,20 +925,71 @@ Future<void> _showHistoryLoader(
               ),
               const SizedBox(height: 16),
               const Text(
-                'Der Cache und die jahresweise Abruflogik sind vorbereitet. Der Download wird freigeschaltet, sobald die endgültige Marktdaten-Webseite angebunden ist; bis dahin entsteht kein API-Request.',
+                'Bereits zentral abgerufene API-Daten dieses Jahres werden in die Dividendenhistorie übernommen.',
               ),
             ],
           ),
         ),
         actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Verstanden'),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Schließen'),
+          ),
+          FilledButton.icon(
+            onPressed: investment.stockId == null
+                ? null
+                : () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.cloud_download_outlined),
+            label: const Text('API-Daten übernehmen'),
           ),
         ],
       ),
     ),
   );
+  if (load != true || investment.stockId == null) return;
+  final rows = await ref
+      .read(databaseProvider)
+      .stockDividendsForYear(investment.stockId!, year);
+  if (rows.isEmpty) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Für $year sind noch keine API-Daten im Cache.'),
+        ),
+      );
+    }
+    return;
+  }
+  final userId = ref.read(currentUserIdProvider);
+  if (userId == null) return;
+  final database = ref.read(databaseProvider);
+  final now = DateTime.now().toUtc();
+  for (final row in rows) {
+    await database.saveDividendSchedule(
+      DividendSchedulesCompanion.insert(
+        id: '${investment.id}-api-${row.id}',
+        userId: userId,
+        investmentId: investment.id,
+        paymentMonth: (row.paymentDate ?? row.exDate).month,
+        amountPerShare: row.amount,
+        exDate: Value(row.exDate),
+        paymentDate: Value(row.paymentDate),
+        paymentYear: Value(year),
+        currency: Value(row.currency),
+        exchangeRate: Value(investment.dividendExchangeRate),
+        withholdingTaxRate: Value(investment.dividendWithholdingTaxRate),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${rows.length} API-Zahlungen für $year übernommen.'),
+      ),
+    );
+  }
 }
 
 Future<void> _showQuickEntry(
@@ -848,6 +998,7 @@ Future<void> _showQuickEntry(
   required Investment investment,
   required List<DividendSchedule> schedules,
   required String baseCurrency,
+  required int year,
 }) => showDialog<void>(
   context: context,
   builder: (_) => Dialog(
@@ -858,6 +1009,7 @@ Future<void> _showQuickEntry(
         investment: investment,
         schedules: schedules,
         baseCurrency: baseCurrency,
+        year: year,
       ),
     ),
   ),
@@ -868,11 +1020,13 @@ class _DividendQuickEntry extends ConsumerStatefulWidget {
     required this.investment,
     required this.schedules,
     required this.baseCurrency,
+    required this.year,
   });
 
   final Investment investment;
   final List<DividendSchedule> schedules;
   final String baseCurrency;
+  final int year;
 
   @override
   ConsumerState<_DividendQuickEntry> createState() =>
@@ -1006,6 +1160,23 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
                   suffixText: '%',
                   helperText: 'Aus Länder-Stammdaten',
                 ),
+              ),
+            ),
+            PopupMenuButton<int>(
+              tooltip: 'Einen Monat auf alle übernehmen',
+              onSelected: _copyMonthToAll,
+              itemBuilder: (_) => [
+                for (final month in _editableMonths)
+                  PopupMenuItem(
+                    value: month,
+                    child: Text(
+                      '${_monthNames[month - 1]} auf alle übernehmen',
+                    ),
+                  ),
+              ],
+              child: const Chip(
+                avatar: Icon(Icons.copy_all_rounded, size: 18),
+                label: Text('Monat übernehmen'),
               ),
             ),
           ],
@@ -1174,10 +1345,7 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
           amountPerShare: amount,
           exDate: Value(_exDates[month - 1]),
           paymentDate: Value(_paymentDates[month - 1]),
-          paymentYear: Value(
-            (_paymentDates[month - 1] ?? _exDates[month - 1])?.year ??
-                DateTime.now().year,
-          ),
+          paymentYear: Value(widget.year),
           currency: Value(_currency.text.trim().toUpperCase()),
           exchangeRate: Value(rate),
           withholdingTaxRate: Value(tax.clamp(0, 100)),
@@ -1192,6 +1360,24 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
         const SnackBar(content: Text('Dividendenwerte wurden gespeichert.')),
       );
     }
+  }
+
+  void _copyMonthToAll(int sourceMonth) {
+    final sourceIndex = sourceMonth - 1;
+    setState(() {
+      for (final month in _editableMonths) {
+        if (month == sourceMonth) continue;
+        _amounts[month - 1].text = _amounts[sourceIndex].text;
+        final ex = _exDates[sourceIndex];
+        final payment = _paymentDates[sourceIndex];
+        _exDates[month - 1] = ex == null
+            ? null
+            : DateTime(widget.year, month, ex.day);
+        _paymentDates[month - 1] = payment == null
+            ? null
+            : DateTime(widget.year, month, payment.day);
+      }
+    });
   }
 }
 
@@ -1354,8 +1540,20 @@ class _DividendMonthCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          'Netto nach Steuern · Details öffnen',
-                          style: Theme.of(context).textTheme.bodySmall,
+                          !payment.paymentDateKnown
+                              ? '● Zahltag offen'
+                              : payment.date.isAfter(DateTime.now())
+                              ? '◷ Zukünftig'
+                              : '✓ Eingegangen',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: !payment.paymentDateKnown
+                                    ? Colors.orange
+                                    : payment.date.isAfter(DateTime.now())
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.green,
+                                fontWeight: FontWeight.w700,
+                              ),
                         ),
                       ],
                     ),
@@ -1373,61 +1571,91 @@ Future<void> _showDividendPayments(
   required String title,
   required List<_ProjectedDividend> payments,
   required String baseCurrency,
-}) => showDialog<void>(
-  context: context,
-  builder: (dialogContext) => AlertDialog(
-    title: Text(title),
-    content: SizedBox(
-      width: (MediaQuery.sizeOf(context).width - 64).clamp(280, 620),
-      child: payments.isEmpty
-          ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: 28),
-              child: Text(
-                'In diesem Zeitraum sind keine Dividenden eingegangen.',
-                textAlign: TextAlign.center,
+}) {
+  var newestFirst = true;
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setState) {
+        final sorted = [...payments]
+          ..sort(
+            (a, b) => newestFirst
+                ? b.date.compareTo(a.date)
+                : a.date.compareTo(b.date),
+          );
+        return AlertDialog(
+          title: Row(
+            children: [
+              Expanded(child: Text(title)),
+              TextButton.icon(
+                onPressed: () => setState(() => newestFirst = !newestFirst),
+                icon: Icon(
+                  newestFirst
+                      ? Icons.arrow_downward_rounded
+                      : Icons.arrow_upward_rounded,
+                ),
+                label: Text(newestFirst ? 'Neueste' : 'Älteste'),
               ),
-            )
-          : ListView.separated(
-              shrinkWrap: true,
-              itemCount: payments.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final payment = payments[index];
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
+            ],
+          ),
+          content: SizedBox(
+            width: (MediaQuery.sizeOf(context).width - 64).clamp(280, 620),
+            child: sorted.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 28),
                     child: Text(
-                      payment.investment.symbol.isEmpty
-                          ? payment.investment.name.substring(0, 1)
-                          : payment.investment.symbol.substring(0, 1),
+                      'In diesem Zeitraum sind keine Dividenden vorhanden.',
+                      textAlign: TextAlign.center,
                     ),
+                  )
+                : ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: sorted.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final payment = sorted[index];
+                      final status = !payment.paymentDateKnown
+                          ? 'Zahltag offen'
+                          : payment.date.isAfter(DateTime.now())
+                          ? 'Zukünftig'
+                          : 'Eingegangen';
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          child: Text(
+                            payment.investment.symbol.isEmpty
+                                ? payment.investment.name.substring(0, 1)
+                                : payment.investment.symbol.substring(0, 1),
+                          ),
+                        ),
+                        title: Text(payment.investment.name),
+                        subtitle: Text(
+                          '${DateFormat('dd.MM.yyyy').format(payment.date)} · $status',
+                        ),
+                        trailing: Text(
+                          money(payment.tax.net, currency: baseCurrency),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        onTap: () => _showDividendPaymentDetail(
+                          context,
+                          payment: payment,
+                          baseCurrency: baseCurrency,
+                        ),
+                      );
+                    },
                   ),
-                  title: Text(payment.investment.name),
-                  subtitle: Text(
-                    '${_monthNames[payment.month - 1]} · '
-                    '${payment.investment.quantity.toStringAsFixed(2)} Stück',
-                  ),
-                  trailing: Text(
-                    money(payment.tax.net, currency: baseCurrency),
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  onTap: () => _showDividendPaymentDetail(
-                    context,
-                    payment: payment,
-                    baseCurrency: baseCurrency,
-                  ),
-                );
-              },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Schließen'),
             ),
+          ],
+        );
+      },
     ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(dialogContext),
-        child: const Text('Schließen'),
-      ),
-    ],
-  ),
-);
+  );
+}
 
 Future<void> _showDividendPaymentDetail(
   BuildContext context, {

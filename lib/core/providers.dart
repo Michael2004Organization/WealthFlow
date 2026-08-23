@@ -58,6 +58,22 @@ final investmentPurchasesProvider = StreamProvider<List<InvestmentPurchase>>((
       : ref.watch(databaseProvider).watchInvestmentPurchases(userId);
 });
 
+final portfolioSalesProvider = StreamProvider<List<PortfolioSale>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <PortfolioSale>[])
+      : ref.watch(databaseProvider).watchPortfolioSales(userId);
+});
+
+final portfolioAuditLogsProvider = StreamProvider<List<PortfolioAuditLog>>((
+  ref,
+) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <PortfolioAuditLog>[])
+      : ref.watch(databaseProvider).watchPortfolioAuditLogs(userId);
+});
+
 final physicalAssetsProvider = StreamProvider<List<PhysicalAsset>>((ref) {
   final userId = ref.watch(currentUserIdProvider);
   return userId == null

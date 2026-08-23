@@ -457,4 +457,80 @@ void main() {
       );
     },
   );
+
+  test('investment sale reduces stock and credits net proceeds', () async {
+    final now = DateTime(2026, 8, 20);
+    await database.createUser(
+      UsersCompanion.insert(
+        id: 'investor',
+        email: 'investor@example.test',
+        displayName: 'Investor',
+        passwordHash: 'hash',
+        passwordSalt: 'salt',
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await database.savePreferences(
+      UserPreferencesCompanion.insert(userId: 'investor', updatedAt: now),
+    );
+    await database.saveAccount(
+      AccountsCompanion.insert(
+        id: 'depot-cash',
+        userId: 'investor',
+        bankName: 'Broker',
+        label: 'Depot',
+        balance: const Value(100),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await database.saveInvestment(
+      InvestmentsCompanion.insert(
+        id: 'share',
+        userId: 'investor',
+        accountId: const Value('depot-cash'),
+        name: 'Test AG',
+        assetType: 'Aktie',
+        purchaseDate: now,
+        purchasePrice: 100,
+        quantity: 10,
+        fees: const Value(10),
+        currentPrice: 120,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await database.saveInvestmentPurchase(
+      InvestmentPurchasesCompanion.insert(
+        id: 'lot',
+        userId: 'investor',
+        investmentId: 'share',
+        purchaseDate: now,
+        purchasePrice: 100,
+        quantity: 10,
+        fees: const Value(10),
+        createdAt: now,
+      ),
+    );
+
+    await database.sellInvestment(
+      userId: 'investor',
+      investmentId: 'share',
+      quantity: 5,
+      pricePerUnit: 120,
+      fees: 5,
+      soldAt: DateTime(2026, 8, 21),
+    );
+
+    final holding = (await database.watchInvestments('investor').first).single;
+    final account = (await database.watchAccounts('investor').first).single;
+    final sale = (await database.watchPortfolioSales('investor').first).single;
+    expect(holding.quantity, 5);
+    expect(account.balance, 695);
+    expect(sale.proceeds, 595);
+    expect(sale.realizedGain, 90);
+    expect(sale.allowanceUsed, 90);
+    expect(sale.taxPaid, 0);
+  });
 }

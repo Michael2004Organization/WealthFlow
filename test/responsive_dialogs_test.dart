@@ -135,6 +135,18 @@ void main() {
         physicalAssetsProvider.overrideWith(
           (_) => Stream.value(const <PhysicalAsset>[]),
         ),
+        investmentPurchasesProvider.overrideWith(
+          (_) => Stream.value(const <InvestmentPurchase>[]),
+        ),
+        portfolioSalesProvider.overrideWith(
+          (_) => Stream.value(const <PortfolioSale>[]),
+        ),
+        portfolioAuditLogsProvider.overrideWith(
+          (_) => Stream.value(const <PortfolioAuditLog>[]),
+        ),
+        dividendSchedulesProvider.overrideWith(
+          (_) => Stream.value(const <DividendSchedule>[]),
+        ),
         preferencesProvider.overrideWith((_) => Stream.value(null)),
       ],
     );

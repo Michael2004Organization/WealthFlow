@@ -266,7 +266,10 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
         validIds.contains(preference.selectedHouseholdAccountId)) {
       return preference.selectedHouseholdAccountId;
     }
-    return null;
+    return accounts
+        .where((account) => account.usageType == 'household')
+        .firstOrNull
+        ?.id;
   }
 
   Future<void> _selectAccount(String? accountId) async {

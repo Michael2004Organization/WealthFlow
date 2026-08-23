@@ -28,6 +28,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
     final investments =
         ref.watch(investmentsProvider).valueOrNull ?? const <Investment>[];
+    final physicalAssets =
+        ref.watch(physicalAssetsProvider).valueOrNull ??
+        const <PhysicalAsset>[];
+    final vehicles =
+        ref.watch(vehiclesProvider).valueOrNull ?? const <Vehicle>[];
     final schedules =
         ref.watch(dividendSchedulesProvider).valueOrNull ??
         const <DividendSchedule>[];
@@ -41,14 +46,25 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       0,
       (sum, item) => sum + item.balance,
     );
-    final portfolio = investments.fold<double>(
+    final portfolio =
+        investments.fold<double>(
+          0,
+          (sum, item) => sum + item.quantity * item.currentPrice,
+        ) +
+        physicalAssets.fold<double>(
+          0,
+          (sum, item) => sum + item.weightGrams * item.currentPricePerGram,
+        );
+    final vehicleValue = vehicles.fold<double>(
       0,
-      (sum, item) => sum + item.quantity * item.currentPrice,
+      (sum, item) => sum + item.currentValue,
     );
-    final invested = investments.fold<double>(
-      0,
-      (sum, item) => sum + item.quantity * item.purchasePrice + item.fees,
-    );
+    final invested =
+        investments.fold<double>(
+          0,
+          (sum, item) => sum + item.quantity * item.purchasePrice + item.fees,
+        ) +
+        physicalAssets.fold<double>(0, (sum, item) => sum + item.purchasePrice);
     final thisMonth = entries.where((entry) {
       final period = budgetMonthOf(entry.bookingDate, entry.budgetMonth);
       return period.year == _selectedMonth.year &&
@@ -148,6 +164,15 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                       icon: Icons.account_balance_wallet_rounded,
                       color: colors.primary,
                       onTap: () => openFinance(ref, 0),
+                    ),
+                    MetricCard(
+                      title: 'Vermögen inkl. Fahrzeuge',
+                      value: money(accountBalance + portfolio + vehicleValue),
+                      caption: '${money(vehicleValue)} aktueller Fahrzeugwert',
+                      icon: Icons.directions_car_filled_rounded,
+                      color: Colors.indigo,
+                      onTap: () =>
+                          ref.read(shellIndexProvider.notifier).state = 5,
                     ),
                     MetricCard(
                       title: 'Depotwert',

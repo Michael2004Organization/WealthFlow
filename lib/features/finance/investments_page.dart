@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/finance/portfolio_tax_summary.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -33,6 +34,18 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
         ref.watch(physicalAssetsProvider).valueOrNull ??
         const <PhysicalAsset>[];
     final preference = ref.watch(preferencesProvider).valueOrNull;
+    final purchases =
+        ref.watch(investmentPurchasesProvider).valueOrNull ??
+        const <InvestmentPurchase>[];
+    final sales =
+        ref.watch(portfolioSalesProvider).valueOrNull ??
+        const <PortfolioSale>[];
+    final auditLogs =
+        ref.watch(portfolioAuditLogsProvider).valueOrNull ??
+        const <PortfolioAuditLog>[];
+    final schedules =
+        ref.watch(dividendSchedulesProvider).valueOrNull ??
+        const <DividendSchedule>[];
     final eligibleAccounts = accounts.where((account) {
       if (account.usageType == 'portfolio') return true;
       if (account.usageType != 'unassigned') return false;
@@ -80,6 +93,26 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                             ),
                       icon: const Icon(Icons.diamond_outlined),
                       label: const Text('Wertgegenstand'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => _showPortfolioActivity(
+                        context,
+                        sales: sales,
+                        auditLogs: auditLogs,
+                      ),
+                      icon: const Icon(Icons.receipt_long_outlined),
+                      label: const Text('Verkäufe & Protokoll'),
+                    ),
+                    IconButton.outlined(
+                      tooltip: 'Standardgebühr für neue Käufe',
+                      onPressed: preference == null
+                          ? null
+                          : () => _editDefaultInvestmentFee(
+                              context,
+                              ref,
+                              preference,
+                            ),
+                      icon: const Icon(Icons.tune_rounded),
                     ),
                   ],
                 ),
@@ -238,7 +271,8 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                     );
                     final physicalValue = accountAssets.fold<double>(
                       0,
-                      (sum, item) => sum + item.currentValue,
+                      (sum, item) =>
+                          sum + item.weightGrams * item.currentPricePerGram,
                     );
                     final cash =
                         accounts
@@ -247,7 +281,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                             ?.balance ??
                         0;
                     final portfolio = securitiesValue + physicalValue + cash;
-                    final cost =
+                    final activeCost =
                         portfolioItems.fold<double>(
                           0,
                           (sum, item) => sum + _cost(item),
@@ -256,17 +290,46 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                           0,
                           (sum, item) => sum + item.purchasePrice,
                         );
+                    final accountSales = sales
+                        .where((sale) => sale.accountId == selectedAccountId)
+                        .toList();
+                    final realizedGain = accountSales.fold<double>(
+                      0,
+                      (sum, sale) => sum + sale.realizedGain - sale.taxPaid,
+                    );
+                    final soldCost = accountSales.fold<double>(
+                      0,
+                      (sum, sale) => sum + sale.costBasis,
+                    );
+                    final unrealizedGain =
+                        securitiesValue + physicalValue - activeCost;
+                    final taxSummary = calculatePortfolioTaxYear(
+                      year: DateTime.now().year,
+                      allowance: preference?.taxAllowance ?? 1000,
+                      investments: allItems,
+                      schedules: schedules,
+                      sales: sales,
+                      through: DateTime.now(),
+                    );
                     return ListView(
                       children: [
                         _PortfolioSummary(
                           value: portfolio,
-                          cost: cost,
+                          investedValue: securitiesValue + physicalValue,
+                          gain: unrealizedGain + realizedGain,
+                          performanceBase: activeCost + soldCost,
                           positions:
                               portfolioItems.length + accountAssets.length,
                           cash: cash,
                         ),
                         const SizedBox(height: 12),
-                        _TaxAllowanceTile(preference: preference),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: _TaxAllowanceTile(
+                            preference: preference,
+                            summary: taxSummary,
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'Wertpapiere',
@@ -275,7 +338,12 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                         ),
                         const SizedBox(height: 10),
                         for (final item in items) ...[
-                          _InvestmentTile(item: item),
+                          _InvestmentTile(
+                            item: item,
+                            purchaseCount: purchases
+                                .where((row) => row.investmentId == item.id)
+                                .length,
+                          ),
                           const SizedBox(height: 10),
                         ],
                         const SizedBox(height: 18),
@@ -360,18 +428,21 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
 class _PortfolioSummary extends StatelessWidget {
   const _PortfolioSummary({
     required this.value,
-    required this.cost,
+    required this.investedValue,
+    required this.gain,
+    required this.performanceBase,
     required this.positions,
     required this.cash,
   });
   final double value;
-  final double cost;
+  final double investedValue;
+  final double gain;
+  final double performanceBase;
   final int positions;
   final double cash;
 
   @override
   Widget build(BuildContext context) {
-    final gain = value - cost;
     final positive = gain >= 0;
     return Card(
       color: Theme.of(context).colorScheme.primaryContainer,
@@ -382,8 +453,8 @@ class _PortfolioSummary extends StatelessWidget {
           runSpacing: 14,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            _SummaryValue(label: 'Depotwert', value: money(value)),
-            _SummaryValue(label: 'Investiert', value: money(cost)),
+            _SummaryValue(label: 'Portfolio gesamt', value: money(value)),
+            _SummaryValue(label: 'Wertanlagen', value: money(investedValue)),
             _SummaryValue(
               label: 'Gesamtgewinn',
               value: '${positive ? '+' : ''}${money(gain)}',
@@ -393,9 +464,9 @@ class _PortfolioSummary extends StatelessWidget {
             ),
             _SummaryValue(
               label: 'Performance',
-              value: cost == 0
+              value: performanceBase == 0
                   ? '–'
-                  : '${positive ? '+' : ''}${(gain / cost * 100).toStringAsFixed(2)} %',
+                  : '${positive ? '+' : ''}${(gain / performanceBase * 100).toStringAsFixed(2)} %',
               color: positive
                   ? Colors.green
                   : Theme.of(context).colorScheme.error,
@@ -421,7 +492,7 @@ class _SummaryValue extends StatelessWidget {
       Text(label, style: Theme.of(context).textTheme.labelMedium),
       Text(
         value,
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
           fontWeight: FontWeight.w800,
           color: color,
         ),
@@ -431,27 +502,79 @@ class _SummaryValue extends StatelessWidget {
 }
 
 class _TaxAllowanceTile extends ConsumerWidget {
-  const _TaxAllowanceTile({required this.preference});
+  const _TaxAllowanceTile({required this.preference, required this.summary});
 
   final UserPreference? preference;
+  final PortfolioTaxSummary summary;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final maximum =
         ref.watch(appConfigurationProvider).valueOrNull?.maximumTaxAllowance ??
         1000;
-    final allowance = preference?.taxAllowance ?? maximum.clamp(0, 1000);
-    return ListTile(
-      tileColor: Theme.of(context).colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      leading: const Icon(Icons.savings_outlined),
-      title: const Text('Freistellungsauftrag'),
-      subtitle: Text('Jährlich verfügbar · maximal ${money(maximum)}'),
-      trailing: TextButton(
-        onPressed: preference == null
-            ? null
-            : () => _editTaxAllowance(context, ref, preference!, maximum),
-        child: Text(money(allowance)),
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('Freistellungsauftrag ${DateTime.now().year}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Verwendet: ${money(summary.allowanceUsed)}'),
+              Text('Verfügbar: ${money(summary.allowanceRemaining)}'),
+              const SizedBox(height: 10),
+              LinearProgressIndicator(
+                value: summary.allowance <= 0
+                    ? 1
+                    : (summary.allowanceUsed / summary.allowance).clamp(0, 1),
+              ),
+              if (summary.taxPaid > 0) ...[
+                const SizedBox(height: 14),
+                Text(
+                  'Bereits gezahlte Steuern: ${money(summary.taxPaid)}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Schließen'),
+            ),
+          ],
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.savings_outlined, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Freistellung ${money(summary.allowanceRemaining)} frei',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.info_outline_rounded, size: 16),
+            if (preference != null)
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Betrag bearbeiten',
+                onPressed: () =>
+                    _editTaxAllowance(context, ref, preference!, maximum),
+                icon: const Icon(Icons.edit_outlined, size: 17),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -523,67 +646,132 @@ Future<void> _editTaxAllowance(
   controller.dispose();
 }
 
+Future<void> _editDefaultInvestmentFee(
+  BuildContext context,
+  WidgetRef ref,
+  UserPreference preference,
+) async {
+  final controller = TextEditingController(
+    text: preference.defaultInvestmentFee.toStringAsFixed(2),
+  );
+  final key = GlobalKey<FormState>();
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Standardgebühr'),
+      content: Form(
+        key: key,
+        child: TextFormField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Gebühr für neue Aktienkäufe',
+            suffixText: '€',
+            helperText: 'Beim einzelnen Kauf weiterhin frei änderbar.',
+          ),
+          validator: _positiveNumberValidator,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (key.currentState?.validate() ?? false) {
+              Navigator.pop(dialogContext, true);
+            }
+          },
+          child: const Text('Speichern'),
+        ),
+      ],
+    ),
+  );
+  if (saved == true) {
+    await ref
+        .read(databaseProvider)
+        .savePreferences(
+          preference
+              .toCompanion(false)
+              .copyWith(
+                defaultInvestmentFee: Value(_parseNumber(controller.text)!),
+                updatedAt: Value(DateTime.now().toUtc()),
+              ),
+        );
+  }
+  controller.dispose();
+}
+
 class _PhysicalAssetTile extends ConsumerWidget {
   const _PhysicalAssetTile({required this.asset});
 
   final PhysicalAsset asset;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Card(
-    child: ListTile(
-      leading: const CircleAvatar(child: Icon(Icons.diamond_outlined)),
-      title: Text(asset.name),
-      subtitle: Text(
-        [
-          asset.category,
-          if (asset.metalType.isNotEmpty) asset.metalType,
-          '${asset.quantity.toStringAsFixed(2)} Einheiten',
-          if (asset.weightGrams > 0)
-            '${asset.weightGrams.toStringAsFixed(2)} g',
-          if (asset.purchaseDate != null)
-            'Kauf ${DateFormat('dd.MM.yyyy').format(asset.purchaseDate!)}',
-          money(asset.purchasePrice),
-        ].join(' · '),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            money(asset.currentValue),
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == 'edit') {
-                await _showPhysicalAssetEditor(
-                  context,
-                  ref,
-                  accountId: asset.accountId,
-                  asset: asset,
-                );
-              } else if (value == 'delete' &&
-                  await confirmDelete(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentValue = asset.weightGrams * asset.currentPricePerGram;
+    return Card(
+      child: ListTile(
+        leading: const CircleAvatar(child: Icon(Icons.diamond_outlined)),
+        title: Text(asset.name),
+        subtitle: Text(
+          [
+            asset.category,
+            if (asset.metalType.isNotEmpty) asset.metalType,
+            '${asset.quantity.toStringAsFixed(2)} Einheiten',
+            if (asset.weightGrams > 0)
+              '${asset.weightGrams.toStringAsFixed(2)} g',
+            '${money(asset.currentPricePerGram)}/g',
+            if (asset.purchaseDate != null)
+              'Kauf ${DateFormat('dd.MM.yyyy').format(asset.purchaseDate!)}',
+            money(asset.purchasePrice),
+          ].join(' · '),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              money(currentValue),
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            PopupMenuButton<String>(
+              onSelected: (value) async {
+                if (value == 'edit') {
+                  await _showPhysicalAssetEditor(
                     context,
-                    title: 'Wertgegenstand löschen?',
-                    message: '${asset.name} wird aus dem Portfolio entfernt.',
-                  )) {
-                final userId = ref.read(currentUserIdProvider);
-                if (userId != null) {
-                  await ref
-                      .read(databaseProvider)
-                      .deletePhysicalAsset(asset.id, userId);
+                    ref,
+                    accountId: asset.accountId,
+                    asset: asset,
+                  );
+                } else if (value == 'sell') {
+                  await _showPhysicalSaleDialog(context, ref, asset);
+                } else if (value == 'delete' &&
+                    await confirmDelete(
+                      context,
+                      title: 'Wertgegenstand löschen?',
+                      message: '${asset.name} wird aus dem Portfolio entfernt.',
+                    )) {
+                  final userId = ref.read(currentUserIdProvider);
+                  if (userId != null) {
+                    await ref
+                        .read(databaseProvider)
+                        .deletePhysicalAsset(asset.id, userId);
+                  }
                 }
-              }
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-              PopupMenuItem(value: 'delete', child: Text('Löschen')),
-            ],
-          ),
-        ],
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+                PopupMenuItem(value: 'sell', child: Text('Verkaufen')),
+                PopupMenuItem(value: 'delete', child: Text('Löschen')),
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 Future<void> _showPhysicalAssetEditor(
@@ -602,8 +790,8 @@ Future<void> _showPhysicalAssetEditor(
   final purchasePrice = TextEditingController(
     text: asset?.purchasePrice.toString() ?? '0',
   );
-  final currentValue = TextEditingController(
-    text: asset?.currentValue.toString() ?? '0',
+  final currentPricePerGram = TextEditingController(
+    text: asset?.currentPricePerGram.toString() ?? '0',
   );
   final notes = TextEditingController(text: asset?.notes);
   var category = asset?.category ?? 'Edelmetall';
@@ -678,7 +866,7 @@ Future<void> _showPhysicalAssetEditor(
                     (quantity, 'Menge', ''),
                     (weightGrams, 'Gewicht', 'g'),
                     (purchasePrice, 'Kaufpreis gesamt', '€'),
-                    (currentValue, 'Aktueller Wert gesamt', '€'),
+                    (currentPricePerGram, 'Aktueller Kurs pro Gramm', '€/g'),
                   ]) ...[
                     TextFormField(
                       controller: field.$1,
@@ -770,7 +958,10 @@ Future<void> _showPhysicalAssetEditor(
               weightGrams: Value(number(weightGrams)),
               purchaseDate: Value(purchaseDate),
               purchasePrice: Value(number(purchasePrice)),
-              currentValue: Value(number(currentValue)),
+              currentValue: Value(
+                number(weightGrams) * number(currentPricePerGram),
+              ),
+              currentPricePerGram: Value(number(currentPricePerGram)),
               notes: Value(notes.text.trim()),
               createdAt: asset?.createdAt ?? now,
               updatedAt: now,
@@ -783,7 +974,7 @@ Future<void> _showPhysicalAssetEditor(
     quantity,
     weightGrams,
     purchasePrice,
-    currentValue,
+    currentPricePerGram,
     notes,
   ]) {
     controller.dispose();
@@ -791,8 +982,9 @@ Future<void> _showPhysicalAssetEditor(
 }
 
 class _InvestmentTile extends ConsumerWidget {
-  const _InvestmentTile({required this.item});
+  const _InvestmentTile({required this.item, required this.purchaseCount});
   final Investment item;
+  final int purchaseCount;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -867,6 +1059,8 @@ class _InvestmentTile extends ConsumerWidget {
                   );
                 } else if (value == 'edit') {
                   await showInvestmentEditor(context, ref, investment: item);
+                } else if (value == 'sell') {
+                  await _showInvestmentSaleDialog(context, ref, item);
                 } else if (value == 'delete' &&
                     await confirmDelete(
                       context,
@@ -882,13 +1076,22 @@ class _InvestmentTile extends ConsumerWidget {
                   }
                 }
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(
+              itemBuilder: (_) => [
+                const PopupMenuItem(
                   value: 'history',
                   child: Text('Details & Kaufhistorie'),
                 ),
-                PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-                PopupMenuItem(value: 'delete', child: Text('Löschen')),
+                PopupMenuItem(
+                  value: 'edit',
+                  enabled: purchaseCount <= 1,
+                  child: Text(
+                    purchaseCount <= 1
+                        ? 'Bearbeiten'
+                        : 'Gesamtposition nicht bearbeitbar',
+                  ),
+                ),
+                const PopupMenuItem(value: 'sell', child: Text('Verkaufen')),
+                const PopupMenuItem(value: 'delete', child: Text('Löschen')),
               ],
             ),
           ],
@@ -914,11 +1117,15 @@ Future<void> _showInvestmentDetails(
         children: [
           Expanded(child: Text(investment.name)),
           IconButton(
-            tooltip: 'Position bearbeiten',
-            onPressed: () {
-              Navigator.pop(context);
-              showInvestmentEditor(context, ref, investment: investment);
-            },
+            tooltip: sorted.length > 1
+                ? 'Bei mehreren Käufen bitte einzelne Käufe bearbeiten'
+                : 'Position bearbeiten',
+            onPressed: sorted.length > 1
+                ? null
+                : () {
+                    Navigator.pop(context);
+                    showInvestmentEditor(context, ref, investment: investment);
+                  },
             icon: const Icon(Icons.edit_outlined),
           ),
         ],
@@ -938,6 +1145,10 @@ Future<void> _showInvestmentDetails(
                   label: Text(
                     investment.quantity.toStringAsFixed(2) + ' Stück',
                   ),
+                ),
+                Chip(
+                  avatar: const Icon(Icons.calculate_outlined, size: 18),
+                  label: Text('Ø Kaufkurs ${money(investment.purchasePrice)}'),
                 ),
                 Chip(
                   avatar: const Icon(Icons.show_chart_rounded, size: 18),
@@ -985,12 +1196,59 @@ Future<void> _showInvestmentDetails(
                                     ? ''
                                     : ' · Gebühren ' + money(purchase.fees)),
                           ),
-                          trailing: Text(
-                            money(
-                              purchase.quantity * purchase.purchasePrice +
-                                  purchase.fees,
-                            ),
-                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                money(
+                                  purchase.quantity * purchase.purchasePrice +
+                                      purchase.fees,
+                                ),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              PopupMenuButton<String>(
+                                onSelected: (value) async {
+                                  if (value == 'edit') {
+                                    await _showPurchaseEditor(
+                                      context,
+                                      ref,
+                                      purchase,
+                                    );
+                                  } else if (value == 'delete' &&
+                                      await confirmDelete(
+                                        context,
+                                        title: 'Diesen Kauf löschen?',
+                                        message:
+                                            'Nur dieser Eintrag wird aus der Kaufhistorie entfernt.',
+                                      )) {
+                                    final userId = ref.read(
+                                      currentUserIdProvider,
+                                    );
+                                    if (userId != null) {
+                                      await ref
+                                          .read(databaseProvider)
+                                          .deleteInvestmentPurchase(
+                                            purchase.id,
+                                            userId,
+                                          );
+                                    }
+                                    if (context.mounted) Navigator.pop(context);
+                                  }
+                                },
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                    value: 'edit',
+                                    child: Text('Kauf bearbeiten'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Text('Kauf löschen'),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         );
                       },
@@ -1017,6 +1275,21 @@ Future<void> showInvestmentEditor(
 }) async {
   final resolvedAccountId = investment?.accountId ?? accountId ?? '';
   if (resolvedAccountId.isEmpty) return;
+  final investmentPurchases =
+      (ref.read(investmentPurchasesProvider).valueOrNull ??
+              const <InvestmentPurchase>[])
+          .where((row) => row.investmentId == investment?.id)
+          .toList();
+  if (investment != null && investmentPurchases.length > 1) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Diese Position hat mehrere Käufe. Bitte bearbeite den gewünschten Kauf in der Kaufhistorie.',
+        ),
+      ),
+    );
+    return;
+  }
   final masterData =
       ref.read(masterDataProvider).valueOrNull ?? const <MasterDataData>[];
   final existingItems =
@@ -1027,6 +1300,8 @@ Future<void> showInvestmentEditor(
       ref.read(stockMastersProvider).valueOrNull ?? const <StockMaster>[];
   final countryTaxRates =
       ref.read(countryTaxRatesProvider).valueOrNull ?? const <CountryTaxRate>[];
+  final defaultFee =
+      ref.read(preferencesProvider).valueOrNull?.defaultInvestmentFee ?? 0;
   final result = await showDialog<InvestmentsCompanion>(
     context: context,
     builder: (_) => _InvestmentEditor(
@@ -1036,6 +1311,7 @@ Future<void> showInvestmentEditor(
       stockMasters: stockMasters,
       countryTaxRates: countryTaxRates,
       accountId: resolvedAccountId,
+      defaultFee: defaultFee,
     ),
   );
   if (result != null) {
@@ -1057,6 +1333,16 @@ Future<void> showInvestmentEditor(
       final targetId = duplicate?.id ?? result.id.value;
       if (duplicate == null) {
         await database.saveInvestment(result);
+        if (investment != null && investmentPurchases.length == 1) {
+          await database.updateInvestmentPurchase(
+            userId: userId,
+            purchaseId: investmentPurchases.single.id,
+            purchaseDate: result.purchaseDate.value,
+            purchasePrice: result.purchasePrice.value,
+            quantity: result.quantity.value,
+            fees: result.fees.value,
+          );
+        }
       } else {
         final addedQuantity = result.quantity.value;
         final totalQuantity =
@@ -1140,6 +1426,7 @@ class _InvestmentEditor extends StatefulWidget {
     required this.stockMasters,
     required this.countryTaxRates,
     required this.accountId,
+    required this.defaultFee,
     this.investment,
   });
   final Investment? investment;
@@ -1148,6 +1435,7 @@ class _InvestmentEditor extends StatefulWidget {
   final List<StockMaster> stockMasters;
   final List<CountryTaxRate> countryTaxRates;
   final String accountId;
+  final double defaultFee;
   @override
   State<_InvestmentEditor> createState() => _InvestmentEditorState();
 }
@@ -1168,7 +1456,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     text: widget.investment?.quantity.toString(),
   );
   late final _fees = TextEditingController(
-    text: widget.investment?.fees.toString() ?? '0',
+    text: widget.investment?.fees.toString() ?? widget.defaultFee.toString(),
   );
   late final _currentPrice = TextEditingController(
     text: widget.investment?.currentPrice.toString(),
@@ -1473,10 +1761,24 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     decoration: InputDecoration(
       labelText: label,
       suffixText: suffixText,
-      filled: readOnly,
+      prefixIcon: Icon(
+        readOnly ? Icons.lock_outline_rounded : Icons.edit_outlined,
+        size: 18,
+      ),
+      filled: true,
       fillColor: readOnly
           ? Theme.of(context).colorScheme.surfaceContainerHighest
-          : null,
+          : Theme.of(context).colorScheme.surfaceContainerLowest,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: readOnly
+              ? Theme.of(context).dividerColor.withValues(alpha: .35)
+              : Theme.of(context).colorScheme.primary.withValues(alpha: .55),
+          width: readOnly ? 1 : 1.4,
+        ),
+      ),
     ),
     validator: (value) {
       if (required && (value?.trim().isEmpty ?? true)) return 'Pflichtfeld';
@@ -1494,6 +1796,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
   );
 
   Widget _readOnlyValue(String label, String value) => TextFormField(
+    key: ValueKey('$label:$value'),
     initialValue: value,
     readOnly: true,
     enableInteractiveSelection: false,
@@ -1504,8 +1807,10 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     ),
     decoration: InputDecoration(
       labelText: label,
+      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18),
       filled: true,
       fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
     ),
   );
 
@@ -1695,6 +2000,462 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
             ?.withholdingTaxRate ??
         fallback;
   }
+}
+
+Future<void> _showInvestmentSaleDialog(
+  BuildContext context,
+  WidgetRef ref,
+  Investment investment,
+) async {
+  final quantity = TextEditingController(text: investment.quantity.toString());
+  final price = TextEditingController(text: investment.currentPrice.toString());
+  final fee = TextEditingController(
+    text: (ref.read(preferencesProvider).valueOrNull?.defaultInvestmentFee ?? 0)
+        .toString(),
+  );
+  final key = GlobalKey<FormState>();
+  var date = DateTime.now();
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: Text('${investment.name} verkaufen'),
+        content: SizedBox(
+          width: 460,
+          child: Form(
+            key: key,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: quantity,
+                  decoration: InputDecoration(
+                    labelText: 'Stückzahl',
+                    helperText:
+                        'Verfügbar: ${investment.quantity.toStringAsFixed(4)} Stück',
+                    suffixIcon: TextButton(
+                      onPressed: () =>
+                          quantity.text = investment.quantity.toString(),
+                      child: const Text('Alles'),
+                    ),
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (value) {
+                    final parsed = _parseNumber(value);
+                    if (parsed == null || parsed <= 0) return 'Ungültige Menge';
+                    if (parsed > investment.quantity)
+                      return 'Mehr als verfügbar';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: price,
+                  decoration: const InputDecoration(
+                    labelText: 'Verkaufskurs je Stück',
+                    suffixText: '€',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: _positiveNumberValidator,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: fee,
+                  decoration: const InputDecoration(
+                    labelText: 'Gebühren',
+                    suffixText: '€',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: _positiveNumberValidator,
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final selected = await showDatePicker(
+                      context: context,
+                      firstDate: investment.purchaseDate,
+                      lastDate: DateTime.now(),
+                      initialDate: date,
+                    );
+                    if (selected != null) setState(() => date = selected);
+                  },
+                  icon: const Icon(Icons.calendar_month_rounded),
+                  label: Text(DateFormat('dd.MM.yyyy').format(date)),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (key.currentState?.validate() ?? false) {
+                Navigator.pop(dialogContext, true);
+              }
+            },
+            child: const Text('Verkauf buchen'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (saved == true) {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId != null) {
+      await ref
+          .read(databaseProvider)
+          .sellInvestment(
+            userId: userId,
+            investmentId: investment.id,
+            quantity: _parseNumber(quantity.text)!,
+            pricePerUnit: _parseNumber(price.text)!,
+            fees: _parseNumber(fee.text)!,
+            soldAt: date,
+          );
+    }
+  }
+  quantity.dispose();
+  price.dispose();
+  fee.dispose();
+}
+
+Future<void> _showPhysicalSaleDialog(
+  BuildContext context,
+  WidgetRef ref,
+  PhysicalAsset asset,
+) async {
+  final grams = TextEditingController(text: asset.weightGrams.toString());
+  final price = TextEditingController(
+    text: asset.currentPricePerGram.toString(),
+  );
+  final fee = TextEditingController(text: '0');
+  final key = GlobalKey<FormState>();
+  var date = DateTime.now();
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: Text('${asset.name} verkaufen'),
+        content: SizedBox(
+          width: 460,
+          child: Form(
+            key: key,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: grams,
+                  decoration: InputDecoration(
+                    labelText: 'Gewicht',
+                    suffixText: 'g',
+                    helperText:
+                        'Verfügbar: ${asset.weightGrams.toStringAsFixed(2)} g',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (value) {
+                    final parsed = _parseNumber(value);
+                    if (parsed == null || parsed <= 0)
+                      return 'Ungültiges Gewicht';
+                    if (parsed > asset.weightGrams) return 'Mehr als verfügbar';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: price,
+                  decoration: const InputDecoration(
+                    labelText: 'Verkaufskurs pro Gramm',
+                    suffixText: '€/g',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: _positiveNumberValidator,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: fee,
+                  decoration: const InputDecoration(
+                    labelText: 'Gebühren',
+                    suffixText: '€',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: _positiveNumberValidator,
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final selected = await showDatePicker(
+                      context: context,
+                      firstDate: asset.purchaseDate ?? DateTime(1900),
+                      lastDate: DateTime.now(),
+                      initialDate: date,
+                    );
+                    if (selected != null) setState(() => date = selected);
+                  },
+                  icon: const Icon(Icons.calendar_month_rounded),
+                  label: Text(DateFormat('dd.MM.yyyy').format(date)),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (key.currentState?.validate() ?? false) {
+                Navigator.pop(dialogContext, true);
+              }
+            },
+            child: const Text('Verkauf buchen'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (saved == true) {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId != null) {
+      await ref
+          .read(databaseProvider)
+          .sellPhysicalAsset(
+            userId: userId,
+            assetId: asset.id,
+            grams: _parseNumber(grams.text)!,
+            pricePerGram: _parseNumber(price.text)!,
+            fees: _parseNumber(fee.text)!,
+            soldAt: date,
+          );
+    }
+  }
+  grams.dispose();
+  price.dispose();
+  fee.dispose();
+}
+
+Future<void> _showPurchaseEditor(
+  BuildContext context,
+  WidgetRef ref,
+  InvestmentPurchase purchase,
+) async {
+  final quantity = TextEditingController(text: purchase.quantity.toString());
+  final price = TextEditingController(text: purchase.purchasePrice.toString());
+  final fee = TextEditingController(text: purchase.fees.toString());
+  final key = GlobalKey<FormState>();
+  var date = purchase.purchaseDate;
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: const Text('Kauf bearbeiten'),
+        content: Form(
+          key: key,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: quantity,
+                decoration: const InputDecoration(labelText: 'Stückzahl'),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: (value) => (_parseNumber(value) ?? 0) <= 0
+                    ? 'Muss größer als 0 sein'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: price,
+                decoration: const InputDecoration(
+                  labelText: 'Kaufkurs',
+                  suffixText: '€',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: _positiveNumberValidator,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: fee,
+                decoration: const InputDecoration(
+                  labelText: 'Gebühren',
+                  suffixText: '€',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: _positiveNumberValidator,
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final selected = await showDatePicker(
+                    context: context,
+                    firstDate: DateTime(1950),
+                    lastDate: DateTime.now(),
+                    initialDate: date,
+                  );
+                  if (selected != null) setState(() => date = selected);
+                },
+                icon: const Icon(Icons.calendar_month_rounded),
+                label: Text(DateFormat('dd.MM.yyyy').format(date)),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (key.currentState?.validate() ?? false)
+                Navigator.pop(dialogContext, true);
+            },
+            child: const Text('Speichern'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (saved == true) {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId != null) {
+      await ref
+          .read(databaseProvider)
+          .updateInvestmentPurchase(
+            userId: userId,
+            purchaseId: purchase.id,
+            purchaseDate: date,
+            purchasePrice: _parseNumber(price.text)!,
+            quantity: _parseNumber(quantity.text)!,
+            fees: _parseNumber(fee.text)!,
+          );
+    }
+    if (context.mounted) Navigator.pop(context);
+  }
+  quantity.dispose();
+  price.dispose();
+  fee.dispose();
+}
+
+Future<void> _showPortfolioActivity(
+  BuildContext context, {
+  required List<PortfolioSale> sales,
+  required List<PortfolioAuditLog> auditLogs,
+}) => showDialog<void>(
+  context: context,
+  builder: (dialogContext) => DefaultTabController(
+    length: 2,
+    child: AlertDialog(
+      insetPadding: const EdgeInsets.all(16),
+      title: const Text('Portfolio-Aktivitäten'),
+      content: SizedBox(
+        width: (MediaQuery.sizeOf(context).width - 64).clamp(300, 760),
+        height: (MediaQuery.sizeOf(context).height - 220).clamp(320, 620),
+        child: Column(
+          children: [
+            const TabBar(
+              tabs: [
+                Tab(text: 'Verkäufe'),
+                Tab(text: 'Gelöscht'),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  sales.isEmpty
+                      ? const Center(child: Text('Noch keine Verkäufe.'))
+                      : ListView.separated(
+                          itemCount: sales.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (_, index) {
+                            final sale = sales[index];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                child: Icon(
+                                  sale.assetKind == 'physical'
+                                      ? Icons.diamond_outlined
+                                      : Icons.trending_down_rounded,
+                                ),
+                              ),
+                              title: Text(sale.assetName),
+                              subtitle: Text(
+                                '${DateFormat('dd.MM.yyyy').format(sale.soldAt)} · '
+                                '${sale.quantity.toStringAsFixed(2)} ${sale.unit} · '
+                                'Gewinn ${money(sale.realizedGain)}'
+                                '${sale.taxPaid > 0 ? ' · Steuer ${money(sale.taxPaid)}' : ''}',
+                              ),
+                              trailing: Text(
+                                money(sale.proceeds),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                  auditLogs.isEmpty
+                      ? const Center(child: Text('Noch keine Löschvorgänge.'))
+                      : ListView.separated(
+                          itemCount: auditLogs.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (_, index) {
+                            final log = auditLogs[index];
+                            return ListTile(
+                              leading: const CircleAvatar(
+                                child: Icon(Icons.delete_outline_rounded),
+                              ),
+                              title: Text(log.displayName),
+                              subtitle: Text(
+                                '${DateFormat('dd.MM.yyyy · HH:mm').format(log.occurredAt.toLocal())}'
+                                '${log.details.isEmpty ? '' : ' · ${log.details}'}',
+                              ),
+                            );
+                          },
+                        ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Schließen'),
+        ),
+      ],
+    ),
+  ),
+);
+
+double? _parseNumber(String? value) =>
+    double.tryParse((value ?? '').replaceAll(',', '.'));
+
+String? _positiveNumberValidator(String? value) {
+  final parsed = _parseNumber(value);
+  return parsed == null || parsed < 0 ? 'Ungültiger Wert' : null;
 }
 
 const _investmentMonthNames = [
