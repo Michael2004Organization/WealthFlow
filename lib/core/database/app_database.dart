@@ -404,6 +404,8 @@ class UserPreferences extends Table {
   RealColumn get taxAllowance => real().withDefault(const Constant(1000))();
   RealColumn get defaultInvestmentFee =>
       real().withDefault(const Constant(0))();
+  BoolColumn get includePhysicalAssetsInTaxAllowance =>
+      boolean().withDefault(const Constant(false))();
   TextColumn get dataFilePath => text().withDefault(const Constant(''))();
   RealColumn get freedomAge => real().withDefault(const Constant(35))();
   RealColumn get freedomStartCapital =>
@@ -493,7 +495,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -651,6 +653,12 @@ final class AppDatabase extends _$AppDatabase {
         await customStatement(
           'UPDATE physical_assets SET current_price_per_gram = '
           'CASE WHEN weight_grams > 0 THEN current_value / weight_grams ELSE 0 END',
+        );
+      }
+      if (from < 13) {
+        await migrator.addColumn(
+          userPreferences,
+          userPreferences.includePhysicalAssetsInTaxAllowance,
         );
       }
     },
@@ -926,8 +934,19 @@ final class AppDatabase extends _$AppDatabase {
     stockPrices,
   )..where((row) => row.stockId.equals(stockId))).getSingleOrNull();
 
-  Future<void> saveStockPrice(StockPricesCompanion value) =>
-      into(stockPrices).insertOnConflictUpdate(value);
+  Future<void> saveStockPrice(StockPricesCompanion value) async {
+    await transaction(() async {
+      await into(stockPrices).insertOnConflictUpdate(value);
+      await (update(
+        investments,
+      )..where((row) => row.stockId.equals(value.stockId.value))).write(
+        InvestmentsCompanion(
+          currentPrice: Value(value.price.value),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+    });
+  }
 
   Future<DateTime?> lastMarketRefresh(String type, String scope) async =>
       (await (select(marketDataRefreshes)..where(
@@ -1217,6 +1236,34 @@ final class AppDatabase extends _$AppDatabase {
             ..where((row) => row.userId.equals(userId) & row.deletedAt.isNull())
             ..orderBy([(row) => OrderingTerm.asc(row.name)]))
           .watch();
+
+  Stream<List<Investment>> watchAllInvestments(String userId) =>
+      (select(investments)
+            ..where((row) => row.userId.equals(userId))
+            ..orderBy([(row) => OrderingTerm.asc(row.name)]))
+          .watch();
+
+  Stream<List<Investment>> watchDeletedInvestments(String userId) =>
+      (select(investments)
+            ..where(
+              (row) =>
+                  row.userId.equals(userId) &
+                  row.deletedAt.isNotNull() &
+                  row.quantity.isBiggerThanValue(0),
+            )
+            ..orderBy([(row) => OrderingTerm.desc(row.deletedAt)]))
+          .watch();
+
+  Future<List<Investment>> deletedInvestmentsFor(String userId) =>
+      (select(investments)
+            ..where(
+              (row) =>
+                  row.userId.equals(userId) &
+                  row.deletedAt.isNotNull() &
+                  row.quantity.isBiggerThanValue(0),
+            )
+            ..orderBy([(row) => OrderingTerm.desc(row.deletedAt)]))
+          .get();
 
   Stream<List<InvestmentPurchase>> watchInvestmentPurchases(String userId) =>
       (select(investmentPurchases)
@@ -1552,10 +1599,65 @@ final class AppDatabase extends _$AppDatabase {
     if (asset == null || grams > asset.weightGrams) {
       throw StateError('Die Verkaufsmenge übersteigt den Bestand.');
     }
-    final proceeds = ((grams * pricePerGram - fees) * 100).round() / 100;
+    final proceedsBeforeTax = (grams * pricePerGram - fees).clamp(
+      0,
+      double.infinity,
+    );
     final costBasis = asset.weightGrams == 0
         ? 0.0
         : asset.purchasePrice * grams / asset.weightGrams;
+    final realizedGain = proceedsBeforeTax - costBasis;
+    final preference = await preferencesFor(userId);
+    var allowanceUsed = 0.0;
+    var taxPaid = 0.0;
+    if (preference.includePhysicalAssetsInTaxAllowance && realizedGain > 0) {
+      final yearStart = DateTime(soldAt.year);
+      final yearEnd = DateTime(soldAt.year + 1);
+      final priorSales =
+          await (select(portfolioSales)..where(
+                (row) =>
+                    row.userId.equals(userId) &
+                    row.soldAt.isBiggerOrEqualValue(yearStart) &
+                    row.soldAt.isSmallerThanValue(yearEnd),
+              ))
+              .get();
+      final paidDividends =
+          await (select(dividendSchedules)..where(
+                (row) =>
+                    row.userId.equals(userId) &
+                    row.paymentDate.isNotNull() &
+                    row.paymentDate.isBiggerOrEqualValue(yearStart) &
+                    row.paymentDate.isSmallerOrEqualValue(soldAt) &
+                    row.deletedAt.isNull(),
+              ))
+              .get();
+      final holdings = await (select(
+        investments,
+      )..where((row) => row.userId.equals(userId))).get();
+      final quantityByInvestment = {
+        for (final holding in holdings) holding.id: holding.quantity,
+      };
+      final dividendAllowanceUsed = paidDividends.fold<double>(
+        0,
+        (sum, row) =>
+            sum +
+            row.amountPerShare *
+                (quantityByInvestment[row.investmentId] ?? 0) *
+                row.exchangeRate,
+      );
+      final alreadyUsed =
+          priorSales.fold<double>(0, (sum, row) => sum + row.allowanceUsed) +
+          dividendAllowanceUsed;
+      final available = (preference.taxAllowance - alreadyUsed).clamp(
+        0,
+        double.infinity,
+      );
+      allowanceUsed = realizedGain.clamp(0, available).toDouble();
+      final taxable = (realizedGain - allowanceUsed).clamp(0, double.infinity);
+      final capitalTax = taxable * .25;
+      taxPaid = ((capitalTax + capitalTax * .055) * 100).round() / 100;
+    }
+    final proceeds = ((proceedsBeforeTax - taxPaid) * 100).round() / 100;
     final remainingGrams =
         ((asset.weightGrams - grams) * 1000000).round() / 1000000;
     await transaction(() async {
@@ -1573,7 +1675,9 @@ final class AppDatabase extends _$AppDatabase {
           fees: Value(fees),
           proceeds: proceeds,
           costBasis: Value(costBasis),
-          realizedGain: Value(proceeds - costBasis),
+          realizedGain: Value(realizedGain),
+          allowanceUsed: Value(allowanceUsed),
+          taxPaid: Value(taxPaid),
           soldAt: soldAt,
           createdAt: DateTime.now().toUtc(),
         ),
@@ -1677,6 +1781,49 @@ final class AppDatabase extends _$AppDatabase {
     await captureNetWorth(userId);
   }
 
+  Future<void> restoreInvestment(String id, String userId) async {
+    final investment =
+        await (select(investments)
+              ..where((row) => row.id.equals(id) & row.userId.equals(userId)))
+            .getSingleOrNull();
+    if (investment == null) return;
+    await (update(
+      investments,
+    )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+      InvestmentsCompanion(
+        deletedAt: const Value(null),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    await _writePortfolioAudit(
+      userId: userId,
+      action: 'restored',
+      entityType: 'investment',
+      entityId: id,
+      entityName: investment.name,
+    );
+    await captureNetWorth(userId);
+  }
+
+  Future<void> updateInvestmentCurrentPrice({
+    required String id,
+    required String userId,
+    required double currentPrice,
+  }) async {
+    if (currentPrice < 0) {
+      throw ArgumentError('Der Kurs darf nicht negativ sein.');
+    }
+    await (update(
+      investments,
+    )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+      InvestmentsCompanion(
+        currentPrice: Value(currentPrice),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    await captureNetWorth(userId);
+  }
+
   Stream<List<PhysicalAsset>> watchPhysicalAssets(String userId) =>
       (select(physicalAssets)
             ..where((row) => row.userId.equals(userId) & row.deletedAt.isNull())
@@ -1685,6 +1832,28 @@ final class AppDatabase extends _$AppDatabase {
               (row) => OrderingTerm.asc(row.name),
             ]))
           .watch();
+
+  Stream<List<PhysicalAsset>> watchDeletedPhysicalAssets(String userId) =>
+      (select(physicalAssets)
+            ..where(
+              (row) =>
+                  row.userId.equals(userId) &
+                  row.deletedAt.isNotNull() &
+                  row.weightGrams.isBiggerThanValue(0),
+            )
+            ..orderBy([(row) => OrderingTerm.desc(row.deletedAt)]))
+          .watch();
+
+  Future<List<PhysicalAsset>> deletedPhysicalAssetsFor(String userId) =>
+      (select(physicalAssets)
+            ..where(
+              (row) =>
+                  row.userId.equals(userId) &
+                  row.deletedAt.isNotNull() &
+                  row.weightGrams.isBiggerThanValue(0),
+            )
+            ..orderBy([(row) => OrderingTerm.desc(row.deletedAt)]))
+          .get();
 
   Future<void> savePhysicalAsset(PhysicalAssetsCompanion value) async {
     final accountId = value.accountId.value;
@@ -1730,6 +1899,30 @@ final class AppDatabase extends _$AppDatabase {
         deletedAt: Value(DateTime.now().toUtc()),
         updatedAt: Value(DateTime.now().toUtc()),
       ),
+    );
+    await captureNetWorth(userId);
+  }
+
+  Future<void> restorePhysicalAsset(String id, String userId) async {
+    final asset =
+        await (select(physicalAssets)
+              ..where((row) => row.id.equals(id) & row.userId.equals(userId)))
+            .getSingleOrNull();
+    if (asset == null) return;
+    await (update(
+      physicalAssets,
+    )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+      PhysicalAssetsCompanion(
+        deletedAt: const Value(null),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    await _writePortfolioAudit(
+      userId: userId,
+      action: 'restored',
+      entityType: 'physical',
+      entityId: id,
+      entityName: asset.name,
     );
     await captureNetWorth(userId);
   }
@@ -1862,6 +2055,37 @@ final class AppDatabase extends _$AppDatabase {
           ledgerEntries,
         )..where((row) => row.id.equals(value.id.value))).getSingle();
         await _applyLedgerToAccount(saved);
+        final linkedCostId = 'ledger:${saved.id}';
+        if (saved.vehicleId.isNotEmpty &&
+            !saved.isIncome &&
+            saved.sourceType != 'vehicle') {
+          await into(vehicleCosts).insertOnConflictUpdate(
+            VehicleCostsCompanion.insert(
+              id: linkedCostId,
+              userId: saved.userId,
+              vehicleId: saved.vehicleId,
+              bookingDate: saved.bookingDate,
+              category: saved.category,
+              amount: saved.amount,
+              notes: Value(
+                saved.description.isNotEmpty
+                    ? saved.description
+                    : saved.merchant,
+              ),
+              createdAt: old?.createdAt ?? saved.createdAt,
+              updatedAt: DateTime.now().toUtc(),
+            ),
+          );
+        } else {
+          await (update(
+            vehicleCosts,
+          )..where((row) => row.id.equals(linkedCostId))).write(
+            VehicleCostsCompanion(
+              deletedAt: Value(DateTime.now().toUtc()),
+              updatedAt: Value(DateTime.now().toUtc()),
+            ),
+          );
+        }
       }
     });
     for (final userId in entriesToSave.map((e) => e.userId.value).toSet()) {
@@ -1915,6 +2139,14 @@ final class AppDatabase extends _$AppDatabase {
         ledgerEntries,
       )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
         LedgerEntriesCompanion(
+          deletedAt: Value(DateTime.now().toUtc()),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+      await (update(
+        vehicleCosts,
+      )..where((row) => row.id.equals('ledger:${entry.id}'))).write(
+        VehicleCostsCompanion(
           deletedAt: Value(DateTime.now().toUtc()),
           updatedAt: Value(DateTime.now().toUtc()),
         ),

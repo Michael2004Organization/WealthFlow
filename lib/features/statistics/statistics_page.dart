@@ -73,7 +73,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                       ),
                       SizedBox(
                         width: width,
-                        height: 380,
+                        height: 430,
                         child: _CashflowChart(entries: entries),
                       ),
                       SizedBox(
@@ -289,10 +289,12 @@ class _ChartCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.child,
+    this.details,
   });
   final String title;
   final String description;
   final Widget child;
+  final Widget? details;
   @override
   Widget build(BuildContext context) => Card(
     child: Padding(
@@ -309,6 +311,14 @@ class _ChartCard extends StatelessWidget {
           Text(description, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 18),
           Expanded(child: child),
+          if (details != null)
+            ExpansionTile(
+              initiallyExpanded: false,
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: EdgeInsets.zero,
+              title: const Text('Angezeigte Werte'),
+              children: [details!],
+            ),
         ],
       ),
     ),
@@ -322,6 +332,23 @@ class _AccountsChart extends StatelessWidget {
   Widget build(BuildContext context) => _ChartCard(
     title: 'Kontostände',
     description: 'Verteilung des liquiden Vermögens nach Konto',
+    details: SizedBox(
+      height: 110,
+      child: ListView(
+        children: [
+          for (final account in accounts)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(account.label),
+              trailing: Text(
+                money(account.balance),
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+        ],
+      ),
+    ),
     child: accounts.isEmpty
         ? const Center(child: Text('Noch keine Kontodaten'))
         : PieChart(
@@ -363,6 +390,23 @@ class _PortfolioChart extends StatelessWidget {
     return _ChartCard(
       title: 'Depotentwicklung',
       description: 'Aktueller Wert der größten Positionen',
+      details: SizedBox(
+        height: 110,
+        child: ListView(
+          children: [
+            for (final item in visible.take(6))
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(item.name),
+                trailing: Text(
+                  money(item.quantity * item.currentPrice),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+          ],
+        ),
+      ),
       child: visible.isEmpty
           ? const Center(child: Text('Noch keine Portfoliodaten'))
           : _PositionBars(investments: visible.take(6).toList()),
@@ -453,6 +497,23 @@ class _CategoryChart extends StatelessWidget {
     return _ChartCard(
       title: 'Ausgabenkategorien',
       description: 'Anteil der Ausgaben nach Kategorie',
+      details: SizedBox(
+        height: 110,
+        child: ListView(
+          children: [
+            for (final item in sorted.take(7))
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(item.key),
+                trailing: Text(
+                  money(item.value),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+          ],
+        ),
+      ),
       child: sorted.isEmpty
           ? const Center(child: Text('Noch keine Ausgaben'))
           : PieChart(
@@ -479,17 +540,39 @@ class _CategoryChart extends StatelessWidget {
   }
 }
 
-class _CashflowChart extends StatelessWidget {
+class _CashflowChart extends StatefulWidget {
   const _CashflowChart({required this.entries});
   final List<LedgerEntry> entries;
+
+  @override
+  State<_CashflowChart> createState() => _CashflowChartState();
+}
+
+class _CashflowChartState extends State<_CashflowChart> {
+  int _months = 6;
+  DateTimeRange? _customRange;
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final income = List<double>.filled(6, 0);
-    final expense = List<double>.filled(6, 0);
-    for (var index = 0; index < 6; index++) {
-      final date = DateTime(now.year, now.month - 5 + index);
-      for (final entry in entries.where((e) {
+    final custom = _customRange;
+    final start = custom == null
+        ? DateTime(now.year, now.month - _months + 1)
+        : DateTime(custom.start.year, custom.start.month);
+    final end = custom == null
+        ? DateTime(now.year, now.month)
+        : DateTime(custom.end.year, custom.end.month);
+    final count = ((end.year - start.year) * 12 + end.month - start.month + 1)
+        .clamp(1, 60);
+    final periods = List.generate(
+      count,
+      (index) => DateTime(start.year, start.month + index),
+    );
+    final income = List<double>.filled(count, 0);
+    final expense = List<double>.filled(count, 0);
+    for (var index = 0; index < count; index++) {
+      final date = periods[index];
+      for (final entry in widget.entries.where((e) {
         final period = budgetMonthOf(e.bookingDate, e.budgetMonth);
         return period.year == date.year &&
             period.month == date.month &&
@@ -501,7 +584,9 @@ class _CashflowChart extends StatelessWidget {
     }
     return _ChartCard(
       title: 'Cashflow',
-      description: 'Einnahmen und Ausgaben der letzten sechs Monate',
+      description: custom == null
+          ? 'Einnahmen und Ausgaben der letzten $_months Monate'
+          : '${DateFormat('MM.yyyy').format(start)} bis ${DateFormat('MM.yyyy').format(end)}',
       child: Column(
         children: [
           Row(
@@ -509,13 +594,59 @@ class _CashflowChart extends StatelessWidget {
               _LegendDot(color: Colors.green, label: 'Einnahmen'),
               const SizedBox(width: 18),
               _LegendDot(color: Colors.redAccent, label: 'Ausgaben'),
+              const Spacer(),
+              SizedBox(
+                width: 116,
+                child: DropdownButtonFormField<int>(
+                  initialValue: custom == null ? _months : null,
+                  isDense: true,
+                  decoration: const InputDecoration(labelText: 'Monate'),
+                  items: const [6, 12, 24, 36]
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text('$value'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _months = value;
+                        _customRange = null;
+                      });
+                    }
+                  },
+                ),
+              ),
+              IconButton(
+                tooltip: 'Eigenen Zeitraum wählen',
+                onPressed: _pickCashflowRange,
+                icon: const Icon(Icons.date_range_rounded),
+              ),
             ],
           ),
           const SizedBox(height: 10),
           Expanded(
             child: BarChart(
               BarChartData(
-                barTouchData: BarTouchData(enabled: false),
+                barTouchData: BarTouchData(
+                  enabled: true,
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      final date = periods[group.x];
+                      final label = rodIndex == 0 ? 'Einnahmen' : 'Ausgaben';
+                      return BarTooltipItem(
+                        '${DateFormat('MMMM yyyy', 'de_DE').format(date)}\n'
+                        '$label: ${money(rod.toY)}',
+                        const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      );
+                    },
+                  ),
+                ),
                 borderData: FlBorderData(show: false),
                 gridData: FlGridData(
                   drawVerticalLine: false,
@@ -551,10 +682,11 @@ class _CashflowChart extends StatelessWidget {
                       showTitles: true,
                       reservedSize: 26,
                       getTitlesWidget: (value, meta) {
-                        final date = DateTime(
-                          now.year,
-                          now.month - 5 + value.toInt(),
-                        );
+                        final index = value.toInt();
+                        if (index < 0 || index >= periods.length) {
+                          return const SizedBox.shrink();
+                        }
+                        final date = periods[index];
                         return Padding(
                           padding: const EdgeInsets.only(top: 5),
                           child: Text(
@@ -569,20 +701,20 @@ class _CashflowChart extends StatelessWidget {
                   ),
                 ),
                 barGroups: [
-                  for (var i = 0; i < 6; i++)
+                  for (var i = 0; i < count; i++)
                     BarChartGroupData(
                       x: i,
                       barsSpace: 3,
                       barRods: [
                         BarChartRodData(
                           toY: income[i],
-                          width: 14,
+                          width: (70 / count).clamp(4, 14),
                           color: Colors.green,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         BarChartRodData(
                           toY: expense[i],
-                          width: 14,
+                          width: (70 / count).clamp(4, 14),
                           color: Colors.redAccent,
                           borderRadius: BorderRadius.circular(4),
                         ),
@@ -597,10 +729,12 @@ class _CashflowChart extends StatelessWidget {
             height: 92,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: 6,
+              reverse: false,
+              itemCount: count.clamp(0, 4),
               separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
-                final date = DateTime(now.year, now.month - 5 + index);
+                final sourceIndex = count - count.clamp(0, 4) + index;
+                final date = periods[sourceIndex];
                 return SizedBox(
                   width: 148,
                   child: Column(
@@ -611,22 +745,27 @@ class _CashflowChart extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       Text(
-                        'Einnahmen  ${money(income[index])}',
+                        'Einnahmen  ${money(income[sourceIndex])}',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: Colors.green,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
-                        'Ausgaben  ${money(expense[index])}',
+                        'Ausgaben  ${money(expense[sourceIndex])}',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: Colors.redAccent,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
-                        'Saldo  ${money(income[index] - expense[index])}',
-                        style: Theme.of(context).textTheme.labelSmall,
+                        'Saldo  ${money(income[sourceIndex] - expense[sourceIndex])}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: income[sourceIndex] - expense[sourceIndex] >= 0
+                              ? Colors.green
+                              : Colors.redAccent,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
@@ -637,6 +776,16 @@ class _CashflowChart extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _pickCashflowRange() async {
+    final selected = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      initialDateRange: _customRange,
+    );
+    if (selected != null) setState(() => _customRange = selected);
   }
 }
 

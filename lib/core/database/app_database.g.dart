@@ -8088,6 +8088,21 @@ class $UserPreferencesTable extends UserPreferences
         requiredDuringInsert: false,
         defaultValue: const Constant(0),
       );
+  static const VerificationMeta _includePhysicalAssetsInTaxAllowanceMeta =
+      const VerificationMeta('includePhysicalAssetsInTaxAllowance');
+  @override
+  late final GeneratedColumn<bool> includePhysicalAssetsInTaxAllowance =
+      GeneratedColumn<bool>(
+        'include_physical_assets_in_tax_allowance',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("include_physical_assets_in_tax_allowance" IN (0, 1))',
+        ),
+        defaultValue: const Constant(false),
+      );
   static const VerificationMeta _dataFilePathMeta = const VerificationMeta(
     'dataFilePath',
   );
@@ -8175,6 +8190,7 @@ class $UserPreferencesTable extends UserPreferences
     selectedPortfolioAccountId,
     taxAllowance,
     defaultInvestmentFee,
+    includePhysicalAssetsInTaxAllowance,
     dataFilePath,
     freedomAge,
     freedomStartCapital,
@@ -8289,6 +8305,15 @@ class $UserPreferencesTable extends UserPreferences
         ),
       );
     }
+    if (data.containsKey('include_physical_assets_in_tax_allowance')) {
+      context.handle(
+        _includePhysicalAssetsInTaxAllowanceMeta,
+        includePhysicalAssetsInTaxAllowance.isAcceptableOrUnknown(
+          data['include_physical_assets_in_tax_allowance']!,
+          _includePhysicalAssetsInTaxAllowanceMeta,
+        ),
+      );
+    }
     if (data.containsKey('data_file_path')) {
       context.handle(
         _dataFilePathMeta,
@@ -8400,6 +8425,10 @@ class $UserPreferencesTable extends UserPreferences
         DriftSqlType.double,
         data['${effectivePrefix}default_investment_fee'],
       )!,
+      includePhysicalAssetsInTaxAllowance: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}include_physical_assets_in_tax_allowance'],
+      )!,
       dataFilePath: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}data_file_path'],
@@ -8447,6 +8476,7 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
   final String selectedPortfolioAccountId;
   final double taxAllowance;
   final double defaultInvestmentFee;
+  final bool includePhysicalAssetsInTaxAllowance;
   final String dataFilePath;
   final double freedomAge;
   final double freedomStartCapital;
@@ -8467,6 +8497,7 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     required this.selectedPortfolioAccountId,
     required this.taxAllowance,
     required this.defaultInvestmentFee,
+    required this.includePhysicalAssetsInTaxAllowance,
     required this.dataFilePath,
     required this.freedomAge,
     required this.freedomStartCapital,
@@ -8494,6 +8525,9 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     );
     map['tax_allowance'] = Variable<double>(taxAllowance);
     map['default_investment_fee'] = Variable<double>(defaultInvestmentFee);
+    map['include_physical_assets_in_tax_allowance'] = Variable<bool>(
+      includePhysicalAssetsInTaxAllowance,
+    );
     map['data_file_path'] = Variable<String>(dataFilePath);
     map['freedom_age'] = Variable<double>(freedomAge);
     map['freedom_start_capital'] = Variable<double>(freedomStartCapital);
@@ -8520,6 +8554,9 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
       selectedPortfolioAccountId: Value(selectedPortfolioAccountId),
       taxAllowance: Value(taxAllowance),
       defaultInvestmentFee: Value(defaultInvestmentFee),
+      includePhysicalAssetsInTaxAllowance: Value(
+        includePhysicalAssetsInTaxAllowance,
+      ),
       dataFilePath: Value(dataFilePath),
       freedomAge: Value(freedomAge),
       freedomStartCapital: Value(freedomStartCapital),
@@ -8556,6 +8593,9 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
       defaultInvestmentFee: serializer.fromJson<double>(
         json['defaultInvestmentFee'],
       ),
+      includePhysicalAssetsInTaxAllowance: serializer.fromJson<bool>(
+        json['includePhysicalAssetsInTaxAllowance'],
+      ),
       dataFilePath: serializer.fromJson<String>(json['dataFilePath']),
       freedomAge: serializer.fromJson<double>(json['freedomAge']),
       freedomStartCapital: serializer.fromJson<double>(
@@ -8589,6 +8629,9 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
       ),
       'taxAllowance': serializer.toJson<double>(taxAllowance),
       'defaultInvestmentFee': serializer.toJson<double>(defaultInvestmentFee),
+      'includePhysicalAssetsInTaxAllowance': serializer.toJson<bool>(
+        includePhysicalAssetsInTaxAllowance,
+      ),
       'dataFilePath': serializer.toJson<String>(dataFilePath),
       'freedomAge': serializer.toJson<double>(freedomAge),
       'freedomStartCapital': serializer.toJson<double>(freedomStartCapital),
@@ -8612,6 +8655,7 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     String? selectedPortfolioAccountId,
     double? taxAllowance,
     double? defaultInvestmentFee,
+    bool? includePhysicalAssetsInTaxAllowance,
     String? dataFilePath,
     double? freedomAge,
     double? freedomStartCapital,
@@ -8634,6 +8678,9 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
         selectedPortfolioAccountId ?? this.selectedPortfolioAccountId,
     taxAllowance: taxAllowance ?? this.taxAllowance,
     defaultInvestmentFee: defaultInvestmentFee ?? this.defaultInvestmentFee,
+    includePhysicalAssetsInTaxAllowance:
+        includePhysicalAssetsInTaxAllowance ??
+        this.includePhysicalAssetsInTaxAllowance,
     dataFilePath: dataFilePath ?? this.dataFilePath,
     freedomAge: freedomAge ?? this.freedomAge,
     freedomStartCapital: freedomStartCapital ?? this.freedomStartCapital,
@@ -8672,6 +8719,10 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
       defaultInvestmentFee: data.defaultInvestmentFee.present
           ? data.defaultInvestmentFee.value
           : this.defaultInvestmentFee,
+      includePhysicalAssetsInTaxAllowance:
+          data.includePhysicalAssetsInTaxAllowance.present
+          ? data.includePhysicalAssetsInTaxAllowance.value
+          : this.includePhysicalAssetsInTaxAllowance,
       dataFilePath: data.dataFilePath.present
           ? data.dataFilePath.value
           : this.dataFilePath,
@@ -8707,6 +8758,9 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
           ..write('selectedPortfolioAccountId: $selectedPortfolioAccountId, ')
           ..write('taxAllowance: $taxAllowance, ')
           ..write('defaultInvestmentFee: $defaultInvestmentFee, ')
+          ..write(
+            'includePhysicalAssetsInTaxAllowance: $includePhysicalAssetsInTaxAllowance, ',
+          )
           ..write('dataFilePath: $dataFilePath, ')
           ..write('freedomAge: $freedomAge, ')
           ..write('freedomStartCapital: $freedomStartCapital, ')
@@ -8732,6 +8786,7 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
     selectedPortfolioAccountId,
     taxAllowance,
     defaultInvestmentFee,
+    includePhysicalAssetsInTaxAllowance,
     dataFilePath,
     freedomAge,
     freedomStartCapital,
@@ -8756,6 +8811,8 @@ class UserPreference extends DataClass implements Insertable<UserPreference> {
           other.selectedPortfolioAccountId == this.selectedPortfolioAccountId &&
           other.taxAllowance == this.taxAllowance &&
           other.defaultInvestmentFee == this.defaultInvestmentFee &&
+          other.includePhysicalAssetsInTaxAllowance ==
+              this.includePhysicalAssetsInTaxAllowance &&
           other.dataFilePath == this.dataFilePath &&
           other.freedomAge == this.freedomAge &&
           other.freedomStartCapital == this.freedomStartCapital &&
@@ -8778,6 +8835,7 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
   final Value<String> selectedPortfolioAccountId;
   final Value<double> taxAllowance;
   final Value<double> defaultInvestmentFee;
+  final Value<bool> includePhysicalAssetsInTaxAllowance;
   final Value<String> dataFilePath;
   final Value<double> freedomAge;
   final Value<double> freedomStartCapital;
@@ -8799,6 +8857,7 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
     this.selectedPortfolioAccountId = const Value.absent(),
     this.taxAllowance = const Value.absent(),
     this.defaultInvestmentFee = const Value.absent(),
+    this.includePhysicalAssetsInTaxAllowance = const Value.absent(),
     this.dataFilePath = const Value.absent(),
     this.freedomAge = const Value.absent(),
     this.freedomStartCapital = const Value.absent(),
@@ -8821,6 +8880,7 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
     this.selectedPortfolioAccountId = const Value.absent(),
     this.taxAllowance = const Value.absent(),
     this.defaultInvestmentFee = const Value.absent(),
+    this.includePhysicalAssetsInTaxAllowance = const Value.absent(),
     this.dataFilePath = const Value.absent(),
     this.freedomAge = const Value.absent(),
     this.freedomStartCapital = const Value.absent(),
@@ -8844,6 +8904,7 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
     Expression<String>? selectedPortfolioAccountId,
     Expression<double>? taxAllowance,
     Expression<double>? defaultInvestmentFee,
+    Expression<bool>? includePhysicalAssetsInTaxAllowance,
     Expression<String>? dataFilePath,
     Expression<double>? freedomAge,
     Expression<double>? freedomStartCapital,
@@ -8869,6 +8930,9 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
       if (taxAllowance != null) 'tax_allowance': taxAllowance,
       if (defaultInvestmentFee != null)
         'default_investment_fee': defaultInvestmentFee,
+      if (includePhysicalAssetsInTaxAllowance != null)
+        'include_physical_assets_in_tax_allowance':
+            includePhysicalAssetsInTaxAllowance,
       if (dataFilePath != null) 'data_file_path': dataFilePath,
       if (freedomAge != null) 'freedom_age': freedomAge,
       if (freedomStartCapital != null)
@@ -8895,6 +8959,7 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
     Value<String>? selectedPortfolioAccountId,
     Value<double>? taxAllowance,
     Value<double>? defaultInvestmentFee,
+    Value<bool>? includePhysicalAssetsInTaxAllowance,
     Value<String>? dataFilePath,
     Value<double>? freedomAge,
     Value<double>? freedomStartCapital,
@@ -8919,6 +8984,9 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
           selectedPortfolioAccountId ?? this.selectedPortfolioAccountId,
       taxAllowance: taxAllowance ?? this.taxAllowance,
       defaultInvestmentFee: defaultInvestmentFee ?? this.defaultInvestmentFee,
+      includePhysicalAssetsInTaxAllowance:
+          includePhysicalAssetsInTaxAllowance ??
+          this.includePhysicalAssetsInTaxAllowance,
       dataFilePath: dataFilePath ?? this.dataFilePath,
       freedomAge: freedomAge ?? this.freedomAge,
       freedomStartCapital: freedomStartCapital ?? this.freedomStartCapital,
@@ -8977,6 +9045,11 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
         defaultInvestmentFee.value,
       );
     }
+    if (includePhysicalAssetsInTaxAllowance.present) {
+      map['include_physical_assets_in_tax_allowance'] = Variable<bool>(
+        includePhysicalAssetsInTaxAllowance.value,
+      );
+    }
     if (dataFilePath.present) {
       map['data_file_path'] = Variable<String>(dataFilePath.value);
     }
@@ -9019,6 +9092,9 @@ class UserPreferencesCompanion extends UpdateCompanion<UserPreference> {
           ..write('selectedPortfolioAccountId: $selectedPortfolioAccountId, ')
           ..write('taxAllowance: $taxAllowance, ')
           ..write('defaultInvestmentFee: $defaultInvestmentFee, ')
+          ..write(
+            'includePhysicalAssetsInTaxAllowance: $includePhysicalAssetsInTaxAllowance, ',
+          )
           ..write('dataFilePath: $dataFilePath, ')
           ..write('freedomAge: $freedomAge, ')
           ..write('freedomStartCapital: $freedomStartCapital, ')
@@ -22037,6 +22113,7 @@ typedef $$UserPreferencesTableCreateCompanionBuilder =
       Value<String> selectedPortfolioAccountId,
       Value<double> taxAllowance,
       Value<double> defaultInvestmentFee,
+      Value<bool> includePhysicalAssetsInTaxAllowance,
       Value<String> dataFilePath,
       Value<double> freedomAge,
       Value<double> freedomStartCapital,
@@ -22060,6 +22137,7 @@ typedef $$UserPreferencesTableUpdateCompanionBuilder =
       Value<String> selectedPortfolioAccountId,
       Value<double> taxAllowance,
       Value<double> defaultInvestmentFee,
+      Value<bool> includePhysicalAssetsInTaxAllowance,
       Value<String> dataFilePath,
       Value<double> freedomAge,
       Value<double> freedomStartCapital,
@@ -22164,6 +22242,12 @@ class $$UserPreferencesTableFilterComposer
     column: $table.defaultInvestmentFee,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<bool> get includePhysicalAssetsInTaxAllowance =>
+      $composableBuilder(
+        column: $table.includePhysicalAssetsInTaxAllowance,
+        builder: (column) => ColumnFilters(column),
+      );
 
   ColumnFilters<String> get dataFilePath => $composableBuilder(
     column: $table.dataFilePath,
@@ -22288,6 +22372,12 @@ class $$UserPreferencesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get includePhysicalAssetsInTaxAllowance =>
+      $composableBuilder(
+        column: $table.includePhysicalAssetsInTaxAllowance,
+        builder: (column) => ColumnOrderings(column),
+      );
+
   ColumnOrderings<String> get dataFilePath => $composableBuilder(
     column: $table.dataFilePath,
     builder: (column) => ColumnOrderings(column),
@@ -22403,6 +22493,12 @@ class $$UserPreferencesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get includePhysicalAssetsInTaxAllowance =>
+      $composableBuilder(
+        column: $table.includePhysicalAssetsInTaxAllowance,
+        builder: (column) => column,
+      );
+
   GeneratedColumn<String> get dataFilePath => $composableBuilder(
     column: $table.dataFilePath,
     builder: (column) => column,
@@ -22498,6 +22594,8 @@ class $$UserPreferencesTableTableManager
                 Value<String> selectedPortfolioAccountId = const Value.absent(),
                 Value<double> taxAllowance = const Value.absent(),
                 Value<double> defaultInvestmentFee = const Value.absent(),
+                Value<bool> includePhysicalAssetsInTaxAllowance =
+                    const Value.absent(),
                 Value<String> dataFilePath = const Value.absent(),
                 Value<double> freedomAge = const Value.absent(),
                 Value<double> freedomStartCapital = const Value.absent(),
@@ -22519,6 +22617,8 @@ class $$UserPreferencesTableTableManager
                 selectedPortfolioAccountId: selectedPortfolioAccountId,
                 taxAllowance: taxAllowance,
                 defaultInvestmentFee: defaultInvestmentFee,
+                includePhysicalAssetsInTaxAllowance:
+                    includePhysicalAssetsInTaxAllowance,
                 dataFilePath: dataFilePath,
                 freedomAge: freedomAge,
                 freedomStartCapital: freedomStartCapital,
@@ -22542,6 +22642,8 @@ class $$UserPreferencesTableTableManager
                 Value<String> selectedPortfolioAccountId = const Value.absent(),
                 Value<double> taxAllowance = const Value.absent(),
                 Value<double> defaultInvestmentFee = const Value.absent(),
+                Value<bool> includePhysicalAssetsInTaxAllowance =
+                    const Value.absent(),
                 Value<String> dataFilePath = const Value.absent(),
                 Value<double> freedomAge = const Value.absent(),
                 Value<double> freedomStartCapital = const Value.absent(),
@@ -22563,6 +22665,8 @@ class $$UserPreferencesTableTableManager
                 selectedPortfolioAccountId: selectedPortfolioAccountId,
                 taxAllowance: taxAllowance,
                 defaultInvestmentFee: defaultInvestmentFee,
+                includePhysicalAssetsInTaxAllowance:
+                    includePhysicalAssetsInTaxAllowance,
                 dataFilePath: dataFilePath,
                 freedomAge: freedomAge,
                 freedomStartCapital: freedomStartCapital,

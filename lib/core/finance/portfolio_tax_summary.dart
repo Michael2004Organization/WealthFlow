@@ -22,6 +22,7 @@ PortfolioTaxSummary calculatePortfolioTaxYear({
   required List<Investment> investments,
   required List<DividendSchedule> schedules,
   required List<PortfolioSale> sales,
+  bool includePhysicalAssets = false,
   DateTime? through,
 }) {
   final limit = through ?? DateTime(year + 1);
@@ -39,6 +40,7 @@ PortfolioTaxSummary calculatePortfolioTaxYear({
     }
   }
   for (final sale in sales) {
+    if (sale.assetKind == 'physical' && !includePhysicalAssets) continue;
     if (sale.soldAt.year == year && !sale.soldAt.isAfter(limit)) {
       events.add((date: sale.soldAt, dividend: null, sale: sale));
     }

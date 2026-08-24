@@ -156,22 +156,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                       (constraints.maxWidth - spacing * (columns - 1)) /
                       columns;
                   final cards = [
-                    MetricCard(
-                      title: 'Gesamtvermögen',
-                      value: money(accountBalance + portfolio),
-                      caption:
+                    _SplitNetWorthCard(
+                      financialValue: accountBalance + portfolio,
+                      vehicleValue: vehicleValue,
+                      financialCaption:
                           '${accounts.length} Konten · ${investments.length} Positionen',
-                      icon: Icons.account_balance_wallet_rounded,
-                      color: colors.primary,
-                      onTap: () => openFinance(ref, 0),
-                    ),
-                    MetricCard(
-                      title: 'Vermögen inkl. Fahrzeuge',
-                      value: money(accountBalance + portfolio + vehicleValue),
-                      caption: '${money(vehicleValue)} aktueller Fahrzeugwert',
-                      icon: Icons.directions_car_filled_rounded,
-                      color: Colors.indigo,
-                      onTap: () =>
+                      onFinancialTap: () => openFinance(ref, 0),
+                      onVehicleTap: () =>
                           ref.read(shellIndexProvider.notifier).state = 5,
                     ),
                     MetricCard(
@@ -285,6 +276,109 @@ const _dashboardMonths = [
   'November',
   'Dezember',
 ];
+
+class _SplitNetWorthCard extends StatelessWidget {
+  const _SplitNetWorthCard({
+    required this.financialValue,
+    required this.vehicleValue,
+    required this.financialCaption,
+    required this.onFinancialTap,
+    required this.onVehicleTap,
+  });
+
+  final double financialValue;
+  final double vehicleValue;
+  final String financialCaption;
+  final VoidCallback onFinancialTap;
+  final VoidCallback onVehicleTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: IntrinsicHeight(
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(22),
+              ),
+              onTap: onFinancialTap,
+              child: _NetWorthSide(
+                title: 'Gesamtvermögen',
+                value: financialValue,
+                caption: financialCaption,
+                icon: Icons.account_balance_wallet_rounded,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+          VerticalDivider(
+            width: 1,
+            indent: 18,
+            endIndent: 18,
+            color: Theme.of(context).dividerColor,
+          ),
+          Expanded(
+            child: InkWell(
+              borderRadius: const BorderRadius.horizontal(
+                right: Radius.circular(22),
+              ),
+              onTap: onVehicleTap,
+              child: _NetWorthSide(
+                title: 'Inkl. Fahrzeuge',
+                value: financialValue + vehicleValue,
+                caption: '${money(vehicleValue)} Fahrzeugwert',
+                icon: Icons.directions_car_filled_rounded,
+                color: Colors.indigo,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _NetWorthSide extends StatelessWidget {
+  const _NetWorthSide({
+    required this.title,
+    required this.value,
+    required this.caption,
+    required this.icon,
+    required this.color,
+  });
+  final String title;
+  final double value;
+  final String caption;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(18),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: color),
+        const SizedBox(height: 14),
+        Text(title, style: Theme.of(context).textTheme.labelMedium),
+        const SizedBox(height: 4),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            money(value),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(caption, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    ),
+  );
+}
 
 class _MonthlyChart extends StatelessWidget {
   const _MonthlyChart({required this.entries, required this.selectedMonth});

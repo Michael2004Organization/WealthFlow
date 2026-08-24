@@ -27,7 +27,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final investments = ref.watch(investmentsProvider);
+    final investments = ref.watch(allInvestmentsProvider);
     return investments.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Center(
@@ -43,12 +43,17 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
         final sales =
             ref.watch(portfolioSalesProvider).valueOrNull ??
             const <PortfolioSale>[];
+        final purchases =
+            ref.watch(investmentPurchasesProvider).valueOrNull ??
+            const <InvestmentPurchase>[];
         final taxYear = calculatePortfolioTaxYear(
           year: _selectedYear,
           allowance: taxAllowance,
           investments: items,
           schedules: schedules,
           sales: sales,
+          includePhysicalAssets:
+              preference?.includePhysicalAssetsInTaxAllowance ?? false,
           through: _selectedYear == DateTime.now().year
               ? DateTime.now()
               : DateTime(_selectedYear + 1),
@@ -56,8 +61,9 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
         var dividendItems = items
             .where(
               (item) =>
-                  item.annualDividend > 0 ||
-                  schedules.any((row) => row.investmentId == item.id),
+                  _wasHeldDuringYear(item, purchases, sales, _selectedYear) &&
+                  (item.annualDividend > 0 ||
+                      schedules.any((row) => row.investmentId == item.id)),
             )
             .toList()
             .toList();
@@ -66,6 +72,8 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
           schedules,
           taxAllowance,
           _selectedYear,
+          purchases,
+          sales,
         );
         dividendItems.sort(
           (a, b) => _netForInvestment(
@@ -261,25 +269,6 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                       );
                     },
                   ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 8,
-                    children: [
-                      Chip(
-                        avatar: const Icon(Icons.savings_outlined, size: 18),
-                        label: Text(
-                          'Freistellung: ${money(taxYear.allowanceUsed)} genutzt · '
-                          '${money(taxYear.allowanceRemaining)} frei',
-                        ),
-                      ),
-                      if (taxYear.taxPaid > 0)
-                        Chip(
-                          avatar: const Icon(Icons.receipt_outlined, size: 18),
-                          label: Text('Steuern: ${money(taxYear.taxPaid)}'),
-                        ),
-                    ],
-                  ),
                   const SizedBox(height: 16),
                   if (dividendItems.isEmpty)
                     SizedBox(
@@ -367,10 +356,51 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                                                 ) +
                                                 '/Monat',
                                             style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 15,
                                             ),
                                           ),
                                         ),
+                                      const Divider(height: 24),
+                                      InkWell(
+                                        borderRadius: BorderRadius.circular(14),
+                                        onTap: () => _showDividendTaxInfo(
+                                          context,
+                                          taxYear,
+                                          projection,
+                                          sales,
+                                          _selectedYear,
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12),
+                                          child: Wrap(
+                                            spacing: 22,
+                                            runSpacing: 10,
+                                            children: [
+                                              _CompactTaxMetric(
+                                                label: 'Steuern',
+                                                value: money(taxYear.taxPaid),
+                                                icon:
+                                                    Icons.receipt_long_outlined,
+                                              ),
+                                              _CompactTaxMetric(
+                                                label: 'Freistellung verwendet',
+                                                value: money(
+                                                  taxYear.allowanceUsed,
+                                                ),
+                                                icon: Icons.savings_outlined,
+                                              ),
+                                              _CompactTaxMetric(
+                                                label: 'Freistellung frei',
+                                                value: money(
+                                                  taxYear.allowanceRemaining,
+                                                ),
+                                                icon: Icons.shield_outlined,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -449,6 +479,166 @@ class _DividendMetric extends StatelessWidget {
   );
 }
 
+class _CompactTaxMetric extends StatelessWidget {
+  const _CompactTaxMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+      const SizedBox(width: 8),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.labelSmall),
+          Text(
+            value,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+Future<void> _showDividendTaxInfo(
+  BuildContext context,
+  PortfolioTaxSummary summary,
+  List<_ProjectedDividend> projection,
+  List<PortfolioSale> sales,
+  int year,
+) async {
+  var filter = 'Alle';
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) {
+        final payments = projection.where((payment) {
+          if (filter == 'Quellensteuer') return payment.tax.withholdingTax > 0;
+          if (filter == 'Ländersteuer') {
+            return payment.tax.germanCapitalTax +
+                    payment.tax.solidaritySurcharge >
+                0;
+          }
+          return true;
+        }).toList();
+        final yearSales = filter == 'Quellensteuer'
+            ? const <PortfolioSale>[]
+            : sales.where((sale) => sale.soldAt.year == year).toList();
+        return AlertDialog(
+          title: Text('Steuern & Freistellung $year'),
+          content: SizedBox(
+            width: (MediaQuery.sizeOf(context).width - 64).clamp(300, 700),
+            height: (MediaQuery.sizeOf(context).height - 220).clamp(320, 620),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Wrap(
+                  spacing: 20,
+                  runSpacing: 10,
+                  children: [
+                    _CompactTaxMetric(
+                      label: 'Steuern gesamt',
+                      value: money(summary.taxPaid),
+                      icon: Icons.receipt_long_outlined,
+                    ),
+                    _CompactTaxMetric(
+                      label: 'Freistellung verwendet',
+                      value: money(summary.allowanceUsed),
+                      icon: Icons.savings_outlined,
+                    ),
+                    _CompactTaxMetric(
+                      label: 'Frei',
+                      value: money(summary.allowanceRemaining),
+                      icon: Icons.shield_outlined,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'Alle', label: Text('Alle')),
+                    ButtonSegment(
+                      value: 'Ländersteuer',
+                      label: Text('Ländersteuer'),
+                    ),
+                    ButtonSegment(
+                      value: 'Quellensteuer',
+                      label: Text('Quellensteuer'),
+                    ),
+                  ],
+                  selected: {filter},
+                  onSelectionChanged: (value) =>
+                      setDialogState(() => filter = value.first),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: payments.isEmpty && yearSales.isEmpty
+                      ? const Center(
+                          child: Text('Keine passenden Steuerereignisse.'),
+                        )
+                      : ListView(
+                          children: [
+                            for (final payment in payments)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const CircleAvatar(
+                                  child: Icon(Icons.payments_outlined),
+                                ),
+                                title: Text(payment.investment.name),
+                                subtitle: Text(
+                                  '${DateFormat('dd.MM.yyyy').format(payment.date)} · '
+                                  '${payment.investment.country.isEmpty ? 'Auslands' : payment.investment.country}-Quellensteuer '
+                                  '${money(payment.tax.withholdingTax)} · '
+                                  'Ländersteuer ${money(payment.tax.germanCapitalTax + payment.tax.solidaritySurcharge)}',
+                                ),
+                                trailing: Text(
+                                  money(payment.tax.net),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            for (final sale in yearSales)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const CircleAvatar(
+                                  child: Icon(Icons.sell_outlined),
+                                ),
+                                title: Text('${sale.assetName} · Verkauf'),
+                                subtitle: Text(
+                                  '${DateFormat('dd.MM.yyyy').format(sale.soldAt)} · '
+                                  'Quellensteuer ${money(0)} · Ländersteuer ${money(sale.taxPaid)}',
+                                ),
+                              ),
+                          ],
+                        ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Schließen'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
 class _DividendChart extends StatelessWidget {
   const _DividendChart({required this.items, required this.projection});
   final List<Investment> items;
@@ -505,44 +695,47 @@ class _DividendChart extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              'Betrag · Anteil im Dividendenportfolio',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-            SizedBox(
-              height: 94,
-              child: ListView.builder(
-                itemCount: items.length,
-                itemBuilder: (context, index) => Padding(
-                  padding: const EdgeInsets.only(top: 5),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: palette[index % palette.length],
-                          shape: BoxShape.circle,
-                        ),
+            ExpansionTile(
+              initiallyExpanded: true,
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: EdgeInsets.zero,
+              title: const Text('Betrag · Anteil im Dividendenportfolio'),
+              children: [
+                SizedBox(
+                  height: 94,
+                  child: ListView.builder(
+                    itemCount: items.length,
+                    itemBuilder: (context, index) => Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: palette[index % palette.length],
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              items[index].name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            '${money(_annualDividend(projection, items[index].id))} · '
+                            '${(total <= 0 ? 0 : _annualDividend(projection, items[index].id) / total * 100).toStringAsFixed(1)} %',
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          items[index].name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Text(
-                        '${money(_annualDividend(projection, items[index].id))} · '
-                        '${(total <= 0 ? 0 : _annualDividend(projection, items[index].id) / total * 100).toStringAsFixed(1)} %',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
@@ -586,6 +779,8 @@ List<_ProjectedDividend> _buildDividendProjection(
   List<DividendSchedule> schedules,
   double allowance,
   int year,
+  List<InvestmentPurchase> purchases,
+  List<PortfolioSale> sales,
 ) {
   var remainingAllowance = allowance.clamp(0, double.infinity).toDouble();
   final events =
@@ -644,9 +839,15 @@ List<_ProjectedDividend> _buildDividendProjection(
   });
   final result = <_ProjectedDividend>[];
   for (final event in events) {
-    if (event.amount <= 0 || event.investment.quantity <= 0) continue;
+    final shares = _sharesHeldAt(
+      event.investment,
+      event.date,
+      purchases,
+      sales,
+    );
+    if (event.amount <= 0 || shares <= 0) continue;
     final tax = calculateGermanDividendTax(
-      grossAmount: event.amount * event.investment.quantity,
+      grossAmount: event.amount * shares,
       exchangeRate: event.exchangeRate,
       withholdingTaxRate: event.withholdingTaxRate,
       allowanceRemaining: remainingAllowance,
@@ -671,6 +872,55 @@ List<_ProjectedDividend> _buildDividendProjection(
     );
   }
   return result;
+}
+
+bool _wasHeldDuringYear(
+  Investment investment,
+  List<InvestmentPurchase> purchases,
+  List<PortfolioSale> sales,
+  int year,
+) {
+  final end = DateTime(year + 1).subtract(const Duration(microseconds: 1));
+  final start = DateTime(year);
+  if (investment.deletedAt != null && investment.deletedAt!.isBefore(start)) {
+    return false;
+  }
+  return _sharesHeldAt(investment, end, purchases, sales) > 0 ||
+      sales.any(
+        (sale) =>
+            sale.investmentId == investment.id &&
+            !sale.soldAt.isBefore(start) &&
+            sale.soldAt.isBefore(DateTime(year + 1)),
+      );
+}
+
+double _sharesHeldAt(
+  Investment investment,
+  DateTime date,
+  List<InvestmentPurchase> purchases,
+  List<PortfolioSale> sales,
+) {
+  if (investment.deletedAt != null && !date.isBefore(investment.deletedAt!)) {
+    return 0;
+  }
+  final rows = purchases
+      .where((row) => row.investmentId == investment.id)
+      .toList();
+  final allSales = sales
+      .where((sale) => sale.investmentId == investment.id)
+      .toList();
+  final purchased = rows.isEmpty
+      ? (date.isBefore(investment.purchaseDate)
+            ? 0.0
+            : investment.quantity +
+                  allSales.fold<double>(0, (sum, sale) => sum + sale.quantity))
+      : rows
+            .where((row) => !row.purchaseDate.isAfter(date))
+            .fold<double>(0, (sum, row) => sum + row.quantity);
+  final sold = allSales
+      .where((sale) => !sale.soldAt.isAfter(date))
+      .fold<double>(0, (sum, sale) => sum + sale.quantity);
+  return (purchased - sold).clamp(0, double.infinity).toDouble();
 }
 
 String _perShareSummary(

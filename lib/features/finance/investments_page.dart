@@ -72,7 +72,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    FilledButton.icon(
+                    FilledButton.tonalIcon(
                       onPressed: selectedAccountId == null
                           ? null
                           : () => showInvestmentEditor(
@@ -83,7 +83,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                       icon: const Icon(Icons.add_rounded),
                       label: const Text('Position'),
                     ),
-                    OutlinedButton.icon(
+                    FilledButton.tonalIcon(
                       onPressed: selectedAccountId == null
                           ? null
                           : () => _showPhysicalAssetEditor(
@@ -94,25 +94,29 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                       icon: const Icon(Icons.diamond_outlined),
                       label: const Text('Wertgegenstand'),
                     ),
-                    OutlinedButton.icon(
+                    FilledButton.tonalIcon(
                       onPressed: () => _showPortfolioActivity(
                         context,
+                        ref: ref,
                         sales: sales,
                         auditLogs: auditLogs,
                       ),
                       icon: const Icon(Icons.receipt_long_outlined),
                       label: const Text('Verkäufe & Protokoll'),
                     ),
-                    IconButton.outlined(
-                      tooltip: 'Standardgebühr für neue Käufe',
-                      onPressed: preference == null
-                          ? null
-                          : () => _editDefaultInvestmentFee(
-                              context,
-                              ref,
-                              preference,
-                            ),
-                      icon: const Icon(Icons.tune_rounded),
+                    Tooltip(
+                      message: 'Standardgebühr für neue Käufe',
+                      child: FilledButton.tonalIcon(
+                        onPressed: preference == null
+                            ? null
+                            : () => _editDefaultInvestmentFee(
+                                context,
+                                ref,
+                                preference,
+                              ),
+                        icon: const Icon(Icons.request_quote_outlined),
+                        label: const Text('Gebühr'),
+                      ),
                     ),
                   ],
                 ),
@@ -309,6 +313,9 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                       investments: allItems,
                       schedules: schedules,
                       sales: sales,
+                      includePhysicalAssets:
+                          preference?.includePhysicalAssetsInTaxAllowance ??
+                          false,
                       through: DateTime.now(),
                     );
                     return ListView(
@@ -328,6 +335,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                           child: _TaxAllowanceTile(
                             preference: preference,
                             summary: taxSummary,
+                            sales: sales,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -356,6 +364,30 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                                     ?.copyWith(fontWeight: FontWeight.w800),
                               ),
                             ),
+                            if (preference != null) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                'Steuerlich einbeziehen',
+                                style: Theme.of(context).textTheme.labelMedium,
+                              ),
+                              Switch.adaptive(
+                                value: preference
+                                    .includePhysicalAssetsInTaxAllowance,
+                                onChanged: (value) => ref
+                                    .read(databaseProvider)
+                                    .savePreferences(
+                                      preference
+                                          .toCompanion(false)
+                                          .copyWith(
+                                            includePhysicalAssetsInTaxAllowance:
+                                                Value(value),
+                                            updatedAt: Value(
+                                              DateTime.now().toUtc(),
+                                            ),
+                                          ),
+                                    ),
+                              ),
+                            ],
                             IconButton(
                               tooltip: 'Wertgegenstand hinzufügen',
                               onPressed: () => _showPhysicalAssetEditor(
@@ -502,10 +534,15 @@ class _SummaryValue extends StatelessWidget {
 }
 
 class _TaxAllowanceTile extends ConsumerWidget {
-  const _TaxAllowanceTile({required this.preference, required this.summary});
+  const _TaxAllowanceTile({
+    required this.preference,
+    required this.summary,
+    required this.sales,
+  });
 
   final UserPreference? preference;
   final PortfolioTaxSummary summary;
+  final List<PortfolioSale> sales;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -514,39 +551,7 @@ class _TaxAllowanceTile extends ConsumerWidget {
         1000;
     return InkWell(
       borderRadius: BorderRadius.circular(999),
-      onTap: () => showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text('Freistellungsauftrag ${DateTime.now().year}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Verwendet: ${money(summary.allowanceUsed)}'),
-              Text('Verfügbar: ${money(summary.allowanceRemaining)}'),
-              const SizedBox(height: 10),
-              LinearProgressIndicator(
-                value: summary.allowance <= 0
-                    ? 1
-                    : (summary.allowanceUsed / summary.allowance).clamp(0, 1),
-              ),
-              if (summary.taxPaid > 0) ...[
-                const SizedBox(height: 14),
-                Text(
-                  'Bereits gezahlte Steuern: ${money(summary.taxPaid)}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Schließen'),
-            ),
-          ],
-        ),
-      ),
+      onTap: () => _showTaxAllowanceInfo(context, summary, sales),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
@@ -578,6 +583,151 @@ class _TaxAllowanceTile extends ConsumerWidget {
       ),
     );
   }
+}
+
+Future<void> _showTaxAllowanceInfo(
+  BuildContext context,
+  PortfolioTaxSummary summary,
+  List<PortfolioSale> sales,
+) async {
+  var filter = 'Alle';
+  final year = DateTime.now().year;
+  final yearSales = sales.where((sale) => sale.soldAt.year == year).toList();
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) {
+        final visible = yearSales.where((sale) {
+          if (filter == 'Ländersteuer') return sale.taxPaid > 0;
+          if (filter == 'Quellensteuer') return false;
+          return true;
+        }).toList();
+        return AlertDialog(
+          title: Text('Freistellungsauftrag $year'),
+          content: SizedBox(
+            width: (MediaQuery.sizeOf(context).width - 64).clamp(300, 640),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Wrap(
+                    spacing: 24,
+                    runSpacing: 8,
+                    children: [
+                      _TaxInfoValue(
+                        label: 'Verwendet',
+                        value: money(summary.allowanceUsed),
+                      ),
+                      _TaxInfoValue(
+                        label: 'Frei',
+                        value: money(summary.allowanceRemaining),
+                      ),
+                      _TaxInfoValue(
+                        label: 'Steuern',
+                        value: money(summary.taxPaid),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  LinearProgressIndicator(
+                    value: summary.allowance <= 0
+                        ? 1
+                        : (summary.allowanceUsed / summary.allowance).clamp(
+                            0,
+                            1,
+                          ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Steuerereignisse aus Verkäufen',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'Alle', label: Text('Alle')),
+                      ButtonSegment(
+                        value: 'Ländersteuer',
+                        label: Text('Ländersteuer'),
+                      ),
+                      ButtonSegment(
+                        value: 'Quellensteuer',
+                        label: Text('Quellensteuer'),
+                      ),
+                    ],
+                    selected: {filter},
+                    onSelectionChanged: (value) =>
+                        setDialogState(() => filter = value.first),
+                  ),
+                  const SizedBox(height: 8),
+                  if (visible.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Text(
+                        'Für diesen Filter sind keine Steuerereignisse vorhanden.',
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  else
+                    for (final sale in visible)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          sale.assetKind == 'physical'
+                              ? Icons.diamond_outlined
+                              : Icons.show_chart_rounded,
+                        ),
+                        title: Text(sale.assetName),
+                        subtitle: Text(
+                          '${DateFormat('dd.MM.yyyy').format(sale.soldAt)} · '
+                          'Quellensteuer ${money(0)} · Ländersteuer ${money(sale.taxPaid)}',
+                        ),
+                        trailing: Icon(
+                          sale.taxPaid > 0
+                              ? Icons.receipt_long_outlined
+                              : Icons.check_circle_outline_rounded,
+                          color: sale.taxPaid > 0
+                              ? Colors.orange
+                              : Colors.green,
+                        ),
+                      ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Schließen'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+class _TaxInfoValue extends StatelessWidget {
+  const _TaxInfoValue({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: Theme.of(context).textTheme.labelMedium),
+      Text(
+        value,
+        style: Theme.of(
+          context,
+        ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+      ),
+    ],
+  );
 }
 
 Future<void> _editTaxAllowance(
@@ -712,6 +862,8 @@ class _PhysicalAssetTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentValue = asset.weightGrams * asset.currentPricePerGram;
+    final gain = currentValue - asset.purchasePrice;
+    final positive = gain >= 0;
     return Card(
       child: ListTile(
         leading: const CircleAvatar(child: Icon(Icons.diamond_outlined)),
@@ -732,9 +884,26 @@ class _PhysicalAssetTile extends ConsumerWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              money(currentValue),
-              style: const TextStyle(fontWeight: FontWeight.w800),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  money(currentValue),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  '${positive ? '+' : ''}${money(gain)}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: positive
+                        ? Colors.green
+                        : Theme.of(context).colorScheme.error,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
             PopupMenuButton<String>(
               onSelected: (value) async {
@@ -862,32 +1031,52 @@ Future<void> _showPhysicalAssetEditor(
                     ),
                   ],
                   const SizedBox(height: 12),
-                  for (final field in [
-                    (quantity, 'Menge', ''),
-                    (weightGrams, 'Gewicht', 'g'),
-                    (purchasePrice, 'Kaufpreis gesamt', '€'),
-                    (currentPricePerGram, 'Aktueller Kurs pro Gramm', '€/g'),
-                  ]) ...[
-                    TextFormField(
-                      controller: field.$1,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: field.$2,
-                        suffixText: field.$3,
-                      ),
-                      validator: (value) {
-                        final parsed = double.tryParse(
-                          (value ?? '').replaceAll(',', '.'),
-                        );
-                        return parsed == null || parsed < 0
-                            ? 'Ungültiger Wert'
-                            : null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                  ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final fieldWidth = constraints.maxWidth < 460
+                          ? constraints.maxWidth
+                          : (constraints.maxWidth - 12) / 2;
+                      return Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          for (final field in [
+                            (quantity, 'Menge', ''),
+                            (weightGrams, 'Gewicht', 'g'),
+                            (purchasePrice, 'Kaufpreis gesamt', '€'),
+                            (
+                              currentPricePerGram,
+                              'Aktueller Kurs pro Gramm',
+                              '€/g',
+                            ),
+                          ])
+                            SizedBox(
+                              width: fieldWidth,
+                              child: TextFormField(
+                                controller: field.$1,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                decoration: InputDecoration(
+                                  labelText: field.$2,
+                                  suffixText: field.$3,
+                                ),
+                                validator: (value) {
+                                  final parsed = double.tryParse(
+                                    (value ?? '').replaceAll(',', '.'),
+                                  );
+                                  return parsed == null || parsed < 0
+                                      ? 'Ungültiger Wert'
+                                      : null;
+                                },
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(
@@ -1034,7 +1223,9 @@ class _InvestmentTile extends ConsumerWidget {
               children: [
                 Text(
                   money(value),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 Text(
                   '${positive ? '+' : ''}${money(gain)}',
@@ -1042,6 +1233,7 @@ class _InvestmentTile extends ConsumerWidget {
                     color: positive
                         ? Colors.green
                         : Theme.of(context).colorScheme.error,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
@@ -1106,166 +1298,253 @@ Future<void> _showInvestmentDetails(
   WidgetRef ref,
   Investment investment,
   List<InvestmentPurchase> purchases,
-) => showDialog<void>(
-  context: context,
-  builder: (context) {
-    final sorted = [...purchases]
-      ..sort((a, b) => b.purchaseDate.compareTo(a.purchaseDate));
-    return AlertDialog(
-      insetPadding: const EdgeInsets.all(16),
-      title: Row(
-        children: [
-          Expanded(child: Text(investment.name)),
-          IconButton(
-            tooltip: sorted.length > 1
-                ? 'Bei mehreren Käufen bitte einzelne Käufe bearbeiten'
-                : 'Position bearbeiten',
-            onPressed: sorted.length > 1
-                ? null
-                : () {
-                    Navigator.pop(context);
-                    showInvestmentEditor(context, ref, investment: investment);
-                  },
-            icon: const Icon(Icons.edit_outlined),
-          ),
-        ],
-      ),
-      content: SizedBox(
-        width: (MediaQuery.sizeOf(context).width - 64).clamp(280, 680),
-        height: (MediaQuery.sizeOf(context).height - 240).clamp(280, 600),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+) async {
+  final userId = ref.read(currentUserIdProvider);
+  final apiKey = userId == null
+      ? null
+      : await ref.read(secureSessionStoreProvider).readMarketApiKey(userId);
+  final hasApiKey = apiKey?.trim().isNotEmpty ?? false;
+  if (!context.mounted) return;
+  await showDialog<void>(
+    context: context,
+    builder: (context) {
+      final sorted = [...purchases]
+        ..sort((a, b) => b.purchaseDate.compareTo(a.purchaseDate));
+      return AlertDialog(
+        insetPadding: const EdgeInsets.all(16),
+        title: Row(
           children: [
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                Chip(
-                  avatar: const Icon(Icons.inventory_2_outlined, size: 18),
-                  label: Text(
-                    investment.quantity.toStringAsFixed(2) + ' Stück',
-                  ),
-                ),
-                Chip(
-                  avatar: const Icon(Icons.calculate_outlined, size: 18),
-                  label: Text('Ø Kaufkurs ${money(investment.purchasePrice)}'),
-                ),
-                Chip(
-                  avatar: const Icon(Icons.show_chart_rounded, size: 18),
-                  label: Text('Kurs ' + money(investment.currentPrice)),
-                ),
-                if (investment.isin.isNotEmpty)
-                  Chip(label: Text('ISIN ' + investment.isin)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Kaufhistorie',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: sorted.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Für diese ältere Position ist noch kein Kauf hinterlegt.',
-                      ),
-                    )
-                  : ListView.separated(
-                      itemCount: sorted.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final purchase = sorted[index];
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const CircleAvatar(
-                            child: Icon(Icons.add_chart_rounded),
-                          ),
-                          title: Text(
-                            purchase.quantity.toStringAsFixed(2) +
-                                ' Stück · ' +
-                                money(purchase.purchasePrice),
-                          ),
-                          subtitle: Text(
-                            DateFormat(
-                                  'dd.MM.yyyy',
-                                ).format(purchase.purchaseDate) +
-                                (purchase.fees == 0
-                                    ? ''
-                                    : ' · Gebühren ' + money(purchase.fees)),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                money(
-                                  purchase.quantity * purchase.purchasePrice +
-                                      purchase.fees,
-                                ),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              PopupMenuButton<String>(
-                                onSelected: (value) async {
-                                  if (value == 'edit') {
-                                    await _showPurchaseEditor(
-                                      context,
-                                      ref,
-                                      purchase,
-                                    );
-                                  } else if (value == 'delete' &&
-                                      await confirmDelete(
-                                        context,
-                                        title: 'Diesen Kauf löschen?',
-                                        message:
-                                            'Nur dieser Eintrag wird aus der Kaufhistorie entfernt.',
-                                      )) {
-                                    final userId = ref.read(
-                                      currentUserIdProvider,
-                                    );
-                                    if (userId != null) {
-                                      await ref
-                                          .read(databaseProvider)
-                                          .deleteInvestmentPurchase(
-                                            purchase.id,
-                                            userId,
-                                          );
-                                    }
-                                    if (context.mounted) Navigator.pop(context);
-                                  }
-                                },
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    child: Text('Kauf bearbeiten'),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: Text('Kauf löschen'),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+            Expanded(child: Text(investment.name)),
+            IconButton(
+              tooltip: sorted.length > 1
+                  ? 'Bei mehreren Käufen bitte einzelne Käufe bearbeiten'
+                  : 'Position bearbeiten',
+              onPressed: sorted.length > 1
+                  ? null
+                  : () {
+                      Navigator.pop(context);
+                      showInvestmentEditor(
+                        context,
+                        ref,
+                        investment: investment,
+                      );
+                    },
+              icon: const Icon(Icons.edit_outlined),
             ),
           ],
+        ),
+        content: SizedBox(
+          width: (MediaQuery.sizeOf(context).width - 64).clamp(280, 680),
+          height: (MediaQuery.sizeOf(context).height - 240).clamp(280, 600),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  Chip(
+                    avatar: const Icon(Icons.inventory_2_outlined, size: 18),
+                    label: Text(
+                      investment.quantity.toStringAsFixed(2) + ' Stück',
+                    ),
+                  ),
+                  Chip(
+                    avatar: const Icon(Icons.calculate_outlined, size: 18),
+                    label: Text(
+                      'Ø Kaufkurs ${money(investment.purchasePrice)}',
+                    ),
+                  ),
+                  Chip(
+                    avatar: const Icon(Icons.show_chart_rounded, size: 18),
+                    label: Text('Kurs ' + money(investment.currentPrice)),
+                  ),
+                  if (!hasApiKey)
+                    ActionChip(
+                      avatar: const Icon(Icons.edit_rounded, size: 18),
+                      label: const Text('Aktuellen Kurs bearbeiten'),
+                      onPressed: () async {
+                        await _editCurrentPrice(context, ref, investment);
+                        if (context.mounted) Navigator.pop(context);
+                      },
+                    )
+                  else
+                    const Chip(
+                      avatar: Icon(Icons.cloud_done_outlined, size: 18),
+                      label: Text('Kurs automatisch verwaltet'),
+                    ),
+                  if (investment.isin.isNotEmpty)
+                    Chip(label: Text('ISIN ' + investment.isin)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Kaufhistorie',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: sorted.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Für diese ältere Position ist noch kein Kauf hinterlegt.',
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: sorted.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final purchase = sorted[index];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const CircleAvatar(
+                              child: Icon(Icons.add_chart_rounded),
+                            ),
+                            title: Text(
+                              purchase.quantity.toStringAsFixed(2) +
+                                  ' Stück · ' +
+                                  money(purchase.purchasePrice),
+                            ),
+                            subtitle: Text(
+                              DateFormat(
+                                    'dd.MM.yyyy',
+                                  ).format(purchase.purchaseDate) +
+                                  (purchase.fees == 0
+                                      ? ''
+                                      : ' · Gebühren ' + money(purchase.fees)),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  money(
+                                    purchase.quantity * purchase.purchasePrice +
+                                        purchase.fees,
+                                  ),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                PopupMenuButton<String>(
+                                  onSelected: (value) async {
+                                    if (value == 'edit') {
+                                      await _showPurchaseEditor(
+                                        context,
+                                        ref,
+                                        purchase,
+                                      );
+                                    } else if (value == 'delete' &&
+                                        await confirmDelete(
+                                          context,
+                                          title: 'Diesen Kauf löschen?',
+                                          message:
+                                              'Nur dieser Eintrag wird aus der Kaufhistorie entfernt.',
+                                        )) {
+                                      final userId = ref.read(
+                                        currentUserIdProvider,
+                                      );
+                                      if (userId != null) {
+                                        await ref
+                                            .read(databaseProvider)
+                                            .deleteInvestmentPurchase(
+                                              purchase.id,
+                                              userId,
+                                            );
+                                      }
+                                      if (context.mounted)
+                                        Navigator.pop(context);
+                                    }
+                                  },
+                                  itemBuilder: (_) => const [
+                                    PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text('Kauf bearbeiten'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text('Kauf löschen'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Schließen'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Future<void> _editCurrentPrice(
+  BuildContext context,
+  WidgetRef ref,
+  Investment investment,
+) async {
+  final controller = TextEditingController(
+    text: investment.currentPrice.toStringAsFixed(2),
+  );
+  final key = GlobalKey<FormState>();
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text('Aktueller Kurs · ${investment.name}'),
+      content: Form(
+        key: key,
+        child: TextFormField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Kurs für die gesamte Position',
+            suffixText: '€',
+            helperText: 'Gilt einmalig für alle Käufe dieser Position.',
+          ),
+          validator: _positiveNumberValidator,
         ),
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Schließen'),
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (key.currentState?.validate() ?? false) {
+              Navigator.pop(dialogContext, true);
+            }
+          },
+          child: const Text('Kurs speichern'),
         ),
       ],
-    );
-  },
-);
+    ),
+  );
+  if (saved == true) {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId != null) {
+      await ref
+          .read(databaseProvider)
+          .updateInvestmentCurrentPrice(
+            id: investment.id,
+            userId: userId,
+            currentPrice: _parseNumber(controller.text)!,
+          );
+    }
+  }
+  controller.dispose();
+}
 
 Future<void> showInvestmentEditor(
   BuildContext context,
@@ -1302,6 +1581,13 @@ Future<void> showInvestmentEditor(
       ref.read(countryTaxRatesProvider).valueOrNull ?? const <CountryTaxRate>[];
   final defaultFee =
       ref.read(preferencesProvider).valueOrNull?.defaultInvestmentFee ?? 0;
+  final userIdForApi = ref.read(currentUserIdProvider);
+  final marketApiKey = investment == null || userIdForApi == null
+      ? null
+      : await ref
+            .read(secureSessionStoreProvider)
+            .readMarketApiKey(userIdForApi);
+  if (!context.mounted) return;
   final result = await showDialog<InvestmentsCompanion>(
     context: context,
     builder: (_) => _InvestmentEditor(
@@ -1312,6 +1598,7 @@ Future<void> showInvestmentEditor(
       countryTaxRates: countryTaxRates,
       accountId: resolvedAccountId,
       defaultFee: defaultFee,
+      hasMarketApiKey: marketApiKey?.trim().isNotEmpty ?? false,
     ),
   );
   if (result != null) {
@@ -1427,6 +1714,7 @@ class _InvestmentEditor extends StatefulWidget {
     required this.countryTaxRates,
     required this.accountId,
     required this.defaultFee,
+    required this.hasMarketApiKey,
     this.investment,
   });
   final Investment? investment;
@@ -1436,6 +1724,7 @@ class _InvestmentEditor extends StatefulWidget {
   final List<CountryTaxRate> countryTaxRates;
   final String accountId;
   final double defaultFee;
+  final bool hasMarketApiKey;
   @override
   State<_InvestmentEditor> createState() => _InvestmentEditorState();
 }
@@ -1649,6 +1938,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                     'Aktueller Kurs',
                     number: true,
                     required: true,
+                    readOnly: widget.hasMarketApiKey,
                   ),
                   _field(
                     _dividend,
@@ -2361,94 +2651,190 @@ Future<void> _showPurchaseEditor(
 
 Future<void> _showPortfolioActivity(
   BuildContext context, {
+  required WidgetRef ref,
   required List<PortfolioSale> sales,
   required List<PortfolioAuditLog> auditLogs,
-}) => showDialog<void>(
-  context: context,
-  builder: (dialogContext) => DefaultTabController(
-    length: 2,
-    child: AlertDialog(
-      insetPadding: const EdgeInsets.all(16),
-      title: const Text('Portfolio-Aktivitäten'),
-      content: SizedBox(
-        width: (MediaQuery.sizeOf(context).width - 64).clamp(300, 760),
-        height: (MediaQuery.sizeOf(context).height - 220).clamp(320, 620),
-        child: Column(
-          children: [
-            const TabBar(
-              tabs: [
-                Tab(text: 'Verkäufe'),
-                Tab(text: 'Gelöscht'),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  sales.isEmpty
-                      ? const Center(child: Text('Noch keine Verkäufe.'))
-                      : ListView.separated(
-                          itemCount: sales.length,
-                          separatorBuilder: (_, _) => const Divider(height: 1),
-                          itemBuilder: (_, index) {
-                            final sale = sales[index];
-                            return ListTile(
-                              leading: CircleAvatar(
-                                child: Icon(
-                                  sale.assetKind == 'physical'
-                                      ? Icons.diamond_outlined
-                                      : Icons.trending_down_rounded,
-                                ),
-                              ),
-                              title: Text(sale.assetName),
-                              subtitle: Text(
-                                '${DateFormat('dd.MM.yyyy').format(sale.soldAt)} · '
-                                '${sale.quantity.toStringAsFixed(2)} ${sale.unit} · '
-                                'Gewinn ${money(sale.realizedGain)}'
-                                '${sale.taxPaid > 0 ? ' · Steuer ${money(sale.taxPaid)}' : ''}',
-                              ),
-                              trailing: Text(
-                                money(sale.proceeds),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                  auditLogs.isEmpty
-                      ? const Center(child: Text('Noch keine Löschvorgänge.'))
-                      : ListView.separated(
-                          itemCount: auditLogs.length,
-                          separatorBuilder: (_, _) => const Divider(height: 1),
-                          itemBuilder: (_, index) {
-                            final log = auditLogs[index];
-                            return ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.delete_outline_rounded),
-                              ),
-                              title: Text(log.displayName),
-                              subtitle: Text(
-                                '${DateFormat('dd.MM.yyyy · HH:mm').format(log.occurredAt.toLocal())}'
-                                '${log.details.isEmpty ? '' : ' · ${log.details}'}',
-                              ),
-                            );
-                          },
-                        ),
+}) async {
+  final userId = ref.read(currentUserIdProvider);
+  final database = ref.read(databaseProvider);
+  final deletedInvestments = userId == null
+      ? const <Investment>[]
+      : await database.deletedInvestmentsFor(userId);
+  final deletedPhysicalAssets = userId == null
+      ? const <PhysicalAsset>[]
+      : await database.deletedPhysicalAssetsFor(userId);
+  if (!context.mounted) return;
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => DefaultTabController(
+      length: 3,
+      child: AlertDialog(
+        insetPadding: const EdgeInsets.all(16),
+        title: const Text('Portfolio-Aktivitäten'),
+        content: SizedBox(
+          width: (MediaQuery.sizeOf(context).width - 64).clamp(300, 760),
+          height: (MediaQuery.sizeOf(context).height - 220).clamp(320, 620),
+          child: Column(
+            children: [
+              const TabBar(
+                tabs: [
+                  Tab(text: 'Verkäufe'),
+                  Tab(text: 'Papierkorb'),
+                  Tab(text: 'Protokoll'),
                 ],
               ),
-            ),
-          ],
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    sales.isEmpty
+                        ? const Center(child: Text('Noch keine Verkäufe.'))
+                        : ListView.separated(
+                            itemCount: sales.length,
+                            separatorBuilder: (_, _) =>
+                                const Divider(height: 1),
+                            itemBuilder: (_, index) {
+                              final sale = sales[index];
+                              final positive = sale.realizedGain >= 0;
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  child: Icon(
+                                    sale.assetKind == 'physical'
+                                        ? Icons.diamond_outlined
+                                        : Icons.trending_down_rounded,
+                                  ),
+                                ),
+                                title: Text(sale.assetName),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${DateFormat('dd.MM.yyyy').format(sale.soldAt)} · '
+                                      '${sale.quantity.toStringAsFixed(2)} ${sale.unit}',
+                                    ),
+                                    Text(
+                                      '${positive ? 'Gewinn' : 'Verlust'} '
+                                      '${positive ? '+' : ''}${money(sale.realizedGain)}'
+                                      '${sale.taxPaid > 0 ? ' · Steuer ${money(sale.taxPaid)}' : ''}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: positive
+                                                ? Colors.green
+                                                : Theme.of(
+                                                    context,
+                                                  ).colorScheme.error,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                                trailing: Text(
+                                  money(sale.proceeds),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                    deletedInvestments.isEmpty && deletedPhysicalAssets.isEmpty
+                        ? const Center(child: Text('Der Papierkorb ist leer.'))
+                        : ListView(
+                            children: [
+                              for (final item in deletedInvestments)
+                                ListTile(
+                                  leading: const CircleAvatar(
+                                    child: Icon(Icons.show_chart_rounded),
+                                  ),
+                                  title: Text(item.name),
+                                  subtitle: const Text('Gelöschtes Wertpapier'),
+                                  trailing: FilledButton.tonalIcon(
+                                    onPressed: () async {
+                                      final userId = ref.read(
+                                        currentUserIdProvider,
+                                      );
+                                      if (userId != null) {
+                                        await ref
+                                            .read(databaseProvider)
+                                            .restoreInvestment(item.id, userId);
+                                      }
+                                      if (dialogContext.mounted) {
+                                        Navigator.pop(dialogContext);
+                                      }
+                                    },
+                                    icon: const Icon(Icons.restore_rounded),
+                                    label: const Text('Wiederherstellen'),
+                                  ),
+                                ),
+                              for (final asset in deletedPhysicalAssets)
+                                ListTile(
+                                  leading: const CircleAvatar(
+                                    child: Icon(Icons.diamond_outlined),
+                                  ),
+                                  title: Text(asset.name),
+                                  subtitle: const Text(
+                                    'Gelöschter Wertgegenstand',
+                                  ),
+                                  trailing: FilledButton.tonalIcon(
+                                    onPressed: () async {
+                                      final userId = ref.read(
+                                        currentUserIdProvider,
+                                      );
+                                      if (userId != null) {
+                                        await ref
+                                            .read(databaseProvider)
+                                            .restorePhysicalAsset(
+                                              asset.id,
+                                              userId,
+                                            );
+                                      }
+                                      if (dialogContext.mounted) {
+                                        Navigator.pop(dialogContext);
+                                      }
+                                    },
+                                    icon: const Icon(Icons.restore_rounded),
+                                    label: const Text('Wiederherstellen'),
+                                  ),
+                                ),
+                            ],
+                          ),
+                    auditLogs.isEmpty
+                        ? const Center(child: Text('Noch keine Löschvorgänge.'))
+                        : ListView.separated(
+                            itemCount: auditLogs.length,
+                            separatorBuilder: (_, _) =>
+                                const Divider(height: 1),
+                            itemBuilder: (_, index) {
+                              final log = auditLogs[index];
+                              return ListTile(
+                                leading: const CircleAvatar(
+                                  child: Icon(Icons.delete_outline_rounded),
+                                ),
+                                title: Text(log.displayName),
+                                subtitle: Text(
+                                  '${DateFormat('dd.MM.yyyy · HH:mm').format(log.occurredAt.toLocal())}'
+                                  '${log.details.isEmpty ? '' : ' · ${log.details}'}',
+                                ),
+                              );
+                            },
+                          ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Schließen'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Schließen'),
-        ),
-      ],
     ),
-  ),
-);
+  );
+}
 
 double? _parseNumber(String? value) =>
     double.tryParse((value ?? '').replaceAll(',', '.'));

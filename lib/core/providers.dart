@@ -49,6 +49,20 @@ final investmentsProvider = StreamProvider<List<Investment>>((ref) {
       : ref.watch(databaseProvider).watchInvestments(userId);
 });
 
+final allInvestmentsProvider = StreamProvider<List<Investment>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <Investment>[])
+      : ref.watch(databaseProvider).watchAllInvestments(userId);
+});
+
+final deletedInvestmentsProvider = StreamProvider<List<Investment>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <Investment>[])
+      : ref.watch(databaseProvider).watchDeletedInvestments(userId);
+});
+
 final investmentPurchasesProvider = StreamProvider<List<InvestmentPurchase>>((
   ref,
 ) {
@@ -79,6 +93,15 @@ final physicalAssetsProvider = StreamProvider<List<PhysicalAsset>>((ref) {
   return userId == null
       ? Stream.value(const <PhysicalAsset>[])
       : ref.watch(databaseProvider).watchPhysicalAssets(userId);
+});
+
+final deletedPhysicalAssetsProvider = StreamProvider<List<PhysicalAsset>>((
+  ref,
+) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <PhysicalAsset>[])
+      : ref.watch(databaseProvider).watchDeletedPhysicalAssets(userId);
 });
 
 final dividendSchedulesProvider = StreamProvider<List<DividendSchedule>>((ref) {
