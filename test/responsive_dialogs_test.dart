@@ -128,6 +128,10 @@ void main() {
         countryTaxRatesProvider.overrideWith(
           (_) => Stream.value(const <CountryTaxRate>[]),
         ),
+        assetClassesProvider.overrideWith(
+          (_) => Stream.value(const <AssetClassesData>[]),
+        ),
+        isAdminProvider.overrideWithValue(false),
         accountsProvider.overrideWith((_) => Stream.value([account])),
         ledgerEntriesProvider.overrideWith(
           (_) => Stream.value(const <LedgerEntry>[]),

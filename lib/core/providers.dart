@@ -178,6 +178,10 @@ final countryTaxRatesProvider = StreamProvider<List<CountryTaxRate>>((ref) {
   return ref.watch(databaseProvider).watchCountryTaxRates();
 });
 
+final assetClassesProvider = StreamProvider<List<AssetClassesData>>((ref) {
+  return ref.watch(databaseProvider).watchAssetClasses();
+});
+
 final appConfigurationProvider = StreamProvider<AppConfiguration>((ref) {
   return ref.watch(databaseProvider).watchAppConfiguration();
 });

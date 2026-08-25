@@ -135,6 +135,29 @@ class SettingsPage extends ConsumerWidget {
                       );
                     },
                   ),
+                  FutureBuilder<String?>(
+                    future: ref
+                        .read(secureSessionStoreProvider)
+                        .readExchangeApiKey(user.id),
+                    builder: (context, snapshot) {
+                      final configured = snapshot.data?.isNotEmpty ?? false;
+                      return ListTile(
+                        leading: Icon(
+                          configured
+                              ? Icons.currency_exchange_rounded
+                              : Icons.key_off_rounded,
+                        ),
+                        title: const Text('Wechselkurs-API-Key'),
+                        subtitle: Text(
+                          configured
+                              ? 'Sicher hinterlegt · Aktualisierung um 10:00, 15:00 und 19:00 Uhr'
+                              : 'Nicht eingerichtet – Wechselkurse werden manuell gepflegt',
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => _editExchangeApiKey(context, ref, user.id),
+                      );
+                    },
+                  ),
                   const ListTile(
                     leading: Icon(Icons.schedule_rounded),
                     title: Text('Sparsame Aktualisierung vorbereitet'),
@@ -346,6 +369,73 @@ class SettingsPage extends ConsumerWidget {
             content: Text(
               saved
                   ? 'API-Key wurde sicher gespeichert.'
+                  : 'Der Plattform-Schlüsselspeicher ist nicht verfügbar. Der Key wurde nicht gespeichert.',
+            ),
+          ),
+        );
+      }
+    }
+    controller.dispose();
+  }
+
+  Future<void> _editExchangeApiKey(
+    BuildContext context,
+    WidgetRef ref,
+    String userId,
+  ) async {
+    final store = ref.read(secureSessionStoreProvider);
+    final current = await store.readExchangeApiKey(userId) ?? '';
+    if (!context.mounted) return;
+    final controller = TextEditingController(text: current);
+    var obscure = true;
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Wechselkurs-API-Key'),
+          content: SizedBox(
+            width: 480,
+            child: TextField(
+              controller: controller,
+              obscureText: obscure,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: InputDecoration(
+                labelText: 'API-Key',
+                helperText:
+                    'Leer speichern entfernt den Key. Nach dem Hinzufügen wird die erste Abfrage vorbereitet.',
+                suffixIcon: IconButton(
+                  onPressed: () => setDialogState(() => obscure = !obscure),
+                  icon: Icon(
+                    obscure
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Sicher speichern'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (submitted == true) {
+      final saved = await store.writeExchangeApiKey(userId, controller.text);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              saved
+                  ? 'Wechselkurs-API-Key wurde sicher gespeichert.'
                   : 'Der Plattform-Schlüsselspeicher ist nicht verfügbar. Der Key wurde nicht gespeichert.',
             ),
           ),

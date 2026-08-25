@@ -157,10 +157,24 @@ class StockMasters extends Table {
 class CountryTaxRates extends Table {
   TextColumn get country => text()();
   RealColumn get withholdingTaxRate => real().withDefault(const Constant(0))();
+  TextColumn get currency => text().withDefault(const Constant('EUR'))();
+  RealColumn get exchangeRate => real().withDefault(const Constant(1))();
+  BoolColumn get allowManualExchangeRate =>
+      boolean().withDefault(const Constant(true))();
+  DateTimeColumn get exchangeRateUpdatedAt => dateTime().nullable()();
   DateTimeColumn get updatedAt => dateTime()();
 
   @override
   Set<Column<Object>> get primaryKey => {country};
+}
+
+class AssetClasses extends Table {
+  TextColumn get name => text()();
+  IntColumn get displayOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {name};
 }
 
 class AppConfigurations extends Table {
@@ -199,6 +213,11 @@ class PortfolioSales extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text().references(Users, #id)();
   TextColumn get accountId => text().references(Accounts, #id)();
+  TextColumn get destinationAccountId => text().nullable()();
+  BoolColumn get accountCredited =>
+      boolean().withDefault(const Constant(true))();
+  TextColumn get sourceCurrency => text().withDefault(const Constant('EUR'))();
+  RealColumn get exchangeRate => real().withDefault(const Constant(1))();
   TextColumn get investmentId => text().nullable()();
   TextColumn get physicalAssetId => text().nullable()();
   TextColumn get assetName => text()();
@@ -451,6 +470,7 @@ class NetWorthSnapshots extends Table {
     MarketDataRefreshes,
     ApiRequestDays,
     CountryTaxRates,
+    AssetClasses,
     AppConfigurations,
     PhysicalAssets,
     PortfolioSales,
@@ -495,11 +515,14 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (migrator) => migrator.createAll(),
+    onCreate: (migrator) async {
+      await migrator.createAll();
+      await _seedAssetClasses();
+    },
     onUpgrade: (migrator, from, to) async {
       if (from < 2) {
         await migrator.addColumn(ledgerEntries, ledgerEntries.recurrenceId);
@@ -661,8 +684,53 @@ final class AppDatabase extends _$AppDatabase {
           userPreferences.includePhysicalAssetsInTaxAllowance,
         );
       }
+      if (from < 14) {
+        await migrator.addColumn(countryTaxRates, countryTaxRates.currency);
+        await migrator.addColumn(countryTaxRates, countryTaxRates.exchangeRate);
+        await migrator.addColumn(
+          countryTaxRates,
+          countryTaxRates.allowManualExchangeRate,
+        );
+        await migrator.addColumn(
+          countryTaxRates,
+          countryTaxRates.exchangeRateUpdatedAt,
+        );
+        await migrator.createTable(assetClasses);
+        await migrator.addColumn(
+          portfolioSales,
+          portfolioSales.destinationAccountId,
+        );
+        await migrator.addColumn(
+          portfolioSales,
+          portfolioSales.accountCredited,
+        );
+        await migrator.addColumn(portfolioSales, portfolioSales.sourceCurrency);
+        await migrator.addColumn(portfolioSales, portfolioSales.exchangeRate);
+        await _seedAssetClasses();
+      }
     },
   );
+
+  Future<void> _seedAssetClasses() => batch((batch) {
+    for (final entry in const [
+      'Aktie',
+      'ETF',
+      'Kryptowährung',
+      'Anleihe',
+      'Fonds',
+      'Hebelprodukt',
+    ].indexed) {
+      batch.insert(
+        assetClasses,
+        AssetClassesCompanion.insert(
+          name: entry.$2,
+          displayOrder: Value(entry.$1),
+          createdAt: DateTime.now().toUtc(),
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
+    }
+  });
 
   Future<User?> userByEmail(String email) => (select(
     users,
@@ -782,6 +850,55 @@ final class AppDatabase extends _$AppDatabase {
     countryTaxRates,
   )..orderBy([(row) => OrderingTerm.asc(row.country)])).watch();
 
+  Future<List<CountryTaxRate>> countryExchangePool() => (select(
+    countryTaxRates,
+  )..orderBy([(row) => OrderingTerm.asc(row.country)])).get();
+
+  Stream<List<AssetClassesData>> watchAssetClasses() =>
+      (select(assetClasses)..orderBy([
+            (row) => OrderingTerm.asc(row.displayOrder),
+            (row) => OrderingTerm.asc(row.name),
+          ]))
+          .watch();
+
+  Future<void> saveAssetClass({
+    required String actorUserId,
+    required String name,
+  }) async {
+    await _requireAdmin(actorUserId);
+    final normalized = name.trim();
+    if (normalized.isEmpty) throw ArgumentError('Anlageklasse fehlt.');
+    final existing = await select(assetClasses).get();
+    final maximum = existing.fold<int>(
+      -1,
+      (value, item) => item.displayOrder > value ? item.displayOrder : value,
+    );
+    await into(assetClasses).insert(
+      AssetClassesCompanion.insert(
+        name: normalized,
+        displayOrder: Value(maximum + 1),
+        createdAt: DateTime.now().toUtc(),
+      ),
+      mode: InsertMode.insertOrIgnore,
+    );
+  }
+
+  Future<void> deleteAssetClass({
+    required String actorUserId,
+    required String name,
+  }) async {
+    await _requireAdmin(actorUserId);
+    final inUse =
+        await (select(investments)..where(
+              (row) => row.assetType.equals(name) & row.deletedAt.isNull(),
+            ))
+            .get();
+    if (inUse.isNotEmpty) {
+      throw StateError('Diese Anlageklasse wird noch im Portfolio verwendet.');
+    }
+    await (delete(assetClasses)..where((row) => row.name.equals(name))).go();
+  }
+
   Future<List<String>> availableCountries() async {
     final values = <String>{};
     values.addAll(
@@ -814,13 +931,27 @@ final class AppDatabase extends _$AppDatabase {
     if (country.trim().isEmpty || rate < 0 || rate > 100) {
       throw ArgumentError('Land und Quellensteuer müssen gültig sein.');
     }
-    await into(countryTaxRates).insertOnConflictUpdate(
-      CountryTaxRatesCompanion.insert(
-        country: country.trim(),
-        withholdingTaxRate: Value(rate),
-        updatedAt: DateTime.now().toUtc(),
-      ),
-    );
+    final existing = await (select(
+      countryTaxRates,
+    )..where((row) => row.country.equals(country.trim()))).getSingleOrNull();
+    if (existing == null) {
+      await into(countryTaxRates).insert(
+        CountryTaxRatesCompanion.insert(
+          country: country.trim(),
+          withholdingTaxRate: Value(rate),
+          updatedAt: DateTime.now().toUtc(),
+        ),
+      );
+    } else {
+      await (update(
+        countryTaxRates,
+      )..where((row) => row.country.equals(existing.country))).write(
+        CountryTaxRatesCompanion(
+          withholdingTaxRate: Value(rate),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+    }
     final normalized = country.trim().toLowerCase();
     final affected = (await select(investments).get())
         .where(
@@ -846,6 +977,95 @@ final class AppDatabase extends _$AppDatabase {
               DividendSchedulesCompanion(
                 withholdingTaxRate: Value(rate),
                 updatedAt: Value(DateTime.now().toUtc()),
+              ),
+            );
+      }
+    });
+  }
+
+  Future<void> saveCountryExchangeRate({
+    required String actorUserId,
+    required String country,
+    required String currency,
+    required double exchangeRate,
+    bool? allowManualExchangeRate,
+    bool apiKeyConfigured = false,
+  }) async {
+    if (country.trim().isEmpty ||
+        currency.trim().isEmpty ||
+        exchangeRate <= 0) {
+      throw ArgumentError('Land, Währung und Wechselkurs müssen gültig sein.');
+    }
+    final actor = await userById(actorUserId);
+    final existing = (await select(countryTaxRates).get())
+        .where(
+          (row) =>
+              row.country.trim().toLowerCase() == country.trim().toLowerCase(),
+        )
+        .firstOrNull;
+    final isAdmin = actor?.role == 'admin';
+    if (!isAdmin &&
+        apiKeyConfigured &&
+        !(existing?.allowManualExchangeRate ?? true)) {
+      throw StateError(
+        'Der Wechselkurs ist durch die Administration gesperrt.',
+      );
+    }
+    if (allowManualExchangeRate != null && !isAdmin) {
+      throw StateError('Nur Administratoren dürfen die Freigabe ändern.');
+    }
+    final now = DateTime.now().toUtc();
+    if (existing == null) {
+      await into(countryTaxRates).insert(
+        CountryTaxRatesCompanion.insert(
+          country: country.trim(),
+          currency: Value(currency.trim().toUpperCase()),
+          exchangeRate: Value(exchangeRate),
+          allowManualExchangeRate: Value(allowManualExchangeRate ?? true),
+          exchangeRateUpdatedAt: Value(now),
+          updatedAt: now,
+        ),
+      );
+    } else {
+      await (update(
+        countryTaxRates,
+      )..where((row) => row.country.equals(existing.country))).write(
+        CountryTaxRatesCompanion(
+          currency: Value(currency.trim().toUpperCase()),
+          exchangeRate: Value(exchangeRate),
+          allowManualExchangeRate: Value(
+            allowManualExchangeRate ?? existing.allowManualExchangeRate,
+          ),
+          exchangeRateUpdatedAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+    }
+    final normalized = country.trim().toLowerCase();
+    final affected = (await select(investments).get())
+        .where((item) => item.country.trim().toLowerCase() == normalized)
+        .toList();
+    await transaction(() async {
+      for (final investment in affected) {
+        await (update(
+          investments,
+        )..where((row) => row.id.equals(investment.id))).write(
+          InvestmentsCompanion(
+            dividendCurrency: Value(currency.trim().toUpperCase()),
+            dividendExchangeRate: Value(exchangeRate),
+            updatedAt: Value(now),
+          ),
+        );
+        await (update(dividendSchedules)..where(
+              (row) =>
+                  row.investmentId.equals(investment.id) &
+                  row.deletedAt.isNull(),
+            ))
+            .write(
+              DividendSchedulesCompanion(
+                currency: Value(currency.trim().toUpperCase()),
+                exchangeRate: Value(exchangeRate),
+                updatedAt: Value(now),
               ),
             );
       }
@@ -1584,6 +1804,7 @@ final class AppDatabase extends _$AppDatabase {
     required double pricePerGram,
     required double fees,
     required DateTime soldAt,
+    String? destinationAccountId,
   }) async {
     if (grams <= 0 || pricePerGram < 0 || fees < 0) {
       throw ArgumentError('Verkaufsdaten sind ungültig.');
@@ -1666,6 +1887,8 @@ final class AppDatabase extends _$AppDatabase {
           id: _uuid.v4(),
           userId: userId,
           accountId: asset.accountId,
+          destinationAccountId: Value(destinationAccountId),
+          accountCredited: Value(destinationAccountId != null),
           physicalAssetId: Value(asset.id),
           assetName: asset.name,
           assetKind: 'physical',
@@ -1695,20 +1918,27 @@ final class AppDatabase extends _$AppDatabase {
           updatedAt: Value(DateTime.now().toUtc()),
         ),
       );
-      final account =
-          await (select(accounts)..where(
-                (row) =>
-                    row.id.equals(asset.accountId) & row.userId.equals(userId),
-              ))
-              .getSingle();
-      await (update(
-        accounts,
-      )..where((row) => row.id.equals(asset.accountId))).write(
-        AccountsCompanion(
-          balance: Value(account.balance + proceeds),
-          updatedAt: Value(DateTime.now().toUtc()),
-        ),
-      );
+      if (destinationAccountId != null) {
+        final account =
+            await (select(accounts)..where(
+                  (row) =>
+                      row.id.equals(destinationAccountId) &
+                      row.userId.equals(userId) &
+                      row.deletedAt.isNull(),
+                ))
+                .getSingleOrNull();
+        if (account == null) {
+          throw StateError('Das Zielkonto ist nicht verfügbar.');
+        }
+        await (update(
+          accounts,
+        )..where((row) => row.id.equals(destinationAccountId))).write(
+          AccountsCompanion(
+            balance: Value(account.balance + proceeds),
+            updatedAt: Value(DateTime.now().toUtc()),
+          ),
+        );
+      }
     });
     await captureNetWorth(userId);
   }
@@ -1822,6 +2052,22 @@ final class AppDatabase extends _$AppDatabase {
       ),
     );
     await captureNetWorth(userId);
+  }
+
+  Future<void> updateInvestmentDividend({
+    required String id,
+    required String userId,
+    required double dividendPerShare,
+  }) async {
+    if (dividendPerShare < 0) throw ArgumentError('Ungültige Dividende.');
+    await (update(
+      investments,
+    )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+      InvestmentsCompanion(
+        annualDividend: Value(dividendPerShare),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
   }
 
   Stream<List<PhysicalAsset>> watchPhysicalAssets(String userId) =>
@@ -2391,7 +2637,12 @@ final class AppDatabase extends _$AppDatabase {
         ).insertOnConflictUpdate(remote.toCompanion(false));
       }
       for (final json in rows('portfolioSales')) {
-        final remote = PortfolioSale.fromJson(json);
+        final remote = PortfolioSale.fromJson({
+          'accountCredited': true,
+          'sourceCurrency': 'EUR',
+          'exchangeRate': 1,
+          ...json,
+        });
         if (remote.userId != userId) continue;
         await into(
           portfolioSales,

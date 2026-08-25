@@ -764,6 +764,9 @@ final class _ProjectedDividend {
     required this.withholdingTaxRate,
     required this.date,
     required this.paymentDateKnown,
+    required this.sourceCurrency,
+    required this.exchangeRate,
+    required this.grossSource,
   });
 
   final Investment investment;
@@ -772,6 +775,9 @@ final class _ProjectedDividend {
   final double withholdingTaxRate;
   final DateTime date;
   final bool paymentDateKnown;
+  final String sourceCurrency;
+  final double exchangeRate;
+  final double grossSource;
 }
 
 List<_ProjectedDividend> _buildDividendProjection(
@@ -791,6 +797,7 @@ List<_ProjectedDividend> _buildDividendProjection(
           double amount,
           double exchangeRate,
           double withholdingTaxRate,
+          String currency,
           DateTime date,
         })
       >[];
@@ -813,6 +820,7 @@ List<_ProjectedDividend> _buildDividendProjection(
             amount: row.amountPerShare,
             exchangeRate: row.exchangeRate,
             withholdingTaxRate: row.withholdingTaxRate,
+            currency: row.currency,
             date: row.paymentDate ?? row.exDate ?? DateTime(year, month, 1),
           ));
         }
@@ -826,6 +834,7 @@ List<_ProjectedDividend> _buildDividendProjection(
           amount: investment.annualDividend,
           exchangeRate: investment.dividendExchangeRate,
           withholdingTaxRate: investment.dividendWithholdingTaxRate,
+          currency: investment.dividendCurrency,
           date: DateTime(year, month),
         ));
       }
@@ -868,6 +877,9 @@ List<_ProjectedDividend> _buildDividendProjection(
               (row.paymentYear == year ||
                   (row.paymentYear == 0 && year == DateTime.now().year)),
         ),
+        sourceCurrency: event.currency,
+        exchangeRate: event.exchangeRate,
+        grossSource: event.amount * shares,
       ),
     );
   }
@@ -1078,15 +1090,20 @@ class _DividendCalendar extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 12),
+            SizedBox(
+              height: 190,
+              child: _AnnualDividendLineChart(
+                investment: selected,
+                projection: projection,
+                baseCurrency: baseCurrency,
+              ),
+            ),
+            const SizedBox(height: 12),
             if (selected == null)
               const Text(
                 'Für Bearbeitung und Schnellerfassung bitte eine einzelne Aktie auswählen.',
               )
-            else if (exact.isEmpty)
-              const Text(
-                'Noch kein genauer Zahlungsplan: Die Monatswerte werden aus dem bisherigen Rhythmus hochgerechnet.',
-              )
-            else
+            else if (exact.isNotEmpty)
               for (final row in exact)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -1718,6 +1735,105 @@ class _AnnualDividendChart extends StatelessWidget {
   }
 }
 
+class _AnnualDividendLineChart extends StatelessWidget {
+  const _AnnualDividendLineChart({
+    required this.investment,
+    required this.projection,
+    required this.baseCurrency,
+  });
+
+  final Investment? investment;
+  final List<_ProjectedDividend> projection;
+  final String baseCurrency;
+
+  @override
+  Widget build(BuildContext context) {
+    final values = List.generate(
+      12,
+      (index) => projection
+          .where(
+            (payment) =>
+                (investment == null ||
+                    payment.investment.id == investment!.id) &&
+                payment.month == index + 1,
+          )
+          .fold<double>(0, (sum, payment) => sum + payment.tax.net),
+    );
+    final maximum = values.fold<double>(
+      0,
+      (max, value) => value > max ? value : max,
+    );
+    final color = Theme.of(context).colorScheme.primary;
+    return LineChart(
+      LineChartData(
+        minX: 0,
+        maxX: 11,
+        minY: 0,
+        maxY: maximum <= 0 ? 1 : maximum * 1.2,
+        borderData: FlBorderData(show: false),
+        gridData: FlGridData(
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: Theme.of(context).dividerColor.withValues(alpha: .18),
+          ),
+        ),
+        titlesData: FlTitlesData(
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 1,
+              getTitlesWidget: (value, meta) => Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(_monthNames[value.toInt()].substring(0, 3)),
+              ),
+            ),
+          ),
+        ),
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipItems: (spots) => spots
+                .map(
+                  (spot) => LineTooltipItem(
+                    '${_monthNames[spot.x.toInt()]}\n'
+                    '${money(spot.y, currency: baseCurrency)} netto',
+                    const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: values.indexed
+                .map((item) => FlSpot(item.$1.toDouble(), item.$2))
+                .toList(),
+            isCurved: true,
+            barWidth: 4,
+            color: color,
+            dotData: const FlDotData(show: true),
+            belowBarData: BarAreaData(
+              show: true,
+              color: color.withValues(alpha: .12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DividendMonthCard extends StatelessWidget {
   const _DividendMonthCard({
     required this.month,
@@ -1915,6 +2031,7 @@ Future<void> _showDividendPaymentDetail(
   context: context,
   builder: (dialogContext) {
     final tax = payment.tax;
+    final rate = payment.exchangeRate <= 0 ? 1.0 : payment.exchangeRate;
     return AlertDialog(
       title: Text(payment.investment.name),
       content: SizedBox(
@@ -1926,6 +2043,8 @@ Future<void> _showDividendPaymentDetail(
               label: 'Brutto',
               value: tax.gross,
               currency: baseCurrency,
+              sourceValue: payment.grossSource,
+              sourceCurrency: payment.sourceCurrency,
               emphasized: true,
             ),
             _DividendTaxRow(
@@ -1933,30 +2052,48 @@ Future<void> _showDividendPaymentDetail(
                   'Quellensteuer (${payment.withholdingTaxRate.toStringAsFixed(2)} % · ${payment.investment.country})',
               value: -tax.withholdingTax,
               currency: baseCurrency,
+              sourceValue: -tax.withholdingTax / rate,
+              sourceCurrency: payment.sourceCurrency,
             ),
             if (tax.creditableWithholdingTax > 0)
               _DividendTaxRow(
                 label: 'Davon anrechenbare Quellensteuer',
                 value: tax.creditableWithholdingTax,
                 currency: baseCurrency,
+                sourceValue: tax.creditableWithholdingTax / rate,
+                sourceCurrency: payment.sourceCurrency,
                 informational: true,
               ),
             _DividendTaxRow(
               label: 'Kapitalertragsteuer ($germanCapitalGainsTaxRate %)',
               value: -tax.germanCapitalTax,
               currency: baseCurrency,
+              sourceValue: -tax.germanCapitalTax / rate,
+              sourceCurrency: payment.sourceCurrency,
             ),
             _DividendTaxRow(
               label:
                   'Solidaritätszuschlag ($solidaritySurchargeRate % auf Kapitalertragsteuer)',
               value: -tax.solidaritySurcharge,
               currency: baseCurrency,
+              sourceValue: -tax.solidaritySurcharge / rate,
+              sourceCurrency: payment.sourceCurrency,
             ),
+            if (tax.churchTax > 0)
+              _DividendTaxRow(
+                label: 'Kirchensteuer',
+                value: -tax.churchTax,
+                currency: baseCurrency,
+                sourceValue: -tax.churchTax / rate,
+                sourceCurrency: payment.sourceCurrency,
+              ),
             if (tax.allowanceUsed > 0)
               _DividendTaxRow(
                 label: 'Genutzter Freistellungsauftrag',
                 value: tax.allowanceUsed,
                 currency: baseCurrency,
+                sourceValue: tax.allowanceUsed / rate,
+                sourceCurrency: payment.sourceCurrency,
                 informational: true,
               ),
             const Divider(height: 24),
@@ -1964,6 +2101,8 @@ Future<void> _showDividendPaymentDetail(
               label: 'Netto',
               value: tax.net,
               currency: baseCurrency,
+              sourceValue: tax.net / rate,
+              sourceCurrency: payment.sourceCurrency,
               emphasized: true,
             ),
           ],
@@ -1986,6 +2125,8 @@ class _DividendTaxRow extends StatelessWidget {
     required this.currency,
     this.emphasized = false,
     this.informational = false,
+    this.sourceValue,
+    this.sourceCurrency,
   });
 
   final String label;
@@ -1993,6 +2134,8 @@ class _DividendTaxRow extends StatelessWidget {
   final String currency;
   final bool emphasized;
   final bool informational;
+  final double? sourceValue;
+  final String? sourceCurrency;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -2011,12 +2154,24 @@ class _DividendTaxRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Text(
-          '${value < 0 ? '−' : ''}${money(value.abs(), currency: currency)}',
-          style: TextStyle(
-            fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
-            color: value < 0 ? Theme.of(context).colorScheme.error : null,
-          ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (sourceValue != null &&
+                sourceCurrency != null &&
+                (sourceCurrency != currency || sourceValue != value))
+              Text(
+                '${sourceValue! < 0 ? '−' : ''}${money(sourceValue!.abs(), currency: sourceCurrency!)}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            Text(
+              '${value < 0 ? '−' : ''}${money(value.abs(), currency: currency)}',
+              style: TextStyle(
+                fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
+                color: value < 0 ? Theme.of(context).colorScheme.error : null,
+              ),
+            ),
+          ],
         ),
       ],
     ),

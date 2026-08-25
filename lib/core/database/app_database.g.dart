@@ -11830,6 +11830,56 @@ class $CountryTaxRatesTable extends CountryTaxRates
         requiredDuringInsert: false,
         defaultValue: const Constant(0),
       );
+  static const VerificationMeta _currencyMeta = const VerificationMeta(
+    'currency',
+  );
+  @override
+  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
+    'currency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('EUR'),
+  );
+  static const VerificationMeta _exchangeRateMeta = const VerificationMeta(
+    'exchangeRate',
+  );
+  @override
+  late final GeneratedColumn<double> exchangeRate = GeneratedColumn<double>(
+    'exchange_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _allowManualExchangeRateMeta =
+      const VerificationMeta('allowManualExchangeRate');
+  @override
+  late final GeneratedColumn<bool> allowManualExchangeRate =
+      GeneratedColumn<bool>(
+        'allow_manual_exchange_rate',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("allow_manual_exchange_rate" IN (0, 1))',
+        ),
+        defaultValue: const Constant(true),
+      );
+  static const VerificationMeta _exchangeRateUpdatedAtMeta =
+      const VerificationMeta('exchangeRateUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> exchangeRateUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'exchange_rate_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
   );
@@ -11845,6 +11895,10 @@ class $CountryTaxRatesTable extends CountryTaxRates
   List<GeneratedColumn> get $columns => [
     country,
     withholdingTaxRate,
+    currency,
+    exchangeRate,
+    allowManualExchangeRate,
+    exchangeRateUpdatedAt,
     updatedAt,
   ];
   @override
@@ -11876,6 +11930,39 @@ class $CountryTaxRatesTable extends CountryTaxRates
         ),
       );
     }
+    if (data.containsKey('currency')) {
+      context.handle(
+        _currencyMeta,
+        currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
+      );
+    }
+    if (data.containsKey('exchange_rate')) {
+      context.handle(
+        _exchangeRateMeta,
+        exchangeRate.isAcceptableOrUnknown(
+          data['exchange_rate']!,
+          _exchangeRateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('allow_manual_exchange_rate')) {
+      context.handle(
+        _allowManualExchangeRateMeta,
+        allowManualExchangeRate.isAcceptableOrUnknown(
+          data['allow_manual_exchange_rate']!,
+          _allowManualExchangeRateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('exchange_rate_updated_at')) {
+      context.handle(
+        _exchangeRateUpdatedAtMeta,
+        exchangeRateUpdatedAt.isAcceptableOrUnknown(
+          data['exchange_rate_updated_at']!,
+          _exchangeRateUpdatedAtMeta,
+        ),
+      );
+    }
     if (data.containsKey('updated_at')) {
       context.handle(
         _updatedAtMeta,
@@ -11901,6 +11988,22 @@ class $CountryTaxRatesTable extends CountryTaxRates
         DriftSqlType.double,
         data['${effectivePrefix}withholding_tax_rate'],
       )!,
+      currency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency'],
+      )!,
+      exchangeRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}exchange_rate'],
+      )!,
+      allowManualExchangeRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}allow_manual_exchange_rate'],
+      )!,
+      exchangeRateUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}exchange_rate_updated_at'],
+      ),
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
@@ -11917,10 +12020,18 @@ class $CountryTaxRatesTable extends CountryTaxRates
 class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
   final String country;
   final double withholdingTaxRate;
+  final String currency;
+  final double exchangeRate;
+  final bool allowManualExchangeRate;
+  final DateTime? exchangeRateUpdatedAt;
   final DateTime updatedAt;
   const CountryTaxRate({
     required this.country,
     required this.withholdingTaxRate,
+    required this.currency,
+    required this.exchangeRate,
+    required this.allowManualExchangeRate,
+    this.exchangeRateUpdatedAt,
     required this.updatedAt,
   });
   @override
@@ -11928,6 +12039,14 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
     final map = <String, Expression>{};
     map['country'] = Variable<String>(country);
     map['withholding_tax_rate'] = Variable<double>(withholdingTaxRate);
+    map['currency'] = Variable<String>(currency);
+    map['exchange_rate'] = Variable<double>(exchangeRate);
+    map['allow_manual_exchange_rate'] = Variable<bool>(allowManualExchangeRate);
+    if (!nullToAbsent || exchangeRateUpdatedAt != null) {
+      map['exchange_rate_updated_at'] = Variable<DateTime>(
+        exchangeRateUpdatedAt,
+      );
+    }
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
   }
@@ -11936,6 +12055,12 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
     return CountryTaxRatesCompanion(
       country: Value(country),
       withholdingTaxRate: Value(withholdingTaxRate),
+      currency: Value(currency),
+      exchangeRate: Value(exchangeRate),
+      allowManualExchangeRate: Value(allowManualExchangeRate),
+      exchangeRateUpdatedAt: exchangeRateUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(exchangeRateUpdatedAt),
       updatedAt: Value(updatedAt),
     );
   }
@@ -11950,6 +12075,14 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
       withholdingTaxRate: serializer.fromJson<double>(
         json['withholdingTaxRate'],
       ),
+      currency: serializer.fromJson<String>(json['currency']),
+      exchangeRate: serializer.fromJson<double>(json['exchangeRate']),
+      allowManualExchangeRate: serializer.fromJson<bool>(
+        json['allowManualExchangeRate'],
+      ),
+      exchangeRateUpdatedAt: serializer.fromJson<DateTime?>(
+        json['exchangeRateUpdatedAt'],
+      ),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
   }
@@ -11959,6 +12092,14 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
     return <String, dynamic>{
       'country': serializer.toJson<String>(country),
       'withholdingTaxRate': serializer.toJson<double>(withholdingTaxRate),
+      'currency': serializer.toJson<String>(currency),
+      'exchangeRate': serializer.toJson<double>(exchangeRate),
+      'allowManualExchangeRate': serializer.toJson<bool>(
+        allowManualExchangeRate,
+      ),
+      'exchangeRateUpdatedAt': serializer.toJson<DateTime?>(
+        exchangeRateUpdatedAt,
+      ),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
   }
@@ -11966,10 +12107,21 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
   CountryTaxRate copyWith({
     String? country,
     double? withholdingTaxRate,
+    String? currency,
+    double? exchangeRate,
+    bool? allowManualExchangeRate,
+    Value<DateTime?> exchangeRateUpdatedAt = const Value.absent(),
     DateTime? updatedAt,
   }) => CountryTaxRate(
     country: country ?? this.country,
     withholdingTaxRate: withholdingTaxRate ?? this.withholdingTaxRate,
+    currency: currency ?? this.currency,
+    exchangeRate: exchangeRate ?? this.exchangeRate,
+    allowManualExchangeRate:
+        allowManualExchangeRate ?? this.allowManualExchangeRate,
+    exchangeRateUpdatedAt: exchangeRateUpdatedAt.present
+        ? exchangeRateUpdatedAt.value
+        : this.exchangeRateUpdatedAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
   CountryTaxRate copyWithCompanion(CountryTaxRatesCompanion data) {
@@ -11978,6 +12130,16 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
       withholdingTaxRate: data.withholdingTaxRate.present
           ? data.withholdingTaxRate.value
           : this.withholdingTaxRate,
+      currency: data.currency.present ? data.currency.value : this.currency,
+      exchangeRate: data.exchangeRate.present
+          ? data.exchangeRate.value
+          : this.exchangeRate,
+      allowManualExchangeRate: data.allowManualExchangeRate.present
+          ? data.allowManualExchangeRate.value
+          : this.allowManualExchangeRate,
+      exchangeRateUpdatedAt: data.exchangeRateUpdatedAt.present
+          ? data.exchangeRateUpdatedAt.value
+          : this.exchangeRateUpdatedAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
@@ -11987,36 +12149,64 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
     return (StringBuffer('CountryTaxRate(')
           ..write('country: $country, ')
           ..write('withholdingTaxRate: $withholdingTaxRate, ')
+          ..write('currency: $currency, ')
+          ..write('exchangeRate: $exchangeRate, ')
+          ..write('allowManualExchangeRate: $allowManualExchangeRate, ')
+          ..write('exchangeRateUpdatedAt: $exchangeRateUpdatedAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(country, withholdingTaxRate, updatedAt);
+  int get hashCode => Object.hash(
+    country,
+    withholdingTaxRate,
+    currency,
+    exchangeRate,
+    allowManualExchangeRate,
+    exchangeRateUpdatedAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is CountryTaxRate &&
           other.country == this.country &&
           other.withholdingTaxRate == this.withholdingTaxRate &&
+          other.currency == this.currency &&
+          other.exchangeRate == this.exchangeRate &&
+          other.allowManualExchangeRate == this.allowManualExchangeRate &&
+          other.exchangeRateUpdatedAt == this.exchangeRateUpdatedAt &&
           other.updatedAt == this.updatedAt);
 }
 
 class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
   final Value<String> country;
   final Value<double> withholdingTaxRate;
+  final Value<String> currency;
+  final Value<double> exchangeRate;
+  final Value<bool> allowManualExchangeRate;
+  final Value<DateTime?> exchangeRateUpdatedAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
   const CountryTaxRatesCompanion({
     this.country = const Value.absent(),
     this.withholdingTaxRate = const Value.absent(),
+    this.currency = const Value.absent(),
+    this.exchangeRate = const Value.absent(),
+    this.allowManualExchangeRate = const Value.absent(),
+    this.exchangeRateUpdatedAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CountryTaxRatesCompanion.insert({
     required String country,
     this.withholdingTaxRate = const Value.absent(),
+    this.currency = const Value.absent(),
+    this.exchangeRate = const Value.absent(),
+    this.allowManualExchangeRate = const Value.absent(),
+    this.exchangeRateUpdatedAt = const Value.absent(),
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
   }) : country = Value(country),
@@ -12024,6 +12214,10 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
   static Insertable<CountryTaxRate> custom({
     Expression<String>? country,
     Expression<double>? withholdingTaxRate,
+    Expression<String>? currency,
+    Expression<double>? exchangeRate,
+    Expression<bool>? allowManualExchangeRate,
+    Expression<DateTime>? exchangeRateUpdatedAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
   }) {
@@ -12031,6 +12225,12 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
       if (country != null) 'country': country,
       if (withholdingTaxRate != null)
         'withholding_tax_rate': withholdingTaxRate,
+      if (currency != null) 'currency': currency,
+      if (exchangeRate != null) 'exchange_rate': exchangeRate,
+      if (allowManualExchangeRate != null)
+        'allow_manual_exchange_rate': allowManualExchangeRate,
+      if (exchangeRateUpdatedAt != null)
+        'exchange_rate_updated_at': exchangeRateUpdatedAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -12039,12 +12239,22 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
   CountryTaxRatesCompanion copyWith({
     Value<String>? country,
     Value<double>? withholdingTaxRate,
+    Value<String>? currency,
+    Value<double>? exchangeRate,
+    Value<bool>? allowManualExchangeRate,
+    Value<DateTime?>? exchangeRateUpdatedAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
   }) {
     return CountryTaxRatesCompanion(
       country: country ?? this.country,
       withholdingTaxRate: withholdingTaxRate ?? this.withholdingTaxRate,
+      currency: currency ?? this.currency,
+      exchangeRate: exchangeRate ?? this.exchangeRate,
+      allowManualExchangeRate:
+          allowManualExchangeRate ?? this.allowManualExchangeRate,
+      exchangeRateUpdatedAt:
+          exchangeRateUpdatedAt ?? this.exchangeRateUpdatedAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -12058,6 +12268,22 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
     }
     if (withholdingTaxRate.present) {
       map['withholding_tax_rate'] = Variable<double>(withholdingTaxRate.value);
+    }
+    if (currency.present) {
+      map['currency'] = Variable<String>(currency.value);
+    }
+    if (exchangeRate.present) {
+      map['exchange_rate'] = Variable<double>(exchangeRate.value);
+    }
+    if (allowManualExchangeRate.present) {
+      map['allow_manual_exchange_rate'] = Variable<bool>(
+        allowManualExchangeRate.value,
+      );
+    }
+    if (exchangeRateUpdatedAt.present) {
+      map['exchange_rate_updated_at'] = Variable<DateTime>(
+        exchangeRateUpdatedAt.value,
+      );
     }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
@@ -12073,7 +12299,282 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
     return (StringBuffer('CountryTaxRatesCompanion(')
           ..write('country: $country, ')
           ..write('withholdingTaxRate: $withholdingTaxRate, ')
+          ..write('currency: $currency, ')
+          ..write('exchangeRate: $exchangeRate, ')
+          ..write('allowManualExchangeRate: $allowManualExchangeRate, ')
+          ..write('exchangeRateUpdatedAt: $exchangeRateUpdatedAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AssetClassesTable extends AssetClasses
+    with TableInfo<$AssetClassesTable, AssetClassesData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AssetClassesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _displayOrderMeta = const VerificationMeta(
+    'displayOrder',
+  );
+  @override
+  late final GeneratedColumn<int> displayOrder = GeneratedColumn<int>(
+    'display_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [name, displayOrder, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'asset_classes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AssetClassesData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('display_order')) {
+      context.handle(
+        _displayOrderMeta,
+        displayOrder.isAcceptableOrUnknown(
+          data['display_order']!,
+          _displayOrderMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {name};
+  @override
+  AssetClassesData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AssetClassesData(
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      displayOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}display_order'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AssetClassesTable createAlias(String alias) {
+    return $AssetClassesTable(attachedDatabase, alias);
+  }
+}
+
+class AssetClassesData extends DataClass
+    implements Insertable<AssetClassesData> {
+  final String name;
+  final int displayOrder;
+  final DateTime createdAt;
+  const AssetClassesData({
+    required this.name,
+    required this.displayOrder,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['name'] = Variable<String>(name);
+    map['display_order'] = Variable<int>(displayOrder);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  AssetClassesCompanion toCompanion(bool nullToAbsent) {
+    return AssetClassesCompanion(
+      name: Value(name),
+      displayOrder: Value(displayOrder),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AssetClassesData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AssetClassesData(
+      name: serializer.fromJson<String>(json['name']),
+      displayOrder: serializer.fromJson<int>(json['displayOrder']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'name': serializer.toJson<String>(name),
+      'displayOrder': serializer.toJson<int>(displayOrder),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  AssetClassesData copyWith({
+    String? name,
+    int? displayOrder,
+    DateTime? createdAt,
+  }) => AssetClassesData(
+    name: name ?? this.name,
+    displayOrder: displayOrder ?? this.displayOrder,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  AssetClassesData copyWithCompanion(AssetClassesCompanion data) {
+    return AssetClassesData(
+      name: data.name.present ? data.name.value : this.name,
+      displayOrder: data.displayOrder.present
+          ? data.displayOrder.value
+          : this.displayOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AssetClassesData(')
+          ..write('name: $name, ')
+          ..write('displayOrder: $displayOrder, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(name, displayOrder, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AssetClassesData &&
+          other.name == this.name &&
+          other.displayOrder == this.displayOrder &&
+          other.createdAt == this.createdAt);
+}
+
+class AssetClassesCompanion extends UpdateCompanion<AssetClassesData> {
+  final Value<String> name;
+  final Value<int> displayOrder;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const AssetClassesCompanion({
+    this.name = const Value.absent(),
+    this.displayOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AssetClassesCompanion.insert({
+    required String name,
+    this.displayOrder = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : name = Value(name),
+       createdAt = Value(createdAt);
+  static Insertable<AssetClassesData> custom({
+    Expression<String>? name,
+    Expression<int>? displayOrder,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (name != null) 'name': name,
+      if (displayOrder != null) 'display_order': displayOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AssetClassesCompanion copyWith({
+    Value<String>? name,
+    Value<int>? displayOrder,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return AssetClassesCompanion(
+      name: name ?? this.name,
+      displayOrder: displayOrder ?? this.displayOrder,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (displayOrder.present) {
+      map['display_order'] = Variable<int>(displayOrder.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AssetClassesCompanion(')
+          ..write('name: $name, ')
+          ..write('displayOrder: $displayOrder, ')
+          ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -13301,6 +13802,56 @@ class $PortfolioSalesTable extends PortfolioSales
       'REFERENCES accounts (id)',
     ),
   );
+  static const VerificationMeta _destinationAccountIdMeta =
+      const VerificationMeta('destinationAccountId');
+  @override
+  late final GeneratedColumn<String> destinationAccountId =
+      GeneratedColumn<String>(
+        'destination_account_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _accountCreditedMeta = const VerificationMeta(
+    'accountCredited',
+  );
+  @override
+  late final GeneratedColumn<bool> accountCredited = GeneratedColumn<bool>(
+    'account_credited',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("account_credited" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _sourceCurrencyMeta = const VerificationMeta(
+    'sourceCurrency',
+  );
+  @override
+  late final GeneratedColumn<String> sourceCurrency = GeneratedColumn<String>(
+    'source_currency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('EUR'),
+  );
+  static const VerificationMeta _exchangeRateMeta = const VerificationMeta(
+    'exchangeRate',
+  );
+  @override
+  late final GeneratedColumn<double> exchangeRate = GeneratedColumn<double>(
+    'exchange_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
   static const VerificationMeta _investmentIdMeta = const VerificationMeta(
     'investmentId',
   );
@@ -13470,6 +14021,10 @@ class $PortfolioSalesTable extends PortfolioSales
     id,
     userId,
     accountId,
+    destinationAccountId,
+    accountCredited,
+    sourceCurrency,
+    exchangeRate,
     investmentId,
     physicalAssetId,
     assetName,
@@ -13518,6 +14073,42 @@ class $PortfolioSalesTable extends PortfolioSales
       );
     } else if (isInserting) {
       context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('destination_account_id')) {
+      context.handle(
+        _destinationAccountIdMeta,
+        destinationAccountId.isAcceptableOrUnknown(
+          data['destination_account_id']!,
+          _destinationAccountIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('account_credited')) {
+      context.handle(
+        _accountCreditedMeta,
+        accountCredited.isAcceptableOrUnknown(
+          data['account_credited']!,
+          _accountCreditedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('source_currency')) {
+      context.handle(
+        _sourceCurrencyMeta,
+        sourceCurrency.isAcceptableOrUnknown(
+          data['source_currency']!,
+          _sourceCurrencyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('exchange_rate')) {
+      context.handle(
+        _exchangeRateMeta,
+        exchangeRate.isAcceptableOrUnknown(
+          data['exchange_rate']!,
+          _exchangeRateMeta,
+        ),
+      );
     }
     if (data.containsKey('investment_id')) {
       context.handle(
@@ -13661,6 +14252,22 @@ class $PortfolioSalesTable extends PortfolioSales
         DriftSqlType.string,
         data['${effectivePrefix}account_id'],
       )!,
+      destinationAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}destination_account_id'],
+      ),
+      accountCredited: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}account_credited'],
+      )!,
+      sourceCurrency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_currency'],
+      )!,
+      exchangeRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}exchange_rate'],
+      )!,
       investmentId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}investment_id'],
@@ -13734,6 +14341,10 @@ class PortfolioSale extends DataClass implements Insertable<PortfolioSale> {
   final String id;
   final String userId;
   final String accountId;
+  final String? destinationAccountId;
+  final bool accountCredited;
+  final String sourceCurrency;
+  final double exchangeRate;
   final String? investmentId;
   final String? physicalAssetId;
   final String assetName;
@@ -13753,6 +14364,10 @@ class PortfolioSale extends DataClass implements Insertable<PortfolioSale> {
     required this.id,
     required this.userId,
     required this.accountId,
+    this.destinationAccountId,
+    required this.accountCredited,
+    required this.sourceCurrency,
+    required this.exchangeRate,
     this.investmentId,
     this.physicalAssetId,
     required this.assetName,
@@ -13775,6 +14390,12 @@ class PortfolioSale extends DataClass implements Insertable<PortfolioSale> {
     map['id'] = Variable<String>(id);
     map['user_id'] = Variable<String>(userId);
     map['account_id'] = Variable<String>(accountId);
+    if (!nullToAbsent || destinationAccountId != null) {
+      map['destination_account_id'] = Variable<String>(destinationAccountId);
+    }
+    map['account_credited'] = Variable<bool>(accountCredited);
+    map['source_currency'] = Variable<String>(sourceCurrency);
+    map['exchange_rate'] = Variable<double>(exchangeRate);
     if (!nullToAbsent || investmentId != null) {
       map['investment_id'] = Variable<String>(investmentId);
     }
@@ -13802,6 +14423,12 @@ class PortfolioSale extends DataClass implements Insertable<PortfolioSale> {
       id: Value(id),
       userId: Value(userId),
       accountId: Value(accountId),
+      destinationAccountId: destinationAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(destinationAccountId),
+      accountCredited: Value(accountCredited),
+      sourceCurrency: Value(sourceCurrency),
+      exchangeRate: Value(exchangeRate),
       investmentId: investmentId == null && nullToAbsent
           ? const Value.absent()
           : Value(investmentId),
@@ -13833,6 +14460,12 @@ class PortfolioSale extends DataClass implements Insertable<PortfolioSale> {
       id: serializer.fromJson<String>(json['id']),
       userId: serializer.fromJson<String>(json['userId']),
       accountId: serializer.fromJson<String>(json['accountId']),
+      destinationAccountId: serializer.fromJson<String?>(
+        json['destinationAccountId'],
+      ),
+      accountCredited: serializer.fromJson<bool>(json['accountCredited']),
+      sourceCurrency: serializer.fromJson<String>(json['sourceCurrency']),
+      exchangeRate: serializer.fromJson<double>(json['exchangeRate']),
       investmentId: serializer.fromJson<String?>(json['investmentId']),
       physicalAssetId: serializer.fromJson<String?>(json['physicalAssetId']),
       assetName: serializer.fromJson<String>(json['assetName']),
@@ -13857,6 +14490,10 @@ class PortfolioSale extends DataClass implements Insertable<PortfolioSale> {
       'id': serializer.toJson<String>(id),
       'userId': serializer.toJson<String>(userId),
       'accountId': serializer.toJson<String>(accountId),
+      'destinationAccountId': serializer.toJson<String?>(destinationAccountId),
+      'accountCredited': serializer.toJson<bool>(accountCredited),
+      'sourceCurrency': serializer.toJson<String>(sourceCurrency),
+      'exchangeRate': serializer.toJson<double>(exchangeRate),
       'investmentId': serializer.toJson<String?>(investmentId),
       'physicalAssetId': serializer.toJson<String?>(physicalAssetId),
       'assetName': serializer.toJson<String>(assetName),
@@ -13879,6 +14516,10 @@ class PortfolioSale extends DataClass implements Insertable<PortfolioSale> {
     String? id,
     String? userId,
     String? accountId,
+    Value<String?> destinationAccountId = const Value.absent(),
+    bool? accountCredited,
+    String? sourceCurrency,
+    double? exchangeRate,
     Value<String?> investmentId = const Value.absent(),
     Value<String?> physicalAssetId = const Value.absent(),
     String? assetName,
@@ -13898,6 +14539,12 @@ class PortfolioSale extends DataClass implements Insertable<PortfolioSale> {
     id: id ?? this.id,
     userId: userId ?? this.userId,
     accountId: accountId ?? this.accountId,
+    destinationAccountId: destinationAccountId.present
+        ? destinationAccountId.value
+        : this.destinationAccountId,
+    accountCredited: accountCredited ?? this.accountCredited,
+    sourceCurrency: sourceCurrency ?? this.sourceCurrency,
+    exchangeRate: exchangeRate ?? this.exchangeRate,
     investmentId: investmentId.present ? investmentId.value : this.investmentId,
     physicalAssetId: physicalAssetId.present
         ? physicalAssetId.value
@@ -13921,6 +14568,18 @@ class PortfolioSale extends DataClass implements Insertable<PortfolioSale> {
       id: data.id.present ? data.id.value : this.id,
       userId: data.userId.present ? data.userId.value : this.userId,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      destinationAccountId: data.destinationAccountId.present
+          ? data.destinationAccountId.value
+          : this.destinationAccountId,
+      accountCredited: data.accountCredited.present
+          ? data.accountCredited.value
+          : this.accountCredited,
+      sourceCurrency: data.sourceCurrency.present
+          ? data.sourceCurrency.value
+          : this.sourceCurrency,
+      exchangeRate: data.exchangeRate.present
+          ? data.exchangeRate.value
+          : this.exchangeRate,
       investmentId: data.investmentId.present
           ? data.investmentId.value
           : this.investmentId,
@@ -13955,6 +14614,10 @@ class PortfolioSale extends DataClass implements Insertable<PortfolioSale> {
           ..write('id: $id, ')
           ..write('userId: $userId, ')
           ..write('accountId: $accountId, ')
+          ..write('destinationAccountId: $destinationAccountId, ')
+          ..write('accountCredited: $accountCredited, ')
+          ..write('sourceCurrency: $sourceCurrency, ')
+          ..write('exchangeRate: $exchangeRate, ')
           ..write('investmentId: $investmentId, ')
           ..write('physicalAssetId: $physicalAssetId, ')
           ..write('assetName: $assetName, ')
@@ -13975,10 +14638,14 @@ class PortfolioSale extends DataClass implements Insertable<PortfolioSale> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     userId,
     accountId,
+    destinationAccountId,
+    accountCredited,
+    sourceCurrency,
+    exchangeRate,
     investmentId,
     physicalAssetId,
     assetName,
@@ -13994,7 +14661,7 @@ class PortfolioSale extends DataClass implements Insertable<PortfolioSale> {
     taxPaid,
     soldAt,
     createdAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -14002,6 +14669,10 @@ class PortfolioSale extends DataClass implements Insertable<PortfolioSale> {
           other.id == this.id &&
           other.userId == this.userId &&
           other.accountId == this.accountId &&
+          other.destinationAccountId == this.destinationAccountId &&
+          other.accountCredited == this.accountCredited &&
+          other.sourceCurrency == this.sourceCurrency &&
+          other.exchangeRate == this.exchangeRate &&
           other.investmentId == this.investmentId &&
           other.physicalAssetId == this.physicalAssetId &&
           other.assetName == this.assetName &&
@@ -14023,6 +14694,10 @@ class PortfolioSalesCompanion extends UpdateCompanion<PortfolioSale> {
   final Value<String> id;
   final Value<String> userId;
   final Value<String> accountId;
+  final Value<String?> destinationAccountId;
+  final Value<bool> accountCredited;
+  final Value<String> sourceCurrency;
+  final Value<double> exchangeRate;
   final Value<String?> investmentId;
   final Value<String?> physicalAssetId;
   final Value<String> assetName;
@@ -14043,6 +14718,10 @@ class PortfolioSalesCompanion extends UpdateCompanion<PortfolioSale> {
     this.id = const Value.absent(),
     this.userId = const Value.absent(),
     this.accountId = const Value.absent(),
+    this.destinationAccountId = const Value.absent(),
+    this.accountCredited = const Value.absent(),
+    this.sourceCurrency = const Value.absent(),
+    this.exchangeRate = const Value.absent(),
     this.investmentId = const Value.absent(),
     this.physicalAssetId = const Value.absent(),
     this.assetName = const Value.absent(),
@@ -14064,6 +14743,10 @@ class PortfolioSalesCompanion extends UpdateCompanion<PortfolioSale> {
     required String id,
     required String userId,
     required String accountId,
+    this.destinationAccountId = const Value.absent(),
+    this.accountCredited = const Value.absent(),
+    this.sourceCurrency = const Value.absent(),
+    this.exchangeRate = const Value.absent(),
     this.investmentId = const Value.absent(),
     this.physicalAssetId = const Value.absent(),
     required String assetName,
@@ -14095,6 +14778,10 @@ class PortfolioSalesCompanion extends UpdateCompanion<PortfolioSale> {
     Expression<String>? id,
     Expression<String>? userId,
     Expression<String>? accountId,
+    Expression<String>? destinationAccountId,
+    Expression<bool>? accountCredited,
+    Expression<String>? sourceCurrency,
+    Expression<double>? exchangeRate,
     Expression<String>? investmentId,
     Expression<String>? physicalAssetId,
     Expression<String>? assetName,
@@ -14116,6 +14803,11 @@ class PortfolioSalesCompanion extends UpdateCompanion<PortfolioSale> {
       if (id != null) 'id': id,
       if (userId != null) 'user_id': userId,
       if (accountId != null) 'account_id': accountId,
+      if (destinationAccountId != null)
+        'destination_account_id': destinationAccountId,
+      if (accountCredited != null) 'account_credited': accountCredited,
+      if (sourceCurrency != null) 'source_currency': sourceCurrency,
+      if (exchangeRate != null) 'exchange_rate': exchangeRate,
       if (investmentId != null) 'investment_id': investmentId,
       if (physicalAssetId != null) 'physical_asset_id': physicalAssetId,
       if (assetName != null) 'asset_name': assetName,
@@ -14139,6 +14831,10 @@ class PortfolioSalesCompanion extends UpdateCompanion<PortfolioSale> {
     Value<String>? id,
     Value<String>? userId,
     Value<String>? accountId,
+    Value<String?>? destinationAccountId,
+    Value<bool>? accountCredited,
+    Value<String>? sourceCurrency,
+    Value<double>? exchangeRate,
     Value<String?>? investmentId,
     Value<String?>? physicalAssetId,
     Value<String>? assetName,
@@ -14160,6 +14856,10 @@ class PortfolioSalesCompanion extends UpdateCompanion<PortfolioSale> {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       accountId: accountId ?? this.accountId,
+      destinationAccountId: destinationAccountId ?? this.destinationAccountId,
+      accountCredited: accountCredited ?? this.accountCredited,
+      sourceCurrency: sourceCurrency ?? this.sourceCurrency,
+      exchangeRate: exchangeRate ?? this.exchangeRate,
       investmentId: investmentId ?? this.investmentId,
       physicalAssetId: physicalAssetId ?? this.physicalAssetId,
       assetName: assetName ?? this.assetName,
@@ -14190,6 +14890,20 @@ class PortfolioSalesCompanion extends UpdateCompanion<PortfolioSale> {
     }
     if (accountId.present) {
       map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (destinationAccountId.present) {
+      map['destination_account_id'] = Variable<String>(
+        destinationAccountId.value,
+      );
+    }
+    if (accountCredited.present) {
+      map['account_credited'] = Variable<bool>(accountCredited.value);
+    }
+    if (sourceCurrency.present) {
+      map['source_currency'] = Variable<String>(sourceCurrency.value);
+    }
+    if (exchangeRate.present) {
+      map['exchange_rate'] = Variable<double>(exchangeRate.value);
     }
     if (investmentId.present) {
       map['investment_id'] = Variable<String>(investmentId.value);
@@ -14248,6 +14962,10 @@ class PortfolioSalesCompanion extends UpdateCompanion<PortfolioSale> {
           ..write('id: $id, ')
           ..write('userId: $userId, ')
           ..write('accountId: $accountId, ')
+          ..write('destinationAccountId: $destinationAccountId, ')
+          ..write('accountCredited: $accountCredited, ')
+          ..write('sourceCurrency: $sourceCurrency, ')
+          ..write('exchangeRate: $exchangeRate, ')
           ..write('investmentId: $investmentId, ')
           ..write('physicalAssetId: $physicalAssetId, ')
           ..write('assetName: $assetName, ')
@@ -15271,6 +15989,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CountryTaxRatesTable countryTaxRates = $CountryTaxRatesTable(
     this,
   );
+  late final $AssetClassesTable assetClasses = $AssetClassesTable(this);
   late final $AppConfigurationsTable appConfigurations =
       $AppConfigurationsTable(this);
   late final $PhysicalAssetsTable physicalAssets = $PhysicalAssetsTable(this);
@@ -15301,6 +16020,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     marketDataRefreshes,
     apiRequestDays,
     countryTaxRates,
+    assetClasses,
     appConfigurations,
     physicalAssets,
     portfolioSales,
@@ -24751,6 +25471,10 @@ typedef $$CountryTaxRatesTableCreateCompanionBuilder =
     CountryTaxRatesCompanion Function({
       required String country,
       Value<double> withholdingTaxRate,
+      Value<String> currency,
+      Value<double> exchangeRate,
+      Value<bool> allowManualExchangeRate,
+      Value<DateTime?> exchangeRateUpdatedAt,
       required DateTime updatedAt,
       Value<int> rowid,
     });
@@ -24758,6 +25482,10 @@ typedef $$CountryTaxRatesTableUpdateCompanionBuilder =
     CountryTaxRatesCompanion Function({
       Value<String> country,
       Value<double> withholdingTaxRate,
+      Value<String> currency,
+      Value<double> exchangeRate,
+      Value<bool> allowManualExchangeRate,
+      Value<DateTime?> exchangeRateUpdatedAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
     });
@@ -24778,6 +25506,26 @@ class $$CountryTaxRatesTableFilterComposer
 
   ColumnFilters<double> get withholdingTaxRate => $composableBuilder(
     column: $table.withholdingTaxRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currency => $composableBuilder(
+    column: $table.currency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get exchangeRate => $composableBuilder(
+    column: $table.exchangeRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get allowManualExchangeRate => $composableBuilder(
+    column: $table.allowManualExchangeRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get exchangeRateUpdatedAt => $composableBuilder(
+    column: $table.exchangeRateUpdatedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -24806,6 +25554,26 @@ class $$CountryTaxRatesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get currency => $composableBuilder(
+    column: $table.currency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get exchangeRate => $composableBuilder(
+    column: $table.exchangeRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get allowManualExchangeRate => $composableBuilder(
+    column: $table.allowManualExchangeRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get exchangeRateUpdatedAt => $composableBuilder(
+    column: $table.exchangeRateUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
@@ -24826,6 +25594,24 @@ class $$CountryTaxRatesTableAnnotationComposer
 
   GeneratedColumn<double> get withholdingTaxRate => $composableBuilder(
     column: $table.withholdingTaxRate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currency =>
+      $composableBuilder(column: $table.currency, builder: (column) => column);
+
+  GeneratedColumn<double> get exchangeRate => $composableBuilder(
+    column: $table.exchangeRate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get allowManualExchangeRate => $composableBuilder(
+    column: $table.allowManualExchangeRate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get exchangeRateUpdatedAt => $composableBuilder(
+    column: $table.exchangeRateUpdatedAt,
     builder: (column) => column,
   );
 
@@ -24872,11 +25658,19 @@ class $$CountryTaxRatesTableTableManager
               ({
                 Value<String> country = const Value.absent(),
                 Value<double> withholdingTaxRate = const Value.absent(),
+                Value<String> currency = const Value.absent(),
+                Value<double> exchangeRate = const Value.absent(),
+                Value<bool> allowManualExchangeRate = const Value.absent(),
+                Value<DateTime?> exchangeRateUpdatedAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CountryTaxRatesCompanion(
                 country: country,
                 withholdingTaxRate: withholdingTaxRate,
+                currency: currency,
+                exchangeRate: exchangeRate,
+                allowManualExchangeRate: allowManualExchangeRate,
+                exchangeRateUpdatedAt: exchangeRateUpdatedAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
               ),
@@ -24884,11 +25678,19 @@ class $$CountryTaxRatesTableTableManager
               ({
                 required String country,
                 Value<double> withholdingTaxRate = const Value.absent(),
+                Value<String> currency = const Value.absent(),
+                Value<double> exchangeRate = const Value.absent(),
+                Value<bool> allowManualExchangeRate = const Value.absent(),
+                Value<DateTime?> exchangeRateUpdatedAt = const Value.absent(),
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
               }) => CountryTaxRatesCompanion.insert(
                 country: country,
                 withholdingTaxRate: withholdingTaxRate,
+                currency: currency,
+                exchangeRate: exchangeRate,
+                allowManualExchangeRate: allowManualExchangeRate,
+                exchangeRateUpdatedAt: exchangeRateUpdatedAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
               ),
@@ -24915,6 +25717,170 @@ typedef $$CountryTaxRatesTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $CountryTaxRatesTable, CountryTaxRate>,
       ),
       CountryTaxRate,
+      PrefetchHooks Function()
+    >;
+typedef $$AssetClassesTableCreateCompanionBuilder =
+    AssetClassesCompanion Function({
+      required String name,
+      Value<int> displayOrder,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$AssetClassesTableUpdateCompanionBuilder =
+    AssetClassesCompanion Function({
+      Value<String> name,
+      Value<int> displayOrder,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$AssetClassesTableFilterComposer
+    extends Composer<_$AppDatabase, $AssetClassesTable> {
+  $$AssetClassesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get displayOrder => $composableBuilder(
+    column: $table.displayOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AssetClassesTableOrderingComposer
+    extends Composer<_$AppDatabase, $AssetClassesTable> {
+  $$AssetClassesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get displayOrder => $composableBuilder(
+    column: $table.displayOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AssetClassesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AssetClassesTable> {
+  $$AssetClassesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get displayOrder => $composableBuilder(
+    column: $table.displayOrder,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AssetClassesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AssetClassesTable,
+          AssetClassesData,
+          $$AssetClassesTableFilterComposer,
+          $$AssetClassesTableOrderingComposer,
+          $$AssetClassesTableAnnotationComposer,
+          $$AssetClassesTableCreateCompanionBuilder,
+          $$AssetClassesTableUpdateCompanionBuilder,
+          (
+            AssetClassesData,
+            BaseReferences<_$AppDatabase, $AssetClassesTable, AssetClassesData>,
+          ),
+          AssetClassesData,
+          PrefetchHooks Function()
+        > {
+  $$AssetClassesTableTableManager(_$AppDatabase db, $AssetClassesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AssetClassesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AssetClassesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AssetClassesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> name = const Value.absent(),
+                Value<int> displayOrder = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AssetClassesCompanion(
+                name: name,
+                displayOrder: displayOrder,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String name,
+                Value<int> displayOrder = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => AssetClassesCompanion.insert(
+                name: name,
+                displayOrder: displayOrder,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AssetClassesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AssetClassesTable,
+      AssetClassesData,
+      $$AssetClassesTableFilterComposer,
+      $$AssetClassesTableOrderingComposer,
+      $$AssetClassesTableAnnotationComposer,
+      $$AssetClassesTableCreateCompanionBuilder,
+      $$AssetClassesTableUpdateCompanionBuilder,
+      (
+        AssetClassesData,
+        BaseReferences<_$AppDatabase, $AssetClassesTable, AssetClassesData>,
+      ),
+      AssetClassesData,
       PrefetchHooks Function()
     >;
 typedef $$AppConfigurationsTableCreateCompanionBuilder =
@@ -25642,6 +26608,10 @@ typedef $$PortfolioSalesTableCreateCompanionBuilder =
       required String id,
       required String userId,
       required String accountId,
+      Value<String?> destinationAccountId,
+      Value<bool> accountCredited,
+      Value<String> sourceCurrency,
+      Value<double> exchangeRate,
       Value<String?> investmentId,
       Value<String?> physicalAssetId,
       required String assetName,
@@ -25664,6 +26634,10 @@ typedef $$PortfolioSalesTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> userId,
       Value<String> accountId,
+      Value<String?> destinationAccountId,
+      Value<bool> accountCredited,
+      Value<String> sourceCurrency,
+      Value<double> exchangeRate,
       Value<String?> investmentId,
       Value<String?> physicalAssetId,
       Value<String> assetName,
@@ -25736,6 +26710,26 @@ class $$PortfolioSalesTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get destinationAccountId => $composableBuilder(
+    column: $table.destinationAccountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get accountCredited => $composableBuilder(
+    column: $table.accountCredited,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceCurrency => $composableBuilder(
+    column: $table.sourceCurrency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get exchangeRate => $composableBuilder(
+    column: $table.exchangeRate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -25875,6 +26869,26 @@ class $$PortfolioSalesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get destinationAccountId => $composableBuilder(
+    column: $table.destinationAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get accountCredited => $composableBuilder(
+    column: $table.accountCredited,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceCurrency => $composableBuilder(
+    column: $table.sourceCurrency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get exchangeRate => $composableBuilder(
+    column: $table.exchangeRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get investmentId => $composableBuilder(
     column: $table.investmentId,
     builder: (column) => ColumnOrderings(column),
@@ -26008,6 +27022,26 @@ class $$PortfolioSalesTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get destinationAccountId => $composableBuilder(
+    column: $table.destinationAccountId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get accountCredited => $composableBuilder(
+    column: $table.accountCredited,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceCurrency => $composableBuilder(
+    column: $table.sourceCurrency,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get exchangeRate => $composableBuilder(
+    column: $table.exchangeRate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get investmentId => $composableBuilder(
     column: $table.investmentId,
@@ -26144,6 +27178,10 @@ class $$PortfolioSalesTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> userId = const Value.absent(),
                 Value<String> accountId = const Value.absent(),
+                Value<String?> destinationAccountId = const Value.absent(),
+                Value<bool> accountCredited = const Value.absent(),
+                Value<String> sourceCurrency = const Value.absent(),
+                Value<double> exchangeRate = const Value.absent(),
                 Value<String?> investmentId = const Value.absent(),
                 Value<String?> physicalAssetId = const Value.absent(),
                 Value<String> assetName = const Value.absent(),
@@ -26164,6 +27202,10 @@ class $$PortfolioSalesTableTableManager
                 id: id,
                 userId: userId,
                 accountId: accountId,
+                destinationAccountId: destinationAccountId,
+                accountCredited: accountCredited,
+                sourceCurrency: sourceCurrency,
+                exchangeRate: exchangeRate,
                 investmentId: investmentId,
                 physicalAssetId: physicalAssetId,
                 assetName: assetName,
@@ -26186,6 +27228,10 @@ class $$PortfolioSalesTableTableManager
                 required String id,
                 required String userId,
                 required String accountId,
+                Value<String?> destinationAccountId = const Value.absent(),
+                Value<bool> accountCredited = const Value.absent(),
+                Value<String> sourceCurrency = const Value.absent(),
+                Value<double> exchangeRate = const Value.absent(),
                 Value<String?> investmentId = const Value.absent(),
                 Value<String?> physicalAssetId = const Value.absent(),
                 required String assetName,
@@ -26206,6 +27252,10 @@ class $$PortfolioSalesTableTableManager
                 id: id,
                 userId: userId,
                 accountId: accountId,
+                destinationAccountId: destinationAccountId,
+                accountCredited: accountCredited,
+                sourceCurrency: sourceCurrency,
+                exchangeRate: exchangeRate,
                 investmentId: investmentId,
                 physicalAssetId: physicalAssetId,
                 assetName: assetName,
@@ -26983,6 +28033,8 @@ class $AppDatabaseManager {
       $$ApiRequestDaysTableTableManager(_db, _db.apiRequestDays);
   $$CountryTaxRatesTableTableManager get countryTaxRates =>
       $$CountryTaxRatesTableTableManager(_db, _db.countryTaxRates);
+  $$AssetClassesTableTableManager get assetClasses =>
+      $$AssetClassesTableTableManager(_db, _db.assetClasses);
   $$AppConfigurationsTableTableManager get appConfigurations =>
       $$AppConfigurationsTableTableManager(_db, _db.appConfigurations);
   $$PhysicalAssetsTableTableManager get physicalAssets =>

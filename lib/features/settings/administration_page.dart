@@ -278,17 +278,37 @@ class _TaxAdmin extends ConsumerWidget {
                     child: Icon(Icons.public_rounded),
                   ),
                   title: Text(country),
-                  subtitle: const Text('Quellensteuer auf Dividenden'),
-                  trailing: TextButton(
-                    onPressed: () => _editCountryTax(
-                      context,
-                      ref,
-                      country,
-                      _countryRate(country, rates),
-                    ),
-                    child: Text(
-                      '${_countryRate(country, rates).toStringAsFixed(2)} %',
-                    ),
+                  subtitle: Text(
+                    'Quellensteuer und Wechselkurs · '
+                    '${rates.where((item) => item.country == country).firstOrNull?.currency ?? 'EUR'}',
+                  ),
+                  trailing: Wrap(
+                    spacing: 8,
+                    children: [
+                      TextButton(
+                        onPressed: () => _editCountryTax(
+                          context,
+                          ref,
+                          country,
+                          _countryRate(country, rates),
+                        ),
+                        child: Text(
+                          '${_countryRate(country, rates).toStringAsFixed(2)} %',
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Wechselkurs bearbeiten',
+                        onPressed: () => _editAdminCountryExchange(
+                          context,
+                          ref,
+                          country,
+                          rates
+                              .where((item) => item.country == country)
+                              .firstOrNull,
+                        ),
+                        icon: const Icon(Icons.currency_exchange_rounded),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -314,6 +334,120 @@ class _TaxAdmin extends ConsumerWidget {
         ? 15
         : 0;
   }
+}
+
+Future<void> _editAdminCountryExchange(
+  BuildContext context,
+  WidgetRef ref,
+  String country,
+  CountryTaxRate? current,
+) async {
+  final currency = TextEditingController(text: current?.currency ?? 'EUR');
+  final rate = TextEditingController(
+    text: (current?.exchangeRate ?? 1).toStringAsFixed(6),
+  );
+  var allowManual = current?.allowManualExchangeRate ?? true;
+  final userId = ref.read(currentUserIdProvider);
+  final hasApiKey = userId == null
+      ? false
+      : (await ref.read(secureSessionStoreProvider).readExchangeApiKey(userId))
+                ?.isNotEmpty ??
+            false;
+  if (!context.mounted) return;
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: Text('Wechselkurs · $country'),
+        content: SizedBox(
+          width: 460,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  SizedBox(
+                    width: 100,
+                    child: TextField(
+                      controller: currency,
+                      readOnly: hasApiKey && !allowManual,
+                      maxLength: 3,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        labelText: 'Währung',
+                        counterText: '',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: rate,
+                      readOnly: hasApiKey && !allowManual,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Kurs zur Standardwährung',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Manuelle Eingabe erlauben'),
+                subtitle: Text(
+                  hasApiKey
+                      ? 'Bei Deaktivierung liefert ausschließlich die API den Kurs.'
+                      : 'Wirkt, sobald ein Wechselkurs-API-Key hinterlegt ist.',
+                ),
+                value: allowManual,
+                onChanged: (value) => setState(() => allowManual = value),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: hasApiKey && !allowManual
+                ? () => Navigator.pop(dialogContext, true)
+                : () {
+                    final parsed = double.tryParse(
+                      rate.text.replaceAll(',', '.'),
+                    );
+                    if (currency.text.trim().length == 3 &&
+                        parsed != null &&
+                        parsed > 0) {
+                      Navigator.pop(dialogContext, true);
+                    }
+                  },
+            child: const Text('Speichern'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (saved == true && userId != null) {
+    await ref
+        .read(databaseProvider)
+        .saveCountryExchangeRate(
+          actorUserId: userId,
+          country: country,
+          currency: currency.text.trim().toUpperCase(),
+          exchangeRate:
+              double.tryParse(rate.text.replaceAll(',', '.')) ??
+              current?.exchangeRate ??
+              1,
+          allowManualExchangeRate: allowManual,
+        );
+  }
+  currency.dispose();
+  rate.dispose();
 }
 
 Future<void> _editCountryTax(

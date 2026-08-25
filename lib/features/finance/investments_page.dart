@@ -34,6 +34,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
         ref.watch(physicalAssetsProvider).valueOrNull ??
         const <PhysicalAsset>[];
     final preference = ref.watch(preferencesProvider).valueOrNull;
+    final isAdmin = ref.watch(isAdminProvider);
     final purchases =
         ref.watch(investmentPurchasesProvider).valueOrNull ??
         const <InvestmentPurchase>[];
@@ -46,6 +47,19 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
     final schedules =
         ref.watch(dividendSchedulesProvider).valueOrNull ??
         const <DividendSchedule>[];
+    final configuredAssetTypes =
+        ref.watch(assetClassesProvider).valueOrNull ??
+        const <AssetClassesData>[];
+    final assetTypeNames = configuredAssetTypes.isEmpty
+        ? const [
+            'Aktie',
+            'ETF',
+            'Kryptowährung',
+            'Anleihe',
+            'Fonds',
+            'Hebelprodukt',
+          ]
+        : configuredAssetTypes.map((item) => item.name).toList();
     final eligibleAccounts = accounts.where((account) {
       if (account.usageType == 'portfolio') return true;
       if (account.usageType != 'unassigned') return false;
@@ -118,6 +132,12 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                         label: const Text('Gebühr'),
                       ),
                     ),
+                    FilledButton.tonalIcon(
+                      onPressed: () =>
+                          _showExchangeRates(context, ref, isAdmin: isAdmin),
+                      icon: const Icon(Icons.currency_exchange_rounded),
+                      label: const Text('Wechselkurse'),
+                    ),
                   ],
                 ),
               ),
@@ -169,15 +189,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                         labelText: 'Anlageklasse',
                       ),
                       items:
-                          const [
-                                'Alle',
-                                'Aktie',
-                                'ETF',
-                                'Kryptowährung',
-                                'Anleihe',
-                                'Fonds',
-                                'Hebelprodukt',
-                              ]
+                          <String>{'Alle', ...assetTypeNames, 'Wertgegenstände'}
                               .map(
                                 (value) => DropdownMenuItem(
                                   value: value,
@@ -243,6 +255,14 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                               .toLowerCase();
                       return matchesType && text.contains(_query);
                     }).toList();
+                    final visibleAssets = accountAssets.where((asset) {
+                      final matchesType =
+                          _type == 'Alle' || _type == 'Wertgegenstände';
+                      final text =
+                          '${asset.name} ${asset.category} ${asset.metalType}'
+                              .toLowerCase();
+                      return matchesType && text.contains(_query);
+                    }).toList();
                     items.sort(_compare);
                     if (selectedAccountId == null) {
                       return EmptyState(
@@ -269,11 +289,11 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                         ),
                       );
                     }
-                    final securitiesValue = portfolioItems.fold<double>(
+                    final securitiesValue = items.fold<double>(
                       0,
                       (sum, item) => sum + _value(item),
                     );
-                    final physicalValue = accountAssets.fold<double>(
+                    final physicalValue = visibleAssets.fold<double>(
                       0,
                       (sum, item) =>
                           sum + item.weightGrams * item.currentPricePerGram,
@@ -284,18 +304,39 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                             .firstOrNull
                             ?.balance ??
                         0;
-                    final portfolio = securitiesValue + physicalValue + cash;
+                    final filterActive = _type != 'Alle' || _query.isNotEmpty;
+                    final visibleCash = filterActive ? 0.0 : cash;
+                    final portfolio =
+                        securitiesValue + physicalValue + visibleCash;
                     final activeCost =
-                        portfolioItems.fold<double>(
+                        items.fold<double>(
                           0,
                           (sum, item) => sum + _cost(item),
                         ) +
-                        accountAssets.fold<double>(
+                        visibleAssets.fold<double>(
                           0,
                           (sum, item) => sum + item.purchasePrice,
                         );
+                    final visibleInvestmentIds = items
+                        .map((item) => item.id)
+                        .toSet();
+                    final visibleAssetIds = visibleAssets
+                        .map((item) => item.id)
+                        .toSet();
                     final accountSales = sales
-                        .where((sale) => sale.accountId == selectedAccountId)
+                        .where(
+                          (sale) =>
+                              sale.accountId == selectedAccountId &&
+                              (!filterActive ||
+                                  (sale.investmentId != null &&
+                                      visibleInvestmentIds.contains(
+                                        sale.investmentId,
+                                      )) ||
+                                  (sale.physicalAssetId != null &&
+                                      visibleAssetIds.contains(
+                                        sale.physicalAssetId,
+                                      ))),
+                        )
                         .toList();
                     final realizedGain = accountSales.fold<double>(
                       0,
@@ -325,9 +366,8 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                           investedValue: securitiesValue + physicalValue,
                           gain: unrealizedGain + realizedGain,
                           performanceBase: activeCost + soldCost,
-                          positions:
-                              portfolioItems.length + accountAssets.length,
-                          cash: cash,
+                          positions: items.length + visibleAssets.length,
+                          cash: visibleCash,
                         ),
                         const SizedBox(height: 12),
                         Align(
@@ -400,10 +440,10 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                           ],
                         ),
                         const SizedBox(height: 10),
-                        if (accountAssets.isEmpty)
+                        if (visibleAssets.isEmpty)
                           const Text('Noch keine physischen Werte erfasst.')
                         else
-                          for (final asset in accountAssets) ...[
+                          for (final asset in visibleAssets) ...[
                             _PhysicalAssetTile(asset: asset),
                             const SizedBox(height: 10),
                           ],
@@ -455,6 +495,205 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
       );
     }
   }
+}
+
+Future<void> _showExchangeRates(
+  BuildContext context,
+  WidgetRef ref, {
+  required bool isAdmin,
+}) async {
+  final userId = ref.read(currentUserIdProvider);
+  if (userId == null) return;
+  final database = ref.read(databaseProvider);
+  final countries = await database.availableCountries();
+  final rates =
+      ref.read(countryTaxRatesProvider).valueOrNull ?? const <CountryTaxRate>[];
+  final apiKey = await ref
+      .read(secureSessionStoreProvider)
+      .readExchangeApiKey(userId);
+  final hasApiKey = apiKey?.trim().isNotEmpty ?? false;
+  final baseCurrency =
+      ref.read(preferencesProvider).valueOrNull?.currency ?? 'EUR';
+  if (!context.mounted) return;
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      insetPadding: const EdgeInsets.all(16),
+      title: const Text('Wechselkurse nach Steuerland'),
+      content: SizedBox(
+        width: (MediaQuery.sizeOf(context).width - 64).clamp(300, 780),
+        height: (MediaQuery.sizeOf(context).height - 240).clamp(300, 620),
+        child: countries.isEmpty
+            ? const Center(
+                child: Text('Noch keine Steuerländer in Stammdaten vorhanden.'),
+              )
+            : ListView.separated(
+                itemCount: countries.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final country = countries[index];
+                  final stored = rates
+                      .where(
+                        (item) =>
+                            item.country.trim().toLowerCase() ==
+                            country.trim().toLowerCase(),
+                      )
+                      .firstOrNull;
+                  return _ExchangeRateEditorRow(
+                    country: country,
+                    baseCurrency: baseCurrency,
+                    initialCurrency: stored?.currency ?? baseCurrency,
+                    initialRate: stored?.exchangeRate ?? 1,
+                    allowManual: stored?.allowManualExchangeRate ?? true,
+                    hasApiKey: hasApiKey,
+                    isAdmin: isAdmin,
+                    onSave:
+                        ({
+                          required currency,
+                          required exchangeRate,
+                          required allowManual,
+                        }) => database.saveCountryExchangeRate(
+                          actorUserId: userId,
+                          country: country,
+                          currency: currency,
+                          exchangeRate: exchangeRate,
+                          allowManualExchangeRate: isAdmin ? allowManual : null,
+                          apiKeyConfigured: hasApiKey,
+                        ),
+                  );
+                },
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Schließen'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ExchangeRateEditorRow extends StatefulWidget {
+  const _ExchangeRateEditorRow({
+    required this.country,
+    required this.baseCurrency,
+    required this.initialCurrency,
+    required this.initialRate,
+    required this.allowManual,
+    required this.hasApiKey,
+    required this.isAdmin,
+    required this.onSave,
+  });
+
+  final String country;
+  final String baseCurrency;
+  final String initialCurrency;
+  final double initialRate;
+  final bool allowManual;
+  final bool hasApiKey;
+  final bool isAdmin;
+  final Future<void> Function({
+    required String currency,
+    required double exchangeRate,
+    required bool allowManual,
+  })
+  onSave;
+
+  @override
+  State<_ExchangeRateEditorRow> createState() => _ExchangeRateEditorRowState();
+}
+
+class _ExchangeRateEditorRowState extends State<_ExchangeRateEditorRow> {
+  late final TextEditingController _currency = TextEditingController(
+    text: widget.initialCurrency,
+  );
+  late final TextEditingController _rate = TextEditingController(
+    text: widget.initialRate.toStringAsFixed(6),
+  );
+  late bool _allowManual = widget.allowManual;
+  bool _saving = false;
+
+  bool get _readOnly => widget.hasApiKey && !_allowManual;
+
+  @override
+  void dispose() {
+    _currency.dispose();
+    _rate.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 10),
+    child: Row(
+      children: [
+        Expanded(flex: 2, child: Text(widget.country)),
+        SizedBox(
+          width: 82,
+          child: TextField(
+            controller: _currency,
+            readOnly: _readOnly,
+            maxLength: 3,
+            textCapitalization: TextCapitalization.characters,
+            decoration: const InputDecoration(
+              labelText: 'Währung',
+              counterText: '',
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 2,
+          child: TextField(
+            controller: _rate,
+            readOnly: _readOnly,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Kurs zu ${widget.baseCurrency}',
+            ),
+          ),
+        ),
+        if (widget.isAdmin)
+          Tooltip(
+            message: 'Manuelle Eingabe trotz API erlauben',
+            child: Switch.adaptive(
+              value: _allowManual,
+              onChanged: (value) => setState(() => _allowManual = value),
+            ),
+          ),
+        IconButton(
+          tooltip: 'Wechselkurs speichern',
+          onPressed: _saving || _readOnly
+              ? null
+              : () async {
+                  final parsed = _parseNumber(_rate.text);
+                  if (parsed == null ||
+                      parsed <= 0 ||
+                      _currency.text.length != 3) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ungültiger Wechselkurs.')),
+                    );
+                    return;
+                  }
+                  setState(() => _saving = true);
+                  await widget.onSave(
+                    currency: _currency.text.toUpperCase(),
+                    exchangeRate: parsed,
+                    allowManual: _allowManual,
+                  );
+                  if (mounted) setState(() => _saving = false);
+                },
+          icon: _saving
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.save_outlined),
+        ),
+      ],
+    ),
+  );
 }
 
 class _PortfolioSummary extends StatelessWidget {
@@ -551,7 +790,12 @@ class _TaxAllowanceTile extends ConsumerWidget {
         1000;
     return InkWell(
       borderRadius: BorderRadius.circular(999),
-      onTap: () => _showTaxAllowanceInfo(context, summary, sales),
+      onTap: () => _showTaxAllowanceInfo(
+        context,
+        summary,
+        sales,
+        preference?.currency ?? 'EUR',
+      ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
@@ -589,6 +833,7 @@ Future<void> _showTaxAllowanceInfo(
   BuildContext context,
   PortfolioTaxSummary summary,
   List<PortfolioSale> sales,
+  String baseCurrency,
 ) async {
   var filter = 'Alle';
   final year = DateTime.now().year;
@@ -674,6 +919,11 @@ Future<void> _showTaxAllowanceInfo(
                   else
                     for (final sale in visible)
                       ListTile(
+                        onTap: () => _showSaleDetail(
+                          context,
+                          sale: sale,
+                          baseCurrency: baseCurrency,
+                        ),
                         contentPadding: EdgeInsets.zero,
                         leading: Icon(
                           sale.assetKind == 'physical'
@@ -1579,6 +1829,8 @@ Future<void> showInvestmentEditor(
       ref.read(stockMastersProvider).valueOrNull ?? const <StockMaster>[];
   final countryTaxRates =
       ref.read(countryTaxRatesProvider).valueOrNull ?? const <CountryTaxRate>[];
+  final assetTypes =
+      ref.read(assetClassesProvider).valueOrNull ?? const <AssetClassesData>[];
   final defaultFee =
       ref.read(preferencesProvider).valueOrNull?.defaultInvestmentFee ?? 0;
   final userIdForApi = ref.read(currentUserIdProvider);
@@ -1587,6 +1839,11 @@ Future<void> showInvestmentEditor(
       : await ref
             .read(secureSessionStoreProvider)
             .readMarketApiKey(userIdForApi);
+  final exchangeApiKey = investment == null || userIdForApi == null
+      ? null
+      : await ref
+            .read(secureSessionStoreProvider)
+            .readExchangeApiKey(userIdForApi);
   if (!context.mounted) return;
   final result = await showDialog<InvestmentsCompanion>(
     context: context,
@@ -1596,9 +1853,11 @@ Future<void> showInvestmentEditor(
       existingItems: existingItems,
       stockMasters: stockMasters,
       countryTaxRates: countryTaxRates,
+      assetTypes: assetTypes.map((item) => item.name).toList(),
       accountId: resolvedAccountId,
       defaultFee: defaultFee,
       hasMarketApiKey: marketApiKey?.trim().isNotEmpty ?? false,
+      hasExchangeApiKey: exchangeApiKey?.trim().isNotEmpty ?? false,
     ),
   );
   if (result != null) {
@@ -1712,9 +1971,11 @@ class _InvestmentEditor extends StatefulWidget {
     required this.existingItems,
     required this.stockMasters,
     required this.countryTaxRates,
+    required this.assetTypes,
     required this.accountId,
     required this.defaultFee,
     required this.hasMarketApiKey,
+    required this.hasExchangeApiKey,
     this.investment,
   });
   final Investment? investment;
@@ -1722,9 +1983,11 @@ class _InvestmentEditor extends StatefulWidget {
   final List<Investment> existingItems;
   final List<StockMaster> stockMasters;
   final List<CountryTaxRate> countryTaxRates;
+  final List<String> assetTypes;
   final String accountId;
   final double defaultFee;
   final bool hasMarketApiKey;
+  final bool hasExchangeApiKey;
   @override
   State<_InvestmentEditor> createState() => _InvestmentEditorState();
 }
@@ -1887,19 +2150,9 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                     decoration: const InputDecoration(
                       labelText: 'Anlageklasse',
                     ),
-                    items:
-                        const [
-                              'Aktie',
-                              'ETF',
-                              'Kryptowährung',
-                              'Anleihe',
-                              'Fonds',
-                              'Hebelprodukt',
-                            ]
-                            .map(
-                              (v) => DropdownMenuItem(value: v, child: Text(v)),
-                            )
-                            .toList(),
+                    items: ({...widget.assetTypes, _type}.toList()..sort())
+                        .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                        .toList(),
                     onChanged: (v) => _type = v ?? 'Aktie',
                   ),
                   _field(_broker, 'Broker', readOnly: true),
@@ -1940,11 +2193,47 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                     required: true,
                     readOnly: widget.hasMarketApiKey,
                   ),
-                  _field(
-                    _dividend,
-                    'Dividende je Stück/Ausschüttung',
-                    number: true,
-                    required: true,
+                  TextFormField(
+                    controller: _dividend,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Dividende je Stück/Ausschüttung',
+                      suffixIcon: PopupMenuButton<String>(
+                        enabled: !_exchangeLocked,
+                        tooltip: 'Währung auswählen',
+                        icon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(_dividendCurrency.text.toUpperCase()),
+                            const Icon(Icons.arrow_drop_down_rounded),
+                          ],
+                        ),
+                        onSelected: (value) =>
+                            setState(() => _dividendCurrency.text = value),
+                        itemBuilder: (context) =>
+                            {
+                                  'EUR',
+                                  'USD',
+                                  'CHF',
+                                  'GBP',
+                                  'JPY',
+                                  ...widget.countryTaxRates.map(
+                                    (item) => item.currency.toUpperCase(),
+                                  ),
+                                }
+                                .map(
+                                  (value) => PopupMenuItem(
+                                    value: value,
+                                    child: Text(value),
+                                  ),
+                                )
+                                .toList(),
+                      ),
+                    ),
+                    validator: (value) =>
+                        (_number(value) ?? -1) < 0 ? 'Ungültiger Wert' : null,
                   ),
                 ]),
                 const SizedBox(height: 12),
@@ -1961,6 +2250,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                     number: true,
                     required: true,
                     minimum: 0.000001,
+                    readOnly: _exchangeLocked,
                   ),
                   _field(
                     _dividendWithholdingTax,
@@ -2188,6 +2478,13 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
   void _selectStock(String? id) {
     if (id == null) return;
     final stock = widget.stockMasters.firstWhere((item) => item.id == id);
+    final countryRate = widget.countryTaxRates
+        .where(
+          (item) =>
+              item.country.trim().toLowerCase() ==
+              stock.country.trim().toLowerCase(),
+        )
+        .firstOrNull;
     setState(() {
       _selectedStockId = id;
       _name.text = stock.name;
@@ -2197,12 +2494,15 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       _sector.text = stock.sector;
       _wkn.text = stock.wkn;
       _broker.text = stock.broker;
-      _dividendCurrency.text = stock.dividendCurrency.toUpperCase();
+      _dividendCurrency.text =
+          countryRate?.currency.toUpperCase() ??
+          stock.dividendCurrency.toUpperCase();
       _frequency = stock.dividendFrequency;
       _startMonth = stock.dividendStartMonth;
-      _dividendExchangeRate.text = stock.dividendCurrency.toUpperCase() == 'EUR'
-          ? '1'
-          : _dividendExchangeRate.text;
+      _dividendExchangeRate.text =
+          (countryRate?.exchangeRate ??
+                  (stock.dividendCurrency.toUpperCase() == 'EUR' ? 1 : 1))
+              .toString();
       _dividendWithholdingTax.text = _isUnitedStates(stock.country)
           ? _taxRateForCountry(stock.country, fallback: 15).toString()
           : _taxRateForCountry(stock.country, fallback: 0).toString();
@@ -2212,12 +2512,31 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
   double? _number(String? value) =>
       double.tryParse((value ?? '').replaceAll(',', '.'));
 
+  bool get _exchangeLocked {
+    if (!widget.hasExchangeApiKey) return false;
+    final normalized = _country.text.trim().toLowerCase();
+    final rate = widget.countryTaxRates
+        .where((item) => item.country.trim().toLowerCase() == normalized)
+        .firstOrNull;
+    return !(rate?.allowManualExchangeRate ?? false);
+  }
+
   void _countryChanged(String value) {
     setState(() {
+      final countryRate = widget.countryTaxRates
+          .where(
+            (item) =>
+                item.country.trim().toLowerCase() == value.trim().toLowerCase(),
+          )
+          .firstOrNull;
       _dividendWithholdingTax.text = _taxRateForCountry(
         value,
         fallback: _isUnitedStates(value) ? 15 : 0,
       ).toStringAsFixed(2);
+      if (countryRate != null) {
+        _dividendCurrency.text = countryRate.currency;
+        _dividendExchangeRate.text = countryRate.exchangeRate.toString();
+      }
     });
   }
 
@@ -2424,6 +2743,11 @@ Future<void> _showPhysicalSaleDialog(
   WidgetRef ref,
   PhysicalAsset asset,
 ) async {
+  final accounts = ref.read(accountsProvider).valueOrNull ?? const <Account>[];
+  const historyOnly = '__history_only__';
+  var destinationAccountId = accounts.any((item) => item.id == asset.accountId)
+      ? asset.accountId
+      : historyOnly;
   final grams = TextEditingController(text: asset.weightGrams.toString());
   final price = TextEditingController(
     text: asset.currentPricePerGram.toString(),
@@ -2487,6 +2811,32 @@ Future<void> _showPhysicalSaleDialog(
                   validator: _positiveNumberValidator,
                 ),
                 const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: destinationAccountId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Verkaufserlös',
+                    prefixIcon: Icon(Icons.account_balance_rounded),
+                  ),
+                  items: [
+                    const DropdownMenuItem(
+                      value: historyOnly,
+                      child: Text('Nicht buchen – nur Historie'),
+                    ),
+                    ...accounts.map(
+                      (account) => DropdownMenuItem(
+                        value: account.id,
+                        child: Text(
+                          '${account.label} · ${account.bankName}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      destinationAccountId = value ?? historyOnly,
+                ),
+                const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: () async {
                     final selected = await showDatePicker(
@@ -2533,6 +2883,9 @@ Future<void> _showPhysicalSaleDialog(
             pricePerGram: _parseNumber(price.text)!,
             fees: _parseNumber(fee.text)!,
             soldAt: date,
+            destinationAccountId: destinationAccountId == historyOnly
+                ? null
+                : destinationAccountId,
           );
     }
   }
@@ -2546,9 +2899,16 @@ Future<void> _showPurchaseEditor(
   WidgetRef ref,
   InvestmentPurchase purchase,
 ) async {
+  final investment =
+      (ref.read(allInvestmentsProvider).valueOrNull ?? const <Investment>[])
+          .where((item) => item.id == purchase.investmentId)
+          .firstOrNull;
   final quantity = TextEditingController(text: purchase.quantity.toString());
   final price = TextEditingController(text: purchase.purchasePrice.toString());
   final fee = TextEditingController(text: purchase.fees.toString());
+  final dividend = TextEditingController(
+    text: investment?.annualDividend.toString() ?? '0',
+  );
   final key = GlobalKey<FormState>();
   var date = purchase.purchaseDate;
   final saved = await showDialog<bool>(
@@ -2589,6 +2949,18 @@ Future<void> _showPurchaseEditor(
                 decoration: const InputDecoration(
                   labelText: 'Gebühren',
                   suffixText: '€',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: _positiveNumberValidator,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: dividend,
+                decoration: InputDecoration(
+                  labelText: 'Dividende je Stück/Ausschüttung',
+                  suffixText: investment?.dividendCurrency ?? 'EUR',
                 ),
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
@@ -2641,12 +3013,22 @@ Future<void> _showPurchaseEditor(
             quantity: _parseNumber(quantity.text)!,
             fees: _parseNumber(fee.text)!,
           );
+      if (investment != null) {
+        await ref
+            .read(databaseProvider)
+            .updateInvestmentDividend(
+              id: investment.id,
+              userId: userId,
+              dividendPerShare: _parseNumber(dividend.text)!,
+            );
+      }
     }
     if (context.mounted) Navigator.pop(context);
   }
   quantity.dispose();
   price.dispose();
   fee.dispose();
+  dividend.dispose();
 }
 
 Future<void> _showPortfolioActivity(
@@ -2696,6 +3078,16 @@ Future<void> _showPortfolioActivity(
                               final sale = sales[index];
                               final positive = sale.realizedGain >= 0;
                               return ListTile(
+                                onTap: () => _showSaleDetail(
+                                  context,
+                                  sale: sale,
+                                  baseCurrency:
+                                      ref
+                                          .read(preferencesProvider)
+                                          .valueOrNull
+                                          ?.currency ??
+                                      'EUR',
+                                ),
                                 leading: CircleAvatar(
                                   child: Icon(
                                     sale.assetKind == 'physical'
@@ -2834,6 +3226,147 @@ Future<void> _showPortfolioActivity(
       ),
     ),
   );
+}
+
+Future<void> _showSaleDetail(
+  BuildContext context, {
+  required PortfolioSale sale,
+  required String baseCurrency,
+}) {
+  final gross = sale.quantity * sale.pricePerUnit;
+  final capitalTax = sale.taxPaid / 1.055;
+  final solidarity = sale.taxPaid - capitalTax;
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text('${sale.assetName} · Brutto bis Netto'),
+      content: SizedBox(
+        width: 540,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _SaleTaxRow(
+              label: 'Brutto-Verkaufserlös',
+              value: gross,
+              sale: sale,
+              baseCurrency: baseCurrency,
+              emphasized: true,
+            ),
+            _SaleTaxRow(
+              label: 'Gebühren',
+              value: -sale.fees,
+              sale: sale,
+              baseCurrency: baseCurrency,
+            ),
+            _SaleTaxRow(
+              label: 'Anschaffungskosten',
+              value: -sale.costBasis,
+              sale: sale,
+              baseCurrency: baseCurrency,
+            ),
+            _SaleTaxRow(
+              label: 'Realisierter Gewinn/Verlust',
+              value: sale.realizedGain,
+              sale: sale,
+              baseCurrency: baseCurrency,
+              emphasized: true,
+            ),
+            _SaleTaxRow(
+              label: 'Genutzter Freistellungsauftrag',
+              value: sale.allowanceUsed,
+              sale: sale,
+              baseCurrency: baseCurrency,
+              informational: true,
+            ),
+            _SaleTaxRow(
+              label: 'Kapitalertragsteuer',
+              value: -capitalTax,
+              sale: sale,
+              baseCurrency: baseCurrency,
+            ),
+            _SaleTaxRow(
+              label: 'Solidaritätszuschlag',
+              value: -solidarity,
+              sale: sale,
+              baseCurrency: baseCurrency,
+            ),
+            const Divider(height: 24),
+            _SaleTaxRow(
+              label: 'Netto-Auszahlung',
+              value: sale.proceeds,
+              sale: sale,
+              baseCurrency: baseCurrency,
+              emphasized: true,
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                sale.accountCredited
+                    ? 'Auf Konto gebucht${sale.destinationAccountId == null ? '' : ': ${sale.destinationAccountId}'}'
+                    : 'Nur in Verkäufe & Protokoll erfasst',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Fertig'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _SaleTaxRow extends StatelessWidget {
+  const _SaleTaxRow({
+    required this.label,
+    required this.value,
+    required this.sale,
+    required this.baseCurrency,
+    this.emphasized = false,
+    this.informational = false,
+  });
+
+  final String label;
+  final double value;
+  final PortfolioSale sale;
+  final String baseCurrency;
+  final bool emphasized;
+  final bool informational;
+
+  @override
+  Widget build(BuildContext context) {
+    final rate = sale.exchangeRate <= 0 ? 1.0 : sale.exchangeRate;
+    final showSource = sale.sourceCurrency != baseCurrency || rate != 1;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(child: Text(label)),
+          if (showSource)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Text(
+                money(value / rate, currency: sale.sourceCurrency),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          Text(
+            money(value, currency: baseCurrency),
+            style: TextStyle(
+              fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
+              color: informational
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 double? _parseNumber(String? value) =>

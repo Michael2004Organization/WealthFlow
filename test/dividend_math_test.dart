@@ -74,4 +74,18 @@ void main() {
     expect(result.solidaritySurcharge, 0);
     expect(result.net, 85);
   });
+
+  test('optional church tax is included in the net dividend', () {
+    final result = calculateGermanDividendTax(
+      grossAmount: 100,
+      exchangeRate: 1,
+      withholdingTaxRate: 0,
+      allowanceRemaining: 0,
+      churchTaxRate: 9,
+    );
+
+    expect(result.germanCapitalTax, 25);
+    expect(result.churchTax, 2.25);
+    expect(result.net, 71.37);
+  });
 }

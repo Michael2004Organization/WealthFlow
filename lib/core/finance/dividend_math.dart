@@ -38,6 +38,7 @@ final class DividendTaxResult {
     required this.creditableWithholdingTax,
     required this.germanCapitalTax,
     required this.solidaritySurcharge,
+    required this.churchTax,
     required this.allowanceUsed,
     required this.allowanceRemaining,
     required this.net,
@@ -48,6 +49,7 @@ final class DividendTaxResult {
   final double creditableWithholdingTax;
   final double germanCapitalTax;
   final double solidaritySurcharge;
+  final double churchTax;
   final double allowanceUsed;
   final double allowanceRemaining;
   final double net;
@@ -60,6 +62,7 @@ DividendTaxResult calculateGermanDividendTax({
   required double exchangeRate,
   required double withholdingTaxRate,
   required double allowanceRemaining,
+  double churchTaxRate = 0,
 }) {
   final gross = _cents((grossAmount * exchangeRate).clamp(0, double.infinity));
   final sourceRate = withholdingTaxRate.clamp(0, 100).toDouble();
@@ -82,17 +85,23 @@ DividendTaxResult calculateGermanDividendTax({
   );
   final germanCapitalTax = _cents(capitalTaxBeforeCredit - creditable);
   final solidarity = _cents(germanCapitalTax * solidaritySurchargeRate / 100);
+  final churchTax = _cents(
+    germanCapitalTax * churchTaxRate.clamp(0, 100) / 100,
+  );
   return DividendTaxResult(
     gross: gross,
     withholdingTax: withholdingTax,
     creditableWithholdingTax: creditable,
     germanCapitalTax: germanCapitalTax,
     solidaritySurcharge: solidarity,
+    churchTax: churchTax,
     allowanceUsed: allowanceUsed,
     allowanceRemaining: _cents(
       (allowanceRemaining - allowanceUsed).clamp(0, double.infinity),
     ),
-    net: _cents(gross - withholdingTax - germanCapitalTax - solidarity),
+    net: _cents(
+      gross - withholdingTax - germanCapitalTax - solidarity - churchTax,
+    ),
   );
 }
 

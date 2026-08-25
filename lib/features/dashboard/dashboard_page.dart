@@ -156,13 +156,22 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                       (constraints.maxWidth - spacing * (columns - 1)) /
                       columns;
                   final cards = [
-                    _SplitNetWorthCard(
-                      financialValue: accountBalance + portfolio,
-                      vehicleValue: vehicleValue,
-                      financialCaption:
+                    MetricCard(
+                      title: 'Gesamtvermögen',
+                      value: money(accountBalance + portfolio),
+                      caption:
                           '${accounts.length} Konten · ${investments.length} Positionen',
-                      onFinancialTap: () => openFinance(ref, 0),
-                      onVehicleTap: () =>
+                      icon: Icons.account_balance_wallet_rounded,
+                      color: colors.primary,
+                      onTap: () => openFinance(ref, 0),
+                    ),
+                    MetricCard(
+                      title: 'Inkl. Fahrzeuge',
+                      value: money(accountBalance + portfolio + vehicleValue),
+                      caption: '${money(vehicleValue)} Fahrzeugwert',
+                      icon: Icons.directions_car_filled_rounded,
+                      color: Colors.indigo,
+                      onTap: () =>
                           ref.read(shellIndexProvider.notifier).state = 5,
                     ),
                     MetricCard(
@@ -182,6 +191,16 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                           '${thisMonth.where((entry) => !entry.isIncome).length} Buchungen',
                       icon: Icons.shopping_bag_rounded,
                       color: Colors.orange,
+                      onTap: () =>
+                          ref.read(shellIndexProvider.notifier).state = 2,
+                    ),
+                    MetricCard(
+                      title: 'Einnahmen im Monat',
+                      value: money(income),
+                      caption:
+                          '${thisMonth.where((entry) => entry.isIncome).length} Buchungen',
+                      icon: Icons.account_balance_rounded,
+                      color: Colors.green,
                       onTap: () =>
                           ref.read(shellIndexProvider.notifier).state = 2,
                     ),
@@ -277,123 +296,34 @@ const _dashboardMonths = [
   'Dezember',
 ];
 
-class _SplitNetWorthCard extends StatelessWidget {
-  const _SplitNetWorthCard({
-    required this.financialValue,
-    required this.vehicleValue,
-    required this.financialCaption,
-    required this.onFinancialTap,
-    required this.onVehicleTap,
-  });
-
-  final double financialValue;
-  final double vehicleValue;
-  final String financialCaption;
-  final VoidCallback onFinancialTap;
-  final VoidCallback onVehicleTap;
-
-  @override
-  Widget build(BuildContext context) => Card(
-    child: IntrinsicHeight(
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              borderRadius: const BorderRadius.horizontal(
-                left: Radius.circular(22),
-              ),
-              onTap: onFinancialTap,
-              child: _NetWorthSide(
-                title: 'Gesamtvermögen',
-                value: financialValue,
-                caption: financialCaption,
-                icon: Icons.account_balance_wallet_rounded,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ),
-          VerticalDivider(
-            width: 1,
-            indent: 18,
-            endIndent: 18,
-            color: Theme.of(context).dividerColor,
-          ),
-          Expanded(
-            child: InkWell(
-              borderRadius: const BorderRadius.horizontal(
-                right: Radius.circular(22),
-              ),
-              onTap: onVehicleTap,
-              child: _NetWorthSide(
-                title: 'Inkl. Fahrzeuge',
-                value: financialValue + vehicleValue,
-                caption: '${money(vehicleValue)} Fahrzeugwert',
-                icon: Icons.directions_car_filled_rounded,
-                color: Colors.indigo,
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _NetWorthSide extends StatelessWidget {
-  const _NetWorthSide({
-    required this.title,
-    required this.value,
-    required this.caption,
-    required this.icon,
-    required this.color,
-  });
-  final String title;
-  final double value;
-  final String caption;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(18),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: color),
-        const SizedBox(height: 14),
-        Text(title, style: Theme.of(context).textTheme.labelMedium),
-        const SizedBox(height: 4),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(
-            money(value),
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(caption, style: Theme.of(context).textTheme.bodySmall),
-      ],
-    ),
-  );
-}
-
-class _MonthlyChart extends StatelessWidget {
+class _MonthlyChart extends StatefulWidget {
   const _MonthlyChart({required this.entries, required this.selectedMonth});
   final List<LedgerEntry> entries;
   final DateTime selectedMonth;
 
   @override
+  State<_MonthlyChart> createState() => _MonthlyChartState();
+}
+
+class _MonthlyChartState extends State<_MonthlyChart> {
+  int _months = 6;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final totals = List<double>.filled(6, 0);
-    for (var index = 0; index < 6; index++) {
+    final totals = List<double>.filled(_months, 0);
+    for (var index = 0; index < _months; index++) {
       final date = DateTime(
-        selectedMonth.year,
-        selectedMonth.month - (5 - index),
+        widget.selectedMonth.year,
+        widget.selectedMonth.month - (_months - 1 - index),
       );
-      totals[index] = entries
+      totals[index] = widget.entries
           .where((entry) {
             final period = budgetMonthOf(entry.bookingDate, entry.budgetMonth);
             return !entry.isIncome &&
@@ -421,84 +351,130 @@ class _MonthlyChart extends StatelessWidget {
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
-            const Text('Die vergangenen sechs Monate'),
+            Row(
+              children: [
+                Expanded(child: Text('Die vergangenen $_months Monate')),
+                SizedBox(
+                  width: 132,
+                  child: DropdownButtonFormField<int>(
+                    initialValue: _months,
+                    isDense: true,
+                    decoration: const InputDecoration(labelText: 'Monate'),
+                    items: const [6, 12, 24, 36, 60]
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text('$value'),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) setState(() => _months = value);
+                    },
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 24),
             SizedBox(
-              height: 220,
-              child: BarChart(
-                BarChartData(
-                  maxY: maxValue <= 0 ? 100 : maxValue * 1.2,
-                  borderData: FlBorderData(show: false),
-                  gridData: const FlGridData(show: false),
-                  barTouchData: BarTouchData(
-                    enabled: true,
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) =>
-                          BarTooltipItem(
-                            money(rod.toY),
-                            const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
+              height: 236,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final chartWidth = _months <= 6
+                      ? constraints.maxWidth
+                      : _months * 82.0;
+                  final chart = SizedBox(
+                    width: chartWidth,
+                    child: BarChart(
+                      BarChartData(
+                        maxY: maxValue <= 0 ? 100 : maxValue * 1.2,
+                        borderData: FlBorderData(show: false),
+                        gridData: const FlGridData(show: false),
+                        barTouchData: BarTouchData(
+                          enabled: true,
+                          touchTooltipData: BarTouchTooltipData(
+                            getTooltipItem:
+                                (group, groupIndex, rod, rodIndex) =>
+                                    BarTooltipItem(
+                                      money(rod.toY),
+                                      const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                          ),
+                        ),
+                        titlesData: FlTitlesData(
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          leftTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 34,
+                              getTitlesWidget: (value, meta) {
+                                final date = DateTime(
+                                  widget.selectedMonth.year,
+                                  widget.selectedMonth.month -
+                                      (_months - 1 - value.toInt()),
+                                );
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    [
+                                      'Jan',
+                                      'Feb',
+                                      'Mär',
+                                      'Apr',
+                                      'Mai',
+                                      'Jun',
+                                      'Jul',
+                                      'Aug',
+                                      'Sep',
+                                      'Okt',
+                                      'Nov',
+                                      'Dez',
+                                    ][date.month - 1],
+                                  ),
+                                );
+                              },
                             ),
                           ),
-                    ),
-                  ),
-                  titlesData: FlTitlesData(
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final date = DateTime(
-                            selectedMonth.year,
-                            selectedMonth.month - (5 - value.toInt()),
-                          );
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              [
-                                'Jan',
-                                'Feb',
-                                'Mär',
-                                'Apr',
-                                'Mai',
-                                'Jun',
-                                'Jul',
-                                'Aug',
-                                'Sep',
-                                'Okt',
-                                'Nov',
-                                'Dez',
-                              ][date.month - 1],
+                        ),
+                        barGroups: [
+                          for (var index = 0; index < totals.length; index++)
+                            BarChartGroupData(
+                              x: index,
+                              barRods: [
+                                BarChartRodData(
+                                  toY: totals[index],
+                                  width: 20,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  barGroups: [
-                    for (var index = 0; index < totals.length; index++)
-                      BarChartGroupData(
-                        x: index,
-                        barRods: [
-                          BarChartRodData(
-                            toY: totals[index],
-                            width: 20,
-                            color: Theme.of(context).colorScheme.primary,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
                         ],
                       ),
-                  ],
-                ),
+                    ),
+                  );
+                  if (_months <= 6) return chart;
+                  return Scrollbar(
+                    controller: _scrollController,
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      scrollDirection: Axis.horizontal,
+                      child: chart,
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -532,6 +508,8 @@ class _NetWorthChart extends StatelessWidget {
     final bottomInterval = visible.length <= 4
         ? 1.0
         : (visible.length / 4).ceilToDouble();
+    final totalColor = Theme.of(context).colorScheme.primary;
+    const accountColor = Colors.teal;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(22),
@@ -554,11 +532,17 @@ class _NetWorthChart extends StatelessWidget {
                 children: [
                   Text(
                     'Gesamt  ${money(visible.last.totalNetWorth)}',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      color: totalColor,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   Text(
                     'Konten  ${money(visible.last.accountBalance)}',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      color: accountColor,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   Text(
                     'Stand  ${DateFormat('dd.MM.yyyy').format(visible.last.capturedAt)}',
@@ -656,20 +640,18 @@ class _NetWorthChart extends StatelessWidget {
                             spots: totalSpots,
                             isCurved: true,
                             barWidth: 4,
-                            color: Theme.of(context).colorScheme.primary,
+                            color: totalColor,
                             dotData: const FlDotData(show: false),
                             belowBarData: BarAreaData(
                               show: true,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.primary.withValues(alpha: .12),
+                              color: totalColor.withValues(alpha: .12),
                             ),
                           ),
                           LineChartBarData(
                             spots: accountSpots,
                             isCurved: true,
                             barWidth: 3,
-                            color: Colors.teal,
+                            color: accountColor,
                             dotData: const FlDotData(show: false),
                           ),
                         ],

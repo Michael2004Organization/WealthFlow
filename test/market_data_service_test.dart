@@ -86,6 +86,37 @@ void main() {
     expect(plan.reason, contains('API-Key'));
   });
 
+  test('plans an immediate exchange-rate batch after API key setup', () async {
+    final now = DateTime.utc(2026, 8, 6, 9);
+    await database.createUser(
+      UsersCompanion.insert(
+        id: 'exchange-admin',
+        email: 'exchange@example.test',
+        displayName: 'Exchange Admin',
+        passwordHash: 'hash',
+        passwordSalt: 'salt',
+        role: const Value('admin'),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await database.saveCountryExchangeRate(
+      actorUserId: 'exchange-admin',
+      country: 'USA',
+      currency: 'USD',
+      exchangeRate: .92,
+    );
+
+    final plan = await coordinator.exchangeRatePlan(
+      now,
+      apiKey: 'exchange-key',
+      baseCurrency: 'EUR',
+    );
+
+    expect(plan.currencies, ['USD']);
+    expect(plan.reason, contains('Erste Abfrage'));
+  });
+
   test('members cannot mutate the shared stock catalogue', () async {
     final now = DateTime.utc(2026, 8, 6);
     await database.createUser(

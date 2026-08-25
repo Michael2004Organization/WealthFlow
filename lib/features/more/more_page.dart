@@ -16,6 +16,15 @@ class MorePage extends ConsumerStatefulWidget {
 }
 
 class _MorePageState extends ConsumerState<MorePage> {
+  String _sortMode = 'name';
+  final List<String> _customOrder = const [
+    'reminders',
+    'search',
+    'masterData',
+    'settings',
+    'administration',
+  ].toList();
+
   static const _destinations = [
     _MoreDestination(
       'reminders',
@@ -98,6 +107,16 @@ class _MorePageState extends ConsumerState<MorePage> {
     final destinations = _destinations
         .where((destination) => !destination.adminOnly || isAdmin)
         .toList();
+    if (_sortMode == 'name') {
+      destinations.sort(
+        (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()),
+      );
+    } else {
+      destinations.sort(
+        (a, b) =>
+            _customOrder.indexOf(a.key).compareTo(_customOrder.indexOf(b.key)),
+      );
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -110,6 +129,29 @@ class _MorePageState extends ConsumerState<MorePage> {
                 title: 'Mehr',
                 subtitle: 'Werkzeuge und Einstellungen für WealthFlow.',
               ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  width: 250,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _sortMode,
+                    decoration: const InputDecoration(
+                      labelText: 'Sortierung',
+                      prefixIcon: Icon(Icons.sort_rounded),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'name', child: Text('Name A–Z')),
+                      DropdownMenuItem(
+                        value: 'custom',
+                        child: Text('Eigene Reihenfolge'),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _sortMode = value ?? 'name'),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth < 650
@@ -119,7 +161,7 @@ class _MorePageState extends ConsumerState<MorePage> {
                     spacing: 16,
                     runSpacing: 16,
                     children: [
-                      for (final destination in destinations)
+                      for (final indexed in destinations.indexed)
                         SizedBox(
                           width: width,
                           child: Card(
@@ -128,7 +170,8 @@ class _MorePageState extends ConsumerState<MorePage> {
                               onTap: () =>
                                   ref
                                       .read(moreDestinationProvider.notifier)
-                                      .state = destination
+                                      .state = indexed
+                                      .$2
                                       .key,
                               child: Padding(
                                 padding: const EdgeInsets.all(22),
@@ -138,14 +181,14 @@ class _MorePageState extends ConsumerState<MorePage> {
                                       width: 54,
                                       height: 54,
                                       decoration: BoxDecoration(
-                                        color: destination.color.withValues(
+                                        color: indexed.$2.color.withValues(
                                           alpha: .14,
                                         ),
                                         borderRadius: BorderRadius.circular(17),
                                       ),
                                       child: Icon(
-                                        destination.icon,
-                                        color: destination.color,
+                                        indexed.$2.icon,
+                                        color: indexed.$2.color,
                                         size: 29,
                                       ),
                                     ),
@@ -156,7 +199,7 @@ class _MorePageState extends ConsumerState<MorePage> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            destination.label,
+                                            indexed.$2.label,
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .titleMedium
@@ -165,11 +208,45 @@ class _MorePageState extends ConsumerState<MorePage> {
                                                 ),
                                           ),
                                           const SizedBox(height: 3),
-                                          Text(destination.subtitle),
+                                          Text(indexed.$2.subtitle),
                                         ],
                                       ),
                                     ),
-                                    const Icon(Icons.chevron_right_rounded),
+                                    if (_sortMode == 'custom')
+                                      Column(
+                                        children: [
+                                          IconButton(
+                                            tooltip: 'Nach oben',
+                                            onPressed: indexed.$1 == 0
+                                                ? null
+                                                : () => _moveDestination(
+                                                    indexed.$2.key,
+                                                    destinations[indexed.$1 - 1]
+                                                        .key,
+                                                  ),
+                                            icon: const Icon(
+                                              Icons.keyboard_arrow_up_rounded,
+                                            ),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Nach unten',
+                                            onPressed:
+                                                indexed.$1 ==
+                                                    destinations.length - 1
+                                                ? null
+                                                : () => _moveDestination(
+                                                    indexed.$2.key,
+                                                    destinations[indexed.$1 + 1]
+                                                        .key,
+                                                  ),
+                                            icon: const Icon(
+                                              Icons.keyboard_arrow_down_rounded,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    else
+                                      const Icon(Icons.chevron_right_rounded),
                                   ],
                                 ),
                               ),
@@ -185,6 +262,16 @@ class _MorePageState extends ConsumerState<MorePage> {
         ),
       ),
     );
+  }
+
+  void _moveDestination(String key, String targetKey) {
+    setState(() {
+      final oldIndex = _customOrder.indexOf(key);
+      final newIndex = _customOrder.indexOf(targetKey);
+      final item = _customOrder.removeAt(oldIndex);
+      _customOrder.insert(newIndex, item);
+      _sortMode = 'custom';
+    });
   }
 }
 

@@ -16,6 +16,20 @@ final class MarketDataRequestPlan {
   bool get isEmpty => symbols.isEmpty;
 }
 
+final class ExchangeRateRequestPlan {
+  const ExchangeRateRequestPlan({
+    required this.currencies,
+    required this.slot,
+    required this.reason,
+  });
+
+  final List<String> currencies;
+  final DateTime slot;
+  final String reason;
+
+  bool get isEmpty => currencies.isEmpty;
+}
+
 /// Centralizes cache and schedule decisions so opening a portfolio never
 /// causes one request per user or position.
 final class MarketDataCoordinator {
@@ -58,6 +72,50 @@ final class MarketDataCoordinator {
       symbols: stocks.map((stock) => stock.symbol).toSet().toList()..sort(),
       slot: slot,
       reason: 'Eine gemeinsame Batch-Abfrage für den gesamten Aktienpool',
+    );
+  }
+
+  Future<ExchangeRateRequestPlan> exchangeRatePlan(
+    DateTime now, {
+    required String? apiKey,
+    required String baseCurrency,
+  }) async {
+    if (apiKey == null || apiKey.trim().isEmpty) {
+      return ExchangeRateRequestPlan(
+        currencies: const [],
+        slot: DateTime(now.year, now.month, now.day),
+        reason: 'Kein Wechselkurs-API-Key eingerichtet',
+      );
+    }
+    final last = await _database.lastMarketRefresh('exchangeRates', 'global');
+    final scheduledSlot = latestDueSlot(now);
+    final slot = last == null
+        ? now
+        : scheduledSlot ?? DateTime(now.year, now.month, now.day);
+    if (last != null &&
+        (scheduledSlot == null || !last.isBefore(scheduledSlot))) {
+      return ExchangeRateRequestPlan(
+        currencies: const [],
+        slot: slot,
+        reason: scheduledSlot == null
+            ? 'Vor dem ersten Aktualisierungsfenster'
+            : 'Aktuelles Wechselkursfenster bereits geladen',
+      );
+    }
+    final rates = await _database.countryExchangePool();
+    final currencies =
+        rates
+            .map((item) => item.currency.toUpperCase())
+            .where((currency) => currency != baseCurrency.toUpperCase())
+            .toSet()
+            .toList()
+          ..sort();
+    return ExchangeRateRequestPlan(
+      currencies: currencies,
+      slot: slot,
+      reason: last == null
+          ? 'Erste Abfrage nach dem Hinterlegen des API-Keys'
+          : 'Gemeinsame Wechselkursabfrage für das fällige Zeitfenster',
     );
   }
 

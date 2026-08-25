@@ -15,6 +15,7 @@ final class SecureSessionStore {
   static const _userKey = 'wealthflow.current_user_id';
   static const _dataKeyPrefix = 'wealthflow.data_key.';
   static const _marketApiKeyPrefix = 'wealthflow.market_api_key.';
+  static const _exchangeApiKeyPrefix = 'wealthflow.exchange_api_key.';
   final FlutterSecureStorage _storage;
   static String? _memoryUserId;
   static final Map<String, List<int>> _memoryDataKeys = {};
@@ -109,6 +110,28 @@ final class SecureSessionStore {
   Future<bool> writeMarketApiKey(String userId, String value) async {
     try {
       final key = _marketApiKeyPrefix + userId;
+      if (value.trim().isEmpty) {
+        await _storage.delete(key: key);
+      } else {
+        await _storage.write(key: key, value: value.trim());
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<String?> readExchangeApiKey(String userId) async {
+    try {
+      return await _storage.read(key: _exchangeApiKeyPrefix + userId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> writeExchangeApiKey(String userId, String value) async {
+    try {
+      final key = _exchangeApiKeyPrefix + userId;
       if (value.trim().isEmpty) {
         await _storage.delete(key: key);
       } else {

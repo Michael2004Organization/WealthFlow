@@ -217,27 +217,36 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                 ),
               )
             else
-              for (final indexed in top.take(10).indexed) ...[
-                ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(child: Text('${indexed.$1 + 1}')),
-                  title: Text(
-                    indexed.$2.merchant.isEmpty
-                        ? indexed.$2.description
-                        : indexed.$2.merchant,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(indexed.$2.category),
-                  trailing: Text(
-                    money(indexed.$2.amount),
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+              SizedBox(
+                height: 216,
+                child: Scrollbar(
+                  thumbVisibility: top.length > 3,
+                  child: ListView.separated(
+                    itemCount: top.take(10).length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final entry = top[index];
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(child: Text('${index + 1}')),
+                        title: Text(
+                          entry.merchant.isEmpty
+                              ? entry.description
+                              : entry.merchant,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(entry.category),
+                        trailing: Text(
+                          money(entry.amount),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      );
+                    },
                   ),
                 ),
-                if (indexed.$1 < top.take(10).length - 1)
-                  const Divider(height: 1),
-              ],
+              ),
           ],
         ),
       ),
@@ -245,11 +254,13 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
   }
 
   Future<void> _pickCustomPeriod() async {
-    final selected = await showDateRangePicker(
+    final selected = await showDialog<DateTimeRange>(
       context: context,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now().add(const Duration(days: 3650)),
-      initialDateRange: _customPeriod,
+      builder: (context) => _CompactDateRangeDialog(
+        initialRange: _customPeriod,
+        firstDate: DateTime(2000),
+        lastDate: DateTime.now().add(const Duration(days: 3650)),
+      ),
     );
     if (selected != null) {
       setState(
@@ -267,6 +278,87 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
       );
     }
   }
+}
+
+class _CompactDateRangeDialog extends StatefulWidget {
+  const _CompactDateRangeDialog({
+    required this.initialRange,
+    required this.firstDate,
+    required this.lastDate,
+  });
+
+  final DateTimeRange initialRange;
+  final DateTime firstDate;
+  final DateTime lastDate;
+
+  @override
+  State<_CompactDateRangeDialog> createState() =>
+      _CompactDateRangeDialogState();
+}
+
+class _CompactDateRangeDialogState extends State<_CompactDateRangeDialog> {
+  late DateTime _start = widget.initialRange.start;
+  late DateTime _end = widget.initialRange.end;
+  bool _editingEnd = false;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Zeitraum wählen'),
+    content: SizedBox(
+      width: 360,
+      height: 390,
+      child: Column(
+        children: [
+          SegmentedButton<bool>(
+            segments: [
+              ButtonSegment(
+                value: false,
+                label: Text('Von ${DateFormat('dd.MM.yyyy').format(_start)}'),
+              ),
+              ButtonSegment(
+                value: true,
+                label: Text('Bis ${DateFormat('dd.MM.yyyy').format(_end)}'),
+              ),
+            ],
+            selected: {_editingEnd},
+            onSelectionChanged: (value) =>
+                setState(() => _editingEnd = value.first),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: CalendarDatePicker(
+              key: ValueKey((_editingEnd, _start, _end)),
+              initialDate: _editingEnd ? _end : _start,
+              firstDate: widget.firstDate,
+              lastDate: widget.lastDate,
+              onDateChanged: (date) {
+                setState(() {
+                  if (_editingEnd) {
+                    _end = date.isBefore(_start) ? _start : date;
+                  } else {
+                    _start = date;
+                    if (_end.isBefore(_start)) _end = _start;
+                    _editingEnd = true;
+                  }
+                });
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Abbrechen'),
+      ),
+      FilledButton(
+        onPressed: () =>
+            Navigator.pop(context, DateTimeRange(start: _start, end: _end)),
+        child: const Text('Übernehmen'),
+      ),
+    ],
+  );
 }
 
 const _statisticsMonthNames = [
@@ -551,6 +643,13 @@ class _CashflowChart extends StatefulWidget {
 class _CashflowChartState extends State<_CashflowChart> {
   int _months = 6;
   DateTimeRange? _customRange;
+  final ScrollController _chartScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _chartScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -628,100 +727,120 @@ class _CashflowChartState extends State<_CashflowChart> {
           ),
           const SizedBox(height: 10),
           Expanded(
-            child: BarChart(
-              BarChartData(
-                barTouchData: BarTouchData(
-                  enabled: true,
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      final date = periods[group.x];
-                      final label = rodIndex == 0 ? 'Einnahmen' : 'Ausgaben';
-                      return BarTooltipItem(
-                        '${DateFormat('MMMM yyyy', 'de_DE').format(date)}\n'
-                        '$label: ${money(rod.toY)}',
-                        const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final chartWidth = count <= 6
+                    ? constraints.maxWidth
+                    : count * 92.0;
+                final chart = SizedBox(
+                  width: chartWidth,
+                  child: BarChart(
+                    BarChartData(
+                      barTouchData: BarTouchData(
+                        enabled: true,
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final date = periods[group.x];
+                            final label = rodIndex == 0
+                                ? 'Einnahmen'
+                                : 'Ausgaben';
+                            return BarTooltipItem(
+                              '${DateFormat('MMMM yyyy', 'de_DE').format(date)}\n'
+                              '$label: ${money(rod.toY)}',
+                              const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                gridData: FlGridData(
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (_) => FlLine(
-                    color: Theme.of(
-                      context,
-                    ).dividerColor.withValues(alpha: .18),
-                  ),
-                ),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 54,
-                      getTitlesWidget: (value, meta) => Text(
-                        NumberFormat.compactCurrency(
-                          locale: 'de_DE',
-                          symbol: '€',
-                          decimalDigits: 0,
-                        ).format(value),
-                        style: Theme.of(context).textTheme.labelSmall,
                       ),
-                    ),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 26,
-                      getTitlesWidget: (value, meta) {
-                        final index = value.toInt();
-                        if (index < 0 || index >= periods.length) {
-                          return const SizedBox.shrink();
-                        }
-                        final date = periods[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 5),
-                          child: Text(
-                            _statisticsMonthNames[date.month - 1].substring(
-                              0,
-                              3,
+                      borderData: FlBorderData(show: false),
+                      gridData: FlGridData(
+                        drawVerticalLine: false,
+                        getDrawingHorizontalLine: (_) => FlLine(
+                          color: Theme.of(
+                            context,
+                          ).dividerColor.withValues(alpha: .18),
+                        ),
+                      ),
+                      titlesData: FlTitlesData(
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 54,
+                            getTitlesWidget: (value, meta) => Text(
+                              NumberFormat.compactCurrency(
+                                locale: 'de_DE',
+                                symbol: '€',
+                                decimalDigits: 0,
+                              ).format(value),
+                              style: Theme.of(context).textTheme.labelSmall,
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                barGroups: [
-                  for (var i = 0; i < count; i++)
-                    BarChartGroupData(
-                      x: i,
-                      barsSpace: 3,
-                      barRods: [
-                        BarChartRodData(
-                          toY: income[i],
-                          width: (70 / count).clamp(4, 14),
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(4),
                         ),
-                        BarChartRodData(
-                          toY: expense[i],
-                          width: (70 / count).clamp(4, 14),
-                          color: Colors.redAccent,
-                          borderRadius: BorderRadius.circular(4),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
                         ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 26,
+                            getTitlesWidget: (value, meta) {
+                              final index = value.toInt();
+                              if (index < 0 || index >= periods.length) {
+                                return const SizedBox.shrink();
+                              }
+                              final date = periods[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 5),
+                                child: Text(
+                                  _statisticsMonthNames[date.month - 1]
+                                      .substring(0, 3),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      barGroups: [
+                        for (var i = 0; i < count; i++)
+                          BarChartGroupData(
+                            x: i,
+                            barsSpace: 3,
+                            barRods: [
+                              BarChartRodData(
+                                toY: income[i],
+                                width: 14,
+                                color: Colors.green,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              BarChartRodData(
+                                toY: expense[i],
+                                width: 14,
+                                color: Colors.redAccent,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
-                ],
-              ),
+                  ),
+                );
+                if (count <= 6) return chart;
+                return Scrollbar(
+                  controller: _chartScrollController,
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    controller: _chartScrollController,
+                    scrollDirection: Axis.horizontal,
+                    child: chart,
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(height: 8),

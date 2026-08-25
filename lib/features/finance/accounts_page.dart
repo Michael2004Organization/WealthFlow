@@ -516,7 +516,9 @@ class _AccountActivityDialogState extends State<_AccountActivityDialog> {
                                     money(entry.amount),
                                 style: TextStyle(
                                   fontWeight: FontWeight.w800,
-                                  color: entry.isIncome ? Colors.green : null,
+                                  color: entry.isIncome
+                                      ? Colors.green
+                                      : Colors.redAccent,
                                 ),
                               ),
                             ),

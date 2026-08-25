@@ -69,7 +69,10 @@ PortfolioTaxSummary calculatePortfolioTaxYear({
     used += tax.allowanceUsed;
     remaining = tax.allowanceRemaining;
     taxes +=
-        tax.withholdingTax + tax.germanCapitalTax + tax.solidaritySurcharge;
+        tax.withholdingTax +
+        tax.germanCapitalTax +
+        tax.solidaritySurcharge +
+        tax.churchTax;
   }
 
   return PortfolioTaxSummary(
