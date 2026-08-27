@@ -52,6 +52,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
           investments: items,
           schedules: schedules,
           sales: sales,
+          purchases: purchases,
           includePhysicalAssets:
               preference?.includePhysicalAssetsInTaxAllowance ?? false,
           through: _selectedYear == DateTime.now().year
@@ -82,10 +83,12 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
           ).compareTo(_netForInvestment(fullProjection, a.id)),
         );
         final requestedSelection = ref.watch(_dividendInvestmentFilterProvider);
-        final selectedId = requestedSelection == _allDividendInvestments
+        final selectedId =
+            requestedSelection == null ||
+                requestedSelection == _allDividendInvestments
             ? _allDividendInvestments
             : dividendItems.any((item) => item.id == requestedSelection)
-            ? requestedSelection!
+            ? requestedSelection
             : dividendItems.firstOrNull?.id;
         final visibleItems = selectedId == _allDividendInvestments
             ? dividendItems
@@ -911,29 +914,12 @@ double _sharesHeldAt(
   DateTime date,
   List<InvestmentPurchase> purchases,
   List<PortfolioSale> sales,
-) {
-  if (investment.deletedAt != null && !date.isBefore(investment.deletedAt!)) {
-    return 0;
-  }
-  final rows = purchases
-      .where((row) => row.investmentId == investment.id)
-      .toList();
-  final allSales = sales
-      .where((sale) => sale.investmentId == investment.id)
-      .toList();
-  final purchased = rows.isEmpty
-      ? (date.isBefore(investment.purchaseDate)
-            ? 0.0
-            : investment.quantity +
-                  allSales.fold<double>(0, (sum, sale) => sum + sale.quantity))
-      : rows
-            .where((row) => !row.purchaseDate.isAfter(date))
-            .fold<double>(0, (sum, row) => sum + row.quantity);
-  final sold = allSales
-      .where((sale) => !sale.soldAt.isAfter(date))
-      .fold<double>(0, (sum, sale) => sum + sale.quantity);
-  return (purchased - sold).clamp(0, double.infinity).toDouble();
-}
+) => investmentSharesAt(
+  investment: investment,
+  date: date,
+  purchases: purchases,
+  sales: sales,
+);
 
 String _perShareSummary(
   Investment investment,
@@ -968,7 +954,9 @@ class _DividendCalendar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedId = selectedInvestmentId == _allDividendInvestments
+    final selectedId =
+        selectedInvestmentId == null ||
+            selectedInvestmentId == _allDividendInvestments
         ? _allDividendInvestments
         : investments.any((item) => item.id == selectedInvestmentId)
         ? selectedInvestmentId!
@@ -1396,6 +1384,7 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
               width: 150,
               child: TextField(
                 controller: _currency,
+                readOnly: true,
                 textCapitalization: TextCapitalization.characters,
                 onChanged: (_) => setState(() {}),
                 decoration: const InputDecoration(labelText: 'Währung'),
@@ -1405,6 +1394,7 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
               width: 210,
               child: TextField(
                 controller: _exchangeRate,
+                readOnly: true,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
@@ -2033,75 +2023,99 @@ Future<void> _showDividendPaymentDetail(
     final tax = payment.tax;
     final rate = payment.exchangeRate <= 0 ? 1.0 : payment.exchangeRate;
     return AlertDialog(
-      title: Text(payment.investment.name),
+      title: Text('${payment.investment.name} · Brutto bis Netto'),
       content: SizedBox(
-        width: 480,
+        width: 720,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            _DividendCurrencyHeader(
+              sourceCurrency: payment.sourceCurrency,
+              baseCurrency: baseCurrency,
+            ),
+            const Divider(height: 18),
             _DividendTaxRow(
               label: 'Brutto',
-              value: tax.gross,
-              currency: baseCurrency,
+              baseValue: tax.gross,
               sourceValue: payment.grossSource,
+              baseCurrency: baseCurrency,
               sourceCurrency: payment.sourceCurrency,
               emphasized: true,
             ),
             _DividendTaxRow(
               label:
                   'Quellensteuer (${payment.withholdingTaxRate.toStringAsFixed(2)} % · ${payment.investment.country})',
-              value: -tax.withholdingTax,
-              currency: baseCurrency,
+              baseValue: -tax.withholdingTax,
               sourceValue: -tax.withholdingTax / rate,
+              baseCurrency: baseCurrency,
               sourceCurrency: payment.sourceCurrency,
             ),
             if (tax.creditableWithholdingTax > 0)
               _DividendTaxRow(
                 label: 'Davon anrechenbare Quellensteuer',
-                value: tax.creditableWithholdingTax,
-                currency: baseCurrency,
+                baseValue: tax.creditableWithholdingTax,
                 sourceValue: tax.creditableWithholdingTax / rate,
+                baseCurrency: baseCurrency,
                 sourceCurrency: payment.sourceCurrency,
                 informational: true,
               ),
             _DividendTaxRow(
               label: 'Kapitalertragsteuer ($germanCapitalGainsTaxRate %)',
-              value: -tax.germanCapitalTax,
-              currency: baseCurrency,
+              baseValue: -tax.germanCapitalTax,
               sourceValue: -tax.germanCapitalTax / rate,
+              baseCurrency: baseCurrency,
               sourceCurrency: payment.sourceCurrency,
             ),
             _DividendTaxRow(
               label:
                   'Solidaritätszuschlag ($solidaritySurchargeRate % auf Kapitalertragsteuer)',
-              value: -tax.solidaritySurcharge,
-              currency: baseCurrency,
+              baseValue: -tax.solidaritySurcharge,
               sourceValue: -tax.solidaritySurcharge / rate,
+              baseCurrency: baseCurrency,
               sourceCurrency: payment.sourceCurrency,
             ),
             if (tax.churchTax > 0)
               _DividendTaxRow(
                 label: 'Kirchensteuer',
-                value: -tax.churchTax,
-                currency: baseCurrency,
+                baseValue: -tax.churchTax,
                 sourceValue: -tax.churchTax / rate,
+                baseCurrency: baseCurrency,
                 sourceCurrency: payment.sourceCurrency,
               ),
             if (tax.allowanceUsed > 0)
               _DividendTaxRow(
                 label: 'Genutzter Freistellungsauftrag',
-                value: tax.allowanceUsed,
-                currency: baseCurrency,
+                baseValue: tax.allowanceUsed,
                 sourceValue: tax.allowanceUsed / rate,
+                baseCurrency: baseCurrency,
                 sourceCurrency: payment.sourceCurrency,
                 informational: true,
               ),
-            const Divider(height: 24),
+            const SizedBox(height: 6),
+            _DividendTaxRow(
+              label: 'Zwischensumme nach Abzug Steuern',
+              baseValue: tax.net,
+              sourceValue: tax.net / rate,
+              baseCurrency: baseCurrency,
+              sourceCurrency: payment.sourceCurrency,
+              emphasized: true,
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 2, bottom: 6),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '${payment.sourceCurrency.toUpperCase()} → ${baseCurrency.toUpperCase()} · Kurs ${rate.toStringAsFixed(6)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            ),
+            const Divider(height: 18),
             _DividendTaxRow(
               label: 'Netto',
-              value: tax.net,
-              currency: baseCurrency,
+              baseValue: tax.net,
               sourceValue: tax.net / rate,
+              baseCurrency: baseCurrency,
               sourceCurrency: payment.sourceCurrency,
               emphasized: true,
             ),
@@ -2118,24 +2132,61 @@ Future<void> _showDividendPaymentDetail(
   },
 );
 
+class _DividendCurrencyHeader extends StatelessWidget {
+  const _DividendCurrencyHeader({
+    required this.sourceCurrency,
+    required this.baseCurrency,
+  });
+
+  final String sourceCurrency;
+  final String baseCurrency;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      const Expanded(flex: 3, child: SizedBox()),
+      Expanded(
+        flex: 2,
+        child: Text(
+          'Aktienwährung\n${sourceCurrency.toUpperCase()}',
+          textAlign: TextAlign.right,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+      const SizedBox(
+        height: 42,
+        child: VerticalDivider(width: 28, thickness: 1),
+      ),
+      Expanded(
+        flex: 2,
+        child: Text(
+          'Accountwährung\n${baseCurrency.toUpperCase()}',
+          textAlign: TextAlign.right,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+    ],
+  );
+}
+
 class _DividendTaxRow extends StatelessWidget {
   const _DividendTaxRow({
     required this.label,
-    required this.value,
-    required this.currency,
+    required this.baseValue,
+    required this.sourceValue,
+    required this.baseCurrency,
+    required this.sourceCurrency,
     this.emphasized = false,
     this.informational = false,
-    this.sourceValue,
-    this.sourceCurrency,
   });
 
   final String label;
-  final double value;
-  final String currency;
+  final double baseValue;
+  final double sourceValue;
+  final String baseCurrency;
+  final String sourceCurrency;
   final bool emphasized;
   final bool informational;
-  final double? sourceValue;
-  final String? sourceCurrency;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -2143,6 +2194,7 @@ class _DividendTaxRow extends StatelessWidget {
     child: Row(
       children: [
         Expanded(
+          flex: 3,
           child: Text(
             label,
             style: TextStyle(
@@ -2153,30 +2205,41 @@ class _DividendTaxRow extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (sourceValue != null &&
-                sourceCurrency != null &&
-                (sourceCurrency != currency || sourceValue != value))
-              Text(
-                '${sourceValue! < 0 ? '−' : ''}${money(sourceValue!.abs(), currency: sourceCurrency!)}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            Text(
-              '${value < 0 ? '−' : ''}${money(value.abs(), currency: currency)}',
-              style: TextStyle(
-                fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
-                color: value < 0 ? Theme.of(context).colorScheme.error : null,
-              ),
+        Expanded(
+          flex: 2,
+          child: Text(
+            _signedMoney(sourceValue, sourceCurrency),
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
+              color: sourceValue < 0
+                  ? Theme.of(context).colorScheme.error
+                  : null,
             ),
-          ],
+          ),
+        ),
+        const SizedBox(
+          height: 30,
+          child: VerticalDivider(width: 28, thickness: 1),
+        ),
+        Expanded(
+          flex: 2,
+          child: Text(
+            _signedMoney(baseValue, baseCurrency),
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
+              color: baseValue < 0 ? Theme.of(context).colorScheme.error : null,
+            ),
+          ),
         ),
       ],
     ),
   );
 }
+
+String _signedMoney(double value, String currency) =>
+    '${value < 0 ? '−' : ''}${money(value.abs(), currency: currency)}';
 
 Future<void> _showScheduleEditor(
   BuildContext context,

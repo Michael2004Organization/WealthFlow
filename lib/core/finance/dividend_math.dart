@@ -67,10 +67,10 @@ DividendTaxResult calculateGermanDividendTax({
   final gross = _cents((grossAmount * exchangeRate).clamp(0, double.infinity));
   final sourceRate = withholdingTaxRate.clamp(0, 100).toDouble();
   final withholdingTax = _cents(gross * sourceRate / 100);
-  final allowanceUsed = _cents(
+  final taxExemptGross = _cents(
     gross.clamp(0, allowanceRemaining.clamp(0, double.infinity)),
   );
-  final taxable = (gross - allowanceUsed).clamp(0, double.infinity);
+  final taxable = (gross - taxExemptGross).clamp(0, double.infinity);
   final capitalTaxBeforeCredit = _cents(
     taxable * germanCapitalGainsTaxRate / 100,
   );
@@ -88,6 +88,15 @@ DividendTaxResult calculateGermanDividendTax({
   final churchTax = _cents(
     germanCapitalTax * churchTaxRate.clamp(0, 100) / 100,
   );
+  final net = _cents(
+    gross - withholdingTax - germanCapitalTax - solidarity - churchTax,
+  );
+  // WealthFlow tracks the actually received dividend against the configured
+  // exemption amount. Foreign withholding tax therefore does not consume
+  // allowance that never reached the portfolio account.
+  final allowanceUsed = _cents(
+    net.clamp(0, allowanceRemaining.clamp(0, double.infinity)),
+  );
   return DividendTaxResult(
     gross: gross,
     withholdingTax: withholdingTax,
@@ -99,9 +108,7 @@ DividendTaxResult calculateGermanDividendTax({
     allowanceRemaining: _cents(
       (allowanceRemaining - allowanceUsed).clamp(0, double.infinity),
     ),
-    net: _cents(
-      gross - withholdingTax - germanCapitalTax - solidarity - churchTax,
-    ),
+    net: net,
   );
 }
 

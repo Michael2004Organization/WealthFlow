@@ -244,7 +244,10 @@ class _VehicleCard extends ConsumerWidget {
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
-            Text('Aktueller Wert · Kaufpreis ${money(vehicle.purchasePrice)}'),
+            Text(
+              'Aktueller Wert · Kaufpreis ${money(vehicle.purchasePrice)}'
+              '${vehicle.purchaseDate == null ? '' : ' · Kauf ${DateFormat('dd.MM.yyyy').format(vehicle.purchaseDate!)}'}',
+            ),
             const SizedBox(height: 4),
             Text(
               '${costs.length} Kosteneinträge (${money(total)}) · ${vehicle.fuelType} · ${vehicle.tankCapacity.toStringAsFixed(0)} l',
@@ -300,6 +303,7 @@ class _VehicleEditorState extends State<_VehicleEditor> {
   );
   late String _type = widget.vehicle?.vehicleType ?? 'Auto';
   late String _fuel = widget.vehicle?.fuelType ?? 'Benzin';
+  late DateTime _purchaseDate = widget.vehicle?.purchaseDate ?? DateTime.now();
   @override
   void dispose() {
     _make.dispose();
@@ -374,6 +378,17 @@ class _VehicleEditorState extends State<_VehicleEditor> {
                       (_number(value) ?? -1) < 0 ? 'Ungültig' : null,
                 ),
               ]),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: _pickPurchaseDate,
+                  icon: const Icon(Icons.calendar_month_rounded),
+                  label: Text(
+                    'Kaufdatum: ${DateFormat('dd.MM.yyyy').format(_purchaseDate)}',
+                  ),
+                ),
+              ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _plate,
@@ -467,6 +482,16 @@ class _VehicleEditorState extends State<_VehicleEditor> {
       );
   double? _number(String? value) =>
       double.tryParse((value ?? '').replaceAll(',', '.'));
+  Future<void> _pickPurchaseDate() async {
+    final selected = await showDatePicker(
+      context: context,
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      initialDate: _purchaseDate,
+    );
+    if (selected != null) setState(() => _purchaseDate = selected);
+  }
+
   void _save() {
     if (!(_key.currentState?.validate() ?? false)) return;
     final userId = ProviderScope.containerOf(
@@ -489,6 +514,7 @@ class _VehicleEditorState extends State<_VehicleEditor> {
         tankCapacity: Value(_number(_tank.text) ?? 0),
         purchasePrice: Value(_number(_purchasePrice.text) ?? 0),
         currentValue: Value(_number(_currentValue.text) ?? 0),
+        purchaseDate: Value(_purchaseDate),
         createdAt: widget.vehicle?.createdAt ?? now,
         updatedAt: now,
       ),

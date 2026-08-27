@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../storage/data_export.dart';
 import '../security/data_cipher.dart';
 import '../finance/budget_period.dart';
+import '../finance/dividend_math.dart';
 
 part 'app_database.g.dart';
 
@@ -380,6 +381,7 @@ class Vehicles extends Table {
   RealColumn get tankCapacity => real().withDefault(const Constant(0))();
   RealColumn get purchasePrice => real().withDefault(const Constant(0))();
   RealColumn get currentValue => real().withDefault(const Constant(0))();
+  DateTimeColumn get purchaseDate => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
@@ -515,7 +517,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -707,6 +709,13 @@ final class AppDatabase extends _$AppDatabase {
         await migrator.addColumn(portfolioSales, portfolioSales.sourceCurrency);
         await migrator.addColumn(portfolioSales, portfolioSales.exchangeRate);
         await _seedAssetClasses();
+      }
+      if (from < 15) {
+        await migrator.addColumn(vehicles, vehicles.purchaseDate);
+        await customStatement(
+          'UPDATE vehicles SET purchase_date = created_at '
+          'WHERE purchase_date IS NULL',
+        );
       }
     },
   );
@@ -1654,6 +1663,110 @@ final class AppDatabase extends _$AppDatabase {
         );
   }
 
+  Future<double> _dividendAllowanceUsedThrough({
+    required String userId,
+    required DateTime through,
+    required double allowance,
+    required double salesAllowanceUsed,
+  }) async {
+    final holdings = await (select(
+      investments,
+    )..where((row) => row.userId.equals(userId))).get();
+    final purchases =
+        await (select(investmentPurchases)..where(
+              (row) => row.userId.equals(userId) & row.deletedAt.isNull(),
+            ))
+            .get();
+    final sales =
+        await (select(portfolioSales)..where(
+              (row) =>
+                  row.userId.equals(userId) &
+                  row.soldAt.isSmallerOrEqualValue(through),
+            ))
+            .get();
+    final schedules =
+        await (select(dividendSchedules)..where(
+              (row) => row.userId.equals(userId) & row.deletedAt.isNull(),
+            ))
+            .get();
+    final events =
+        <
+          ({Investment investment, DividendSchedule? schedule, DateTime date})
+        >[];
+    for (final holding in holdings) {
+      final exactMonths = <int>{};
+      for (final schedule in schedules.where(
+        (row) =>
+            row.investmentId == holding.id &&
+            (row.paymentYear == through.year ||
+                (row.paymentYear == 0 && through.year == DateTime.now().year)),
+      )) {
+        final date =
+            schedule.paymentDate ??
+            DateTime(through.year, schedule.paymentMonth);
+        if (!date.isAfter(through)) {
+          exactMonths.add(schedule.paymentMonth);
+          events.add((investment: holding, schedule: schedule, date: date));
+        }
+      }
+      for (final month in dividendPaymentMonths(
+        holding.dividendFrequency,
+        holding.dividendStartMonth,
+      )) {
+        final date = DateTime(through.year, month);
+        if (!exactMonths.contains(month) &&
+            holding.annualDividend > 0 &&
+            !date.isAfter(through)) {
+          events.add((investment: holding, schedule: null, date: date));
+        }
+      }
+    }
+    events.sort((a, b) => a.date.compareTo(b.date));
+    var remaining = (allowance - salesAllowanceUsed)
+        .clamp(0, double.infinity)
+        .toDouble();
+    var used = 0.0;
+    for (final event in events) {
+      final holdingPurchases = purchases
+          .where((row) => row.investmentId == event.investment.id)
+          .toList();
+      final holdingSales = sales
+          .where((row) => row.investmentId == event.investment.id)
+          .toList();
+      final purchased = holdingPurchases.isEmpty
+          ? (event.date.isBefore(event.investment.purchaseDate)
+                ? 0.0
+                : event.investment.quantity +
+                      holdingSales.fold<double>(
+                        0,
+                        (sum, sale) => sum + sale.quantity,
+                      ))
+          : holdingPurchases
+                .where((row) => !row.purchaseDate.isAfter(event.date))
+                .fold<double>(0, (sum, row) => sum + row.quantity);
+      final sold = holdingSales
+          .where((row) => !row.soldAt.isAfter(event.date))
+          .fold<double>(0, (sum, row) => sum + row.quantity);
+      final quantity = (purchased - sold).clamp(0, double.infinity);
+      if (quantity <= 0) continue;
+      final schedule = event.schedule;
+      final tax = calculateGermanDividendTax(
+        grossAmount:
+            (schedule?.amountPerShare ?? event.investment.annualDividend) *
+            quantity,
+        exchangeRate:
+            schedule?.exchangeRate ?? event.investment.dividendExchangeRate,
+        withholdingTaxRate:
+            schedule?.withholdingTaxRate ??
+            event.investment.dividendWithholdingTaxRate,
+        allowanceRemaining: remaining,
+      );
+      used += tax.allowanceUsed;
+      remaining = tax.allowanceRemaining;
+    }
+    return used;
+  }
+
   Future<void> sellInvestment({
     required String userId,
     required String investmentId,
@@ -1687,29 +1800,14 @@ final class AppDatabase extends _$AppDatabase {
                   row.soldAt.isSmallerThanValue(yearEnd),
             ))
             .get();
-    final paidDividends =
-        await (select(dividendSchedules)..where(
-              (row) =>
-                  row.userId.equals(userId) &
-                  row.paymentDate.isNotNull() &
-                  row.paymentDate.isBiggerOrEqualValue(yearStart) &
-                  row.paymentDate.isSmallerOrEqualValue(soldAt) &
-                  row.deletedAt.isNull(),
-            ))
-            .get();
-    final holdings = await (select(
-      investments,
-    )..where((row) => row.userId.equals(userId))).get();
-    final quantityByInvestment = {
-      for (final holding in holdings) holding.id: holding.quantity,
-    };
-    final dividendAllowanceUsed = paidDividends.fold<double>(
-      0,
-      (sum, row) =>
-          sum +
-          row.amountPerShare *
-              (quantityByInvestment[row.investmentId] ?? 0) *
-              row.exchangeRate,
+    final dividendAllowanceUsed = await _dividendAllowanceUsedThrough(
+      userId: userId,
+      through: soldAt,
+      allowance: preference.taxAllowance,
+      salesAllowanceUsed: priorSales.fold<double>(
+        0,
+        (sum, row) => sum + row.allowanceUsed,
+      ),
     );
     final alreadyUsed =
         priorSales.fold<double>(0, (sum, row) => sum + row.allowanceUsed) +
@@ -1842,29 +1940,14 @@ final class AppDatabase extends _$AppDatabase {
                     row.soldAt.isSmallerThanValue(yearEnd),
               ))
               .get();
-      final paidDividends =
-          await (select(dividendSchedules)..where(
-                (row) =>
-                    row.userId.equals(userId) &
-                    row.paymentDate.isNotNull() &
-                    row.paymentDate.isBiggerOrEqualValue(yearStart) &
-                    row.paymentDate.isSmallerOrEqualValue(soldAt) &
-                    row.deletedAt.isNull(),
-              ))
-              .get();
-      final holdings = await (select(
-        investments,
-      )..where((row) => row.userId.equals(userId))).get();
-      final quantityByInvestment = {
-        for (final holding in holdings) holding.id: holding.quantity,
-      };
-      final dividendAllowanceUsed = paidDividends.fold<double>(
-        0,
-        (sum, row) =>
-            sum +
-            row.amountPerShare *
-                (quantityByInvestment[row.investmentId] ?? 0) *
-                row.exchangeRate,
+      final dividendAllowanceUsed = await _dividendAllowanceUsedThrough(
+        userId: userId,
+        through: soldAt,
+        allowance: preference.taxAllowance,
+        salesAllowanceUsed: priorSales.fold<double>(
+          0,
+          (sum, row) => sum + row.allowanceUsed,
+        ),
       );
       final alreadyUsed =
           priorSales.fold<double>(0, (sum, row) => sum + row.allowanceUsed) +
@@ -2073,6 +2156,15 @@ final class AppDatabase extends _$AppDatabase {
   Stream<List<PhysicalAsset>> watchPhysicalAssets(String userId) =>
       (select(physicalAssets)
             ..where((row) => row.userId.equals(userId) & row.deletedAt.isNull())
+            ..orderBy([
+              (row) => OrderingTerm.asc(row.category),
+              (row) => OrderingTerm.asc(row.name),
+            ]))
+          .watch();
+
+  Stream<List<PhysicalAsset>> watchAllPhysicalAssets(String userId) =>
+      (select(physicalAssets)
+            ..where((row) => row.userId.equals(userId))
             ..orderBy([
               (row) => OrderingTerm.asc(row.category),
               (row) => OrderingTerm.asc(row.name),

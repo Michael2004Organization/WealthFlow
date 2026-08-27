@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -16,7 +17,7 @@ class MorePage extends ConsumerStatefulWidget {
 }
 
 class _MorePageState extends ConsumerState<MorePage> {
-  String _sortMode = 'name';
+  String _sortMode = 'default';
   final List<String> _customOrder = const [
     'reminders',
     'search',
@@ -24,6 +25,7 @@ class _MorePageState extends ConsumerState<MorePage> {
     'settings',
     'administration',
   ].toList();
+  String? _loadedForUser;
 
   static const _destinations = [
     _MoreDestination(
@@ -72,6 +74,11 @@ class _MorePageState extends ConsumerState<MorePage> {
   @override
   Widget build(BuildContext context) {
     final isAdmin = ref.watch(isAdminProvider);
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId != null && _loadedForUser != userId) {
+      _loadedForUser = userId;
+      Future<void>.microtask(() => _loadLayout(userId));
+    }
     final selectedKey = ref.watch(moreDestinationProvider);
     _MoreDestination? selected;
     for (final destination in _destinations.where(
@@ -111,7 +118,7 @@ class _MorePageState extends ConsumerState<MorePage> {
       destinations.sort(
         (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()),
       );
-    } else {
+    } else if (_sortMode == 'custom') {
       destinations.sort(
         (a, b) =>
             _customOrder.indexOf(a.key).compareTo(_customOrder.indexOf(b.key)),
@@ -140,14 +147,21 @@ class _MorePageState extends ConsumerState<MorePage> {
                       prefixIcon: Icon(Icons.sort_rounded),
                     ),
                     items: const [
+                      DropdownMenuItem(
+                        value: 'default',
+                        child: Text('Standardreihenfolge'),
+                      ),
                       DropdownMenuItem(value: 'name', child: Text('Name A–Z')),
                       DropdownMenuItem(
                         value: 'custom',
                         child: Text('Eigene Reihenfolge'),
                       ),
                     ],
-                    onChanged: (value) =>
-                        setState(() => _sortMode = value ?? 'name'),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _sortMode = value);
+                      _persistLayout();
+                    },
                   ),
                 ),
               ),
@@ -272,7 +286,41 @@ class _MorePageState extends ConsumerState<MorePage> {
       _customOrder.insert(newIndex, item);
       _sortMode = 'custom';
     });
+    _persistLayout();
   }
+
+  Future<void> _loadLayout(String userId) async {
+    final preferences = await SharedPreferences.getInstance();
+    final storedOrder = preferences.getStringList('more.cardOrder.$userId');
+    if (!mounted || _loadedForUser != userId) return;
+    setState(() {
+      _sortMode = preferences.getString('more.sortMode.$userId') ?? 'default';
+      if (storedOrder != null) {
+        _customOrder
+          ..clear()
+          ..addAll(storedOrder.where(_customOrderDefaults.contains))
+          ..addAll(
+            _customOrderDefaults.where((key) => !storedOrder.contains(key)),
+          );
+      }
+    });
+  }
+
+  Future<void> _persistLayout() async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString('more.sortMode.$userId', _sortMode);
+    await preferences.setStringList('more.cardOrder.$userId', _customOrder);
+  }
+
+  static const _customOrderDefaults = [
+    'reminders',
+    'search',
+    'masterData',
+    'settings',
+    'administration',
+  ];
 }
 
 class _MoreDestination {

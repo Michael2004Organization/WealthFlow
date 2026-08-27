@@ -73,6 +73,8 @@ void main() {
     expect(result.germanCapitalTax, 0);
     expect(result.solidaritySurcharge, 0);
     expect(result.net, 85);
+    expect(result.allowanceUsed, 85);
+    expect(result.allowanceRemaining, 915);
   });
 
   test('optional church tax is included in the net dividend', () {

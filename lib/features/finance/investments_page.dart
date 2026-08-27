@@ -10,6 +10,11 @@ import '../../core/finance/portfolio_tax_summary.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
+final _portfolioActionButtonStyle = FilledButton.styleFrom(
+  backgroundColor: const Color(0xFFADB6F7),
+  foregroundColor: const Color(0xFF171927),
+);
+
 class InvestmentsPage extends ConsumerStatefulWidget {
   const InvestmentsPage({super.key});
 
@@ -87,6 +92,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                   runSpacing: 8,
                   children: [
                     FilledButton.tonalIcon(
+                      style: _portfolioActionButtonStyle,
                       onPressed: selectedAccountId == null
                           ? null
                           : () => showInvestmentEditor(
@@ -98,6 +104,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                       label: const Text('Position'),
                     ),
                     FilledButton.tonalIcon(
+                      style: _portfolioActionButtonStyle,
                       onPressed: selectedAccountId == null
                           ? null
                           : () => _showPhysicalAssetEditor(
@@ -109,6 +116,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                       label: const Text('Wertgegenstand'),
                     ),
                     FilledButton.tonalIcon(
+                      style: _portfolioActionButtonStyle,
                       onPressed: () => _showPortfolioActivity(
                         context,
                         ref: ref,
@@ -121,6 +129,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                     Tooltip(
                       message: 'Standardgebühr für neue Käufe',
                       child: FilledButton.tonalIcon(
+                        style: _portfolioActionButtonStyle,
                         onPressed: preference == null
                             ? null
                             : () => _editDefaultInvestmentFee(
@@ -133,6 +142,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                       ),
                     ),
                     FilledButton.tonalIcon(
+                      style: _portfolioActionButtonStyle,
                       onPressed: () =>
                           _showExchangeRates(context, ref, isAdmin: isAdmin),
                       icon: const Icon(Icons.currency_exchange_rounded),
@@ -354,6 +364,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                       investments: allItems,
                       schedules: schedules,
                       sales: sales,
+                      purchases: purchases,
                       includePhysicalAssets:
                           preference?.includePhysicalAssetsInTaxAllowance ??
                           false,
@@ -1215,7 +1226,7 @@ Future<void> _showPhysicalAssetEditor(
   final notes = TextEditingController(text: asset?.notes);
   var category = asset?.category ?? 'Edelmetall';
   var metalType = asset?.metalType ?? 'Gold';
-  DateTime? purchaseDate = asset?.purchaseDate;
+  DateTime? purchaseDate = asset?.purchaseDate ?? DateTime.now();
   final key = GlobalKey<FormState>();
   final saved = await showDialog<bool>(
     context: context,
@@ -1945,6 +1956,15 @@ Future<void> showInvestmentEditor(
             createdAt: DateTime.now().toUtc(),
           ),
         );
+        await _importCachedDividendHistory(
+          database: database,
+          userId: userId,
+          investmentId: targetId,
+          stockId: result.stockId.value,
+          purchaseDate: result.purchaseDate.value,
+          exchangeRate: result.dividendExchangeRate.value,
+          withholdingTaxRate: result.dividendWithholdingTaxRate.value,
+        );
       }
       for (final item in {
         'broker': result.broker.value,
@@ -1961,6 +1981,46 @@ Future<void> showInvestmentEditor(
           ),
         );
       }
+    }
+  }
+}
+
+Future<void> _importCachedDividendHistory({
+  required AppDatabase database,
+  required String userId,
+  required String investmentId,
+  required String? stockId,
+  required DateTime purchaseDate,
+  required double exchangeRate,
+  required double withholdingTaxRate,
+}) async {
+  if (stockId == null) return;
+  final now = DateTime.now();
+  final createdAt = now.toUtc();
+  for (var year = purchaseDate.year; year <= now.year; year++) {
+    final dividends = await database.stockDividendsForYear(stockId, year);
+    for (final dividend in dividends) {
+      final paymentDate = dividend.paymentDate ?? dividend.exDate;
+      if (paymentDate.isBefore(purchaseDate) || paymentDate.isAfter(now)) {
+        continue;
+      }
+      await database.saveDividendSchedule(
+        DividendSchedulesCompanion.insert(
+          id: '$investmentId-api-${dividend.id}',
+          userId: userId,
+          investmentId: investmentId,
+          paymentMonth: paymentDate.month,
+          amountPerShare: dividend.amount,
+          exDate: Value(dividend.exDate),
+          paymentDate: Value(dividend.paymentDate),
+          paymentYear: Value(year),
+          currency: Value(dividend.currency),
+          exchangeRate: Value(exchangeRate),
+          withholdingTaxRate: Value(withholdingTaxRate),
+          createdAt: createdAt,
+          updatedAt: createdAt,
+        ),
+      );
     }
   }
 }
@@ -2513,12 +2573,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       double.tryParse((value ?? '').replaceAll(',', '.'));
 
   bool get _exchangeLocked {
-    if (!widget.hasExchangeApiKey) return false;
-    final normalized = _country.text.trim().toLowerCase();
-    final rate = widget.countryTaxRates
-        .where((item) => item.country.trim().toLowerCase() == normalized)
-        .firstOrNull;
-    return !(rate?.allowManualExchangeRate ?? false);
+    return true;
   }
 
   void _countryChanged(String value) {
@@ -3239,75 +3294,164 @@ Future<void> _showSaleDetail(
   return showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: Text('${sale.assetName} · Brutto bis Netto'),
+      title: const Text('Verkaufsdetails'),
       content: SizedBox(
-        width: 540,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _SaleTaxRow(
-              label: 'Brutto-Verkaufserlös',
-              value: gross,
-              sale: sale,
-              baseCurrency: baseCurrency,
-              emphasized: true,
-            ),
-            _SaleTaxRow(
-              label: 'Gebühren',
-              value: -sale.fees,
-              sale: sale,
-              baseCurrency: baseCurrency,
-            ),
-            _SaleTaxRow(
-              label: 'Anschaffungskosten',
-              value: -sale.costBasis,
-              sale: sale,
-              baseCurrency: baseCurrency,
-            ),
-            _SaleTaxRow(
-              label: 'Realisierter Gewinn/Verlust',
-              value: sale.realizedGain,
-              sale: sale,
-              baseCurrency: baseCurrency,
-              emphasized: true,
-            ),
-            _SaleTaxRow(
-              label: 'Genutzter Freistellungsauftrag',
-              value: sale.allowanceUsed,
-              sale: sale,
-              baseCurrency: baseCurrency,
-              informational: true,
-            ),
-            _SaleTaxRow(
-              label: 'Kapitalertragsteuer',
-              value: -capitalTax,
-              sale: sale,
-              baseCurrency: baseCurrency,
-            ),
-            _SaleTaxRow(
-              label: 'Solidaritätszuschlag',
-              value: -solidarity,
-              sale: sale,
-              baseCurrency: baseCurrency,
-            ),
-            const Divider(height: 24),
-            _SaleTaxRow(
-              label: 'Netto-Auszahlung',
-              value: sale.proceeds,
-              sale: sale,
-              baseCurrency: baseCurrency,
-              emphasized: true,
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                sale.accountCredited
-                    ? 'Auf Konto gebucht${sale.destinationAccountId == null ? '' : ': ${sale.destinationAccountId}'}'
-                    : 'Nur in Verkäufe & Protokoll erfasst',
+        width: 620,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    child: Icon(
+                      sale.assetKind == 'physical'
+                          ? Icons.diamond_outlined
+                          : Icons.show_chart_rounded,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          sale.assetName,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          '${DateFormat('dd.MM.yyyy').format(sale.soldAt)} · '
+                          '${sale.quantity.toStringAsFixed(2)} ${sale.unit} zu '
+                          '${money(sale.pricePerUnit, currency: sale.sourceCurrency)}',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _SaleHighlight(
+                        label: 'Netto-Auszahlung',
+                        value: money(sale.proceeds, currency: baseCurrency),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 44,
+                      child: VerticalDivider(width: 24),
+                    ),
+                    Expanded(
+                      child: _SaleHighlight(
+                        label: sale.realizedGain >= 0 ? 'Gewinn' : 'Verlust',
+                        value:
+                            '${sale.realizedGain >= 0 ? '+' : ''}${money(sale.realizedGain, currency: baseCurrency)}',
+                        color: sale.realizedGain >= 0
+                            ? Colors.green
+                            : Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Brutto bis Netto',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              _SaleTaxRow(
+                label: 'Brutto-Verkaufserlös',
+                value: gross,
+                sale: sale,
+                baseCurrency: baseCurrency,
+                emphasized: true,
+              ),
+              _SaleTaxRow(
+                label: 'Gebühren',
+                value: -sale.fees,
+                sale: sale,
+                baseCurrency: baseCurrency,
+              ),
+              _SaleTaxRow(
+                label: 'Anschaffungskosten',
+                value: -sale.costBasis,
+                sale: sale,
+                baseCurrency: baseCurrency,
+              ),
+              _SaleTaxRow(
+                label: 'Realisierter Gewinn/Verlust',
+                value: sale.realizedGain,
+                sale: sale,
+                baseCurrency: baseCurrency,
+                emphasized: true,
+              ),
+              const Divider(height: 18),
+              _SaleTaxRow(
+                label: 'Genutzter Freistellungsauftrag',
+                value: sale.allowanceUsed,
+                sale: sale,
+                baseCurrency: baseCurrency,
+                informational: true,
+              ),
+              _SaleTaxRow(
+                label: 'Kapitalertragsteuer',
+                value: -capitalTax,
+                sale: sale,
+                baseCurrency: baseCurrency,
+              ),
+              _SaleTaxRow(
+                label: 'Solidaritätszuschlag',
+                value: -solidarity,
+                sale: sale,
+                baseCurrency: baseCurrency,
+              ),
+              const Divider(height: 18),
+              _SaleTaxRow(
+                label: 'Netto-Auszahlung',
+                value: sale.proceeds,
+                sale: sale,
+                baseCurrency: baseCurrency,
+                emphasized: true,
+              ),
+              const SizedBox(height: 12),
+              if (sale.sourceCurrency != baseCurrency || sale.exchangeRate != 1)
+                Text(
+                  '${sale.sourceCurrency} → $baseCurrency · Kurs ${sale.exchangeRate.toStringAsFixed(6)}',
+                  textAlign: TextAlign.right,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  sale.accountCredited
+                      ? Icons.account_balance_rounded
+                      : Icons.receipt_long_outlined,
+                ),
+                title: Text(
+                  sale.accountCredited
+                      ? 'Auszahlung auf Konto gebucht'
+                      : 'Nur im Verkaufsprotokoll erfasst',
+                ),
+                subtitle: sale.destinationAccountId == null
+                    ? null
+                    : Text('Zielkonto: ${sale.destinationAccountId}'),
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
@@ -3317,6 +3461,29 @@ Future<void> _showSaleDetail(
         ),
       ],
     ),
+  );
+}
+
+class _SaleHighlight extends StatelessWidget {
+  const _SaleHighlight({required this.label, required this.value, this.color});
+
+  final String label;
+  final String value;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: Theme.of(context).textTheme.labelMedium),
+      Text(
+        value,
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w800,
+          color: color,
+        ),
+      ),
+    ],
   );
 }
 

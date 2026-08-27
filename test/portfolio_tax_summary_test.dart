@@ -27,7 +27,82 @@ void main() {
     expect(included.allowanceUsed, 500);
     expect(included.allowanceRemaining, 500);
   });
+
+  test('historical dividends use shares held on the payment date and net', () {
+    final investment = _investment();
+    final purchase = InvestmentPurchase(
+      id: 'purchase',
+      userId: 'user',
+      investmentId: investment.id,
+      purchaseDate: DateTime(2026, 6, 1),
+      purchasePrice: 10,
+      quantity: 10,
+      fees: 0,
+      createdAt: DateTime(2026, 6, 1),
+    );
+    final schedules = [
+      _dividend('before-purchase', DateTime(2026, 5, 15)),
+      _dividend('after-purchase', DateTime(2026, 7, 15)),
+    ];
+
+    final summary = calculatePortfolioTaxYear(
+      year: 2026,
+      allowance: 1000,
+      investments: [investment],
+      purchases: [purchase],
+      schedules: schedules,
+      sales: const [],
+      through: DateTime(2026, 8, 1),
+    );
+
+    expect(summary.allowanceUsed, 85);
+    expect(summary.allowanceRemaining, 915);
+    expect(summary.taxPaid, 15);
+  });
 }
+
+Investment _investment() => Investment(
+  id: 'stock',
+  userId: 'user',
+  accountId: 'portfolio',
+  name: 'US Stock',
+  symbol: 'USS',
+  isin: '',
+  wkn: '',
+  assetType: 'Aktie',
+  broker: '',
+  country: 'USA',
+  sector: '',
+  purchaseDate: DateTime(2026, 6, 1),
+  purchasePrice: 10,
+  quantity: 10,
+  fees: 0,
+  currentPrice: 12,
+  annualDividend: 0,
+  dividendCurrency: 'USD',
+  dividendExchangeRate: 1,
+  dividendWithholdingTaxRate: 15,
+  dividendFrequency: 'jährlich',
+  dividendStartMonth: 7,
+  notes: '',
+  createdAt: DateTime(2026, 6, 1),
+  updatedAt: DateTime(2026, 6, 1),
+);
+
+DividendSchedule _dividend(String id, DateTime paymentDate) => DividendSchedule(
+  id: id,
+  userId: 'user',
+  investmentId: 'stock',
+  paymentMonth: paymentDate.month,
+  amountPerShare: 10,
+  paymentDate: paymentDate,
+  paymentYear: 2026,
+  currency: 'USD',
+  exchangeRate: 1,
+  withholdingTaxRate: 15,
+  createdAt: paymentDate,
+  updatedAt: paymentDate,
+);
 
 PortfolioSale _physicalSale({
   required double gain,

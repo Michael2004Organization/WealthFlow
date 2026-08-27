@@ -37,108 +37,121 @@ class MasterDataPage extends ConsumerWidget {
                 title: 'Stammdaten',
                 subtitle:
                     'Wiederkehrende Eingaben verwalten. Neue Händler und Zahlungsarten werden beim Buchen automatisch ergänzt.',
-                action: FilledButton.icon(
-                  onPressed: () => _add(context, ref),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Eintrag'),
-                ),
               ),
-              Card(
-                child: ExpansionTile(
-                  initiallyExpanded: true,
-                  leading: const Icon(Icons.category_outlined),
-                  title: const Text('Portfolio-Anlageklassen'),
-                  subtitle: Text(
-                    isAdmin
-                        ? 'Globale Auswahlmöglichkeiten für alle Portfolios'
-                        : 'Von der Administration festgelegte Auswahlmöglichkeiten',
-                  ),
-                  trailing: isAdmin
-                      ? IconButton(
-                          tooltip: 'Anlageklasse hinzufügen',
-                          onPressed: () => _addAssetClass(context, ref),
-                          icon: const Icon(Icons.add_rounded),
-                        )
-                      : null,
-                  children: [
-                    for (final assetClass in assetClasses)
-                      ListTile(
-                        dense: true,
-                        title: Text(assetClass.name),
-                        trailing: isAdmin
-                            ? IconButton(
-                                tooltip: 'Anlageklasse löschen',
-                                onPressed: () =>
-                                    _deleteAssetClass(context, ref, assetClass),
-                                icon: const Icon(Icons.delete_outline_rounded),
-                              )
-                            : null,
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
               Expanded(
                 child: data.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
                   error: (error, _) => Center(child: Text('$error')),
-                  data: (items) => items.isEmpty
-                      ? EmptyState(
-                          icon: Icons.list_alt_rounded,
-                          title: 'Noch keine Stammdaten',
-                          message:
-                              'Lege einen Eintrag an oder erfasse eine Buchung mit Händler beziehungsweise Zahlungsart.',
-                          action: FilledButton.icon(
-                            onPressed: () => _add(context, ref),
-                            icon: const Icon(Icons.add_rounded),
-                            label: const Text('Stammdatum anlegen'),
-                          ),
-                        )
-                      : ListView(
-                          children: [
-                            for (final kind in kinds.entries) ...[
-                              if (items.any((item) => item.kind == kind.key))
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    4,
-                                    18,
-                                    4,
-                                    8,
-                                  ),
-                                  child: Text(
-                                    kind.value,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(fontWeight: FontWeight.w800),
-                                  ),
+                  data: (items) {
+                    final sortedAssetClasses = [...assetClasses]
+                      ..sort(
+                        (a, b) => a.name.toLowerCase().compareTo(
+                          b.name.toLowerCase(),
+                        ),
+                      );
+                    return ListView(
+                      children: [
+                        Card(
+                          child: ExpansionTile(
+                            initiallyExpanded: false,
+                            leading: const Icon(Icons.category_outlined),
+                            title: const Text('Portfolio-Anlageklassen'),
+                            subtitle: Text(
+                              isAdmin
+                                  ? 'Globale Auswahlmöglichkeiten für alle Portfolios'
+                                  : 'Von der Administration festgelegte Auswahlmöglichkeiten',
+                            ),
+                            trailing: isAdmin
+                                ? IconButton(
+                                    tooltip: 'Anlageklasse hinzufügen',
+                                    onPressed: () =>
+                                        _addAssetClass(context, ref),
+                                    icon: const Icon(Icons.add_rounded),
+                                  )
+                                : const Icon(Icons.expand_more_rounded),
+                            children: [
+                              if (sortedAssetClasses.isEmpty)
+                                const ListTile(
+                                  title: Text('Noch keine Einträge'),
                                 ),
-                              for (final item in items.where(
-                                (item) => item.kind == kind.key,
-                              ))
-                                Card(
-                                  child: ListTile(
-                                    leading: const Icon(Icons.bookmark_outline),
-                                    title: Text(item.value),
-                                    trailing: IconButton(
-                                      tooltip: 'Löschen',
-                                      onPressed: () =>
-                                          _delete(context, ref, item),
-                                      icon: const Icon(
-                                        Icons.delete_outline_rounded,
-                                      ),
-                                    ),
-                                  ),
+                              for (final assetClass in sortedAssetClasses)
+                                ListTile(
+                                  dense: true,
+                                  title: Text(assetClass.name),
+                                  trailing: isAdmin
+                                      ? IconButton(
+                                          tooltip: 'Anlageklasse löschen',
+                                          onPressed: () => _deleteAssetClass(
+                                            context,
+                                            ref,
+                                            assetClass,
+                                          ),
+                                          icon: const Icon(
+                                            Icons.delete_outline_rounded,
+                                          ),
+                                        )
+                                      : null,
                                 ),
                             ],
-                          ],
+                          ),
                         ),
+                        const SizedBox(height: 12),
+                        for (final kind in kinds.entries) ...[
+                          _masterDataKindCard(
+                            context,
+                            ref,
+                            kind: kind,
+                            items: items,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _masterDataKindCard(
+    BuildContext context,
+    WidgetRef ref, {
+    required MapEntry<String, String> kind,
+    required List<MasterDataData> items,
+  }) {
+    final matching = items.where((item) => item.kind == kind.key).toList()
+      ..sort((a, b) => a.value.toLowerCase().compareTo(b.value.toLowerCase()));
+    return Card(
+      child: ExpansionTile(
+        initiallyExpanded: false,
+        leading: const Icon(Icons.bookmarks_outlined),
+        title: Text(kind.value),
+        subtitle: Text('${matching.length} Einträge · alphabetisch'),
+        trailing: IconButton(
+          tooltip: '${kind.value} hinzufügen',
+          onPressed: () => _add(context, ref, initialKind: kind.key),
+          icon: const Icon(Icons.add_rounded),
+        ),
+        children: [
+          if (matching.isEmpty)
+            const ListTile(title: Text('Noch keine Einträge')),
+          for (final item in matching)
+            ListTile(
+              dense: true,
+              leading: const Icon(Icons.bookmark_outline),
+              title: Text(item.value),
+              trailing: IconButton(
+                tooltip: 'Löschen',
+                onPressed: () => _delete(context, ref, item),
+                icon: const Icon(Icons.delete_outline_rounded),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -206,9 +219,13 @@ class MasterDataPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _add(BuildContext context, WidgetRef ref) async {
+  Future<void> _add(
+    BuildContext context,
+    WidgetRef ref, {
+    required String initialKind,
+  }) async {
     final value = TextEditingController();
-    var kind = kinds.keys.first;
+    var kind = initialKind;
     final formKey = GlobalKey<FormState>();
     final submitted = await showDialog<bool>(
       context: context,
@@ -221,20 +238,6 @@ class MasterDataPage extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: kind,
-                  decoration: const InputDecoration(labelText: 'Typ'),
-                  items: kinds.entries
-                      .map(
-                        (item) => DropdownMenuItem(
-                          value: item.key,
-                          child: Text(item.value),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (newValue) => kind = newValue ?? kind,
-                ),
-                const SizedBox(height: 12),
                 TextFormField(
                   controller: value,
                   autofocus: true,

@@ -95,6 +95,13 @@ final physicalAssetsProvider = StreamProvider<List<PhysicalAsset>>((ref) {
       : ref.watch(databaseProvider).watchPhysicalAssets(userId);
 });
 
+final allPhysicalAssetsProvider = StreamProvider<List<PhysicalAsset>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <PhysicalAsset>[])
+      : ref.watch(databaseProvider).watchAllPhysicalAssets(userId);
+});
+
 final deletedPhysicalAssetsProvider = StreamProvider<List<PhysicalAsset>>((
   ref,
 ) {

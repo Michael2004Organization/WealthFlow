@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/finance/budget_period.dart';
@@ -16,12 +17,24 @@ class StatisticsPage extends ConsumerStatefulWidget {
 }
 
 class _StatisticsPageState extends ConsumerState<StatisticsPage> {
+  static const _defaultCardOrder = [
+    'topExpenses',
+    'accounts',
+    'portfolio',
+    'categories',
+    'cashflow',
+    'vehicleCosts',
+    'savings',
+  ];
   String _periodMode = 'month';
   DateTime _periodAnchor = DateTime.now();
   DateTimeRange _customPeriod = DateTimeRange(
     start: DateTime(DateTime.now().year, DateTime.now().month, 1),
     end: DateTime.now(),
   );
+  String _sortMode = 'default';
+  List<String> _customOrder = [..._defaultCardOrder];
+  String? _loadedForUser;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +46,63 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
         ref.watch(ledgerEntriesProvider).valueOrNull ?? const <LedgerEntry>[];
     final costs =
         ref.watch(vehicleCostsProvider).valueOrNull ?? const <VehicleCost>[];
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId != null && _loadedForUser != userId) {
+      _loadedForUser = userId;
+      Future<void>.microtask(() => _loadCardLayout(userId));
+    }
+    final cards = <({String key, String title, double height, Widget child})>[
+      (
+        key: 'topExpenses',
+        title: 'Top-Ausgaben',
+        height: 430,
+        child: _buildTopExpenses(context, entries),
+      ),
+      (
+        key: 'accounts',
+        title: 'Kontostände',
+        height: 380,
+        child: _AccountsChart(accounts: accounts),
+      ),
+      (
+        key: 'portfolio',
+        title: 'Depotentwicklung',
+        height: 380,
+        child: _PortfolioChart(investments: investments),
+      ),
+      (
+        key: 'categories',
+        title: 'Ausgabenkategorien',
+        height: 380,
+        child: _CategoryChart(entries: entries),
+      ),
+      (
+        key: 'cashflow',
+        title: 'Cashflow',
+        height: 430,
+        child: _CashflowChart(entries: entries),
+      ),
+      (
+        key: 'vehicleCosts',
+        title: 'Fahrzeugkosten',
+        height: 380,
+        child: _VehicleCostChart(costs: costs),
+      ),
+      (
+        key: 'savings',
+        title: 'Sparentwicklung',
+        height: 380,
+        child: _SavingsChart(entries: entries),
+      ),
+    ];
+    if (_sortMode == 'alphabetical') {
+      cards.sort((a, b) => a.title.compareTo(b.title));
+    } else if (_sortMode == 'custom') {
+      cards.sort(
+        (a, b) =>
+            _customOrder.indexOf(a.key).compareTo(_customOrder.indexOf(b.key)),
+      );
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -41,12 +111,38 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const PageHeader(
+              PageHeader(
                 title: 'Statistik',
                 subtitle: 'Interaktive Auswertungen über alle Module.',
+                action: SizedBox(
+                  width: 220,
+                  child: DropdownButtonFormField<String>(
+                    key: ValueKey(_sortMode),
+                    initialValue: _sortMode,
+                    decoration: const InputDecoration(
+                      labelText: 'Blöcke sortieren',
+                      prefixIcon: Icon(Icons.sort_rounded),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'default',
+                        child: Text('Standardreihenfolge'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'custom',
+                        child: Text('Eigene Reihenfolge'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'alphabetical',
+                        child: Text('Alphabetisch'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) _setSortMode(value);
+                    },
+                  ),
+                ),
               ),
-              _buildTopExpenses(context, entries),
-              const SizedBox(height: 16),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth < 820
@@ -56,36 +152,31 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                     spacing: 16,
                     runSpacing: 16,
                     children: [
-                      SizedBox(
-                        width: width,
-                        height: 380,
-                        child: _AccountsChart(accounts: accounts),
-                      ),
-                      SizedBox(
-                        width: width,
-                        height: 380,
-                        child: _PortfolioChart(investments: investments),
-                      ),
-                      SizedBox(
-                        width: width,
-                        height: 380,
-                        child: _CategoryChart(entries: entries),
-                      ),
-                      SizedBox(
-                        width: width,
-                        height: 430,
-                        child: _CashflowChart(entries: entries),
-                      ),
-                      SizedBox(
-                        width: width,
-                        height: 380,
-                        child: _VehicleCostChart(costs: costs),
-                      ),
-                      SizedBox(
-                        width: width,
-                        height: 380,
-                        child: _SavingsChart(entries: entries),
-                      ),
+                      for (final indexed in cards.indexed)
+                        SizedBox(
+                          width: width,
+                          height:
+                              indexed.$2.height +
+                              (_sortMode == 'custom' ? 44 : 0),
+                          child: Column(
+                            children: [
+                              if (_sortMode == 'custom')
+                                _StatisticsMoveControls(
+                                  canMoveUp: indexed.$1 > 0,
+                                  canMoveDown: indexed.$1 < cards.length - 1,
+                                  onMoveUp: () => _moveCard(
+                                    indexed.$2.key,
+                                    cards[indexed.$1 - 1].key,
+                                  ),
+                                  onMoveDown: () => _moveCard(
+                                    indexed.$2.key,
+                                    cards[indexed.$1 + 1].key,
+                                  ),
+                                ),
+                              Expanded(child: indexed.$2.child),
+                            ],
+                          ),
+                        ),
                     ],
                   );
                 },
@@ -278,6 +369,84 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
       );
     }
   }
+
+  Future<void> _loadCardLayout(String userId) async {
+    final preferences = await SharedPreferences.getInstance();
+    final storedOrder = preferences.getStringList(
+      'statistics.cardOrder.$userId',
+    );
+    if (!mounted || _loadedForUser != userId) return;
+    setState(() {
+      _sortMode =
+          preferences.getString('statistics.sortMode.$userId') ?? 'default';
+      if (storedOrder != null) {
+        _customOrder = [
+          ...storedOrder.where(_defaultCardOrder.contains),
+          ..._defaultCardOrder.where((key) => !storedOrder.contains(key)),
+        ];
+      }
+    });
+  }
+
+  Future<void> _persistCardLayout() async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString('statistics.sortMode.$userId', _sortMode);
+    await preferences.setStringList(
+      'statistics.cardOrder.$userId',
+      _customOrder,
+    );
+  }
+
+  void _setSortMode(String value) {
+    setState(() => _sortMode = value);
+    _persistCardLayout();
+  }
+
+  void _moveCard(String key, String targetKey) {
+    setState(() {
+      final oldIndex = _customOrder.indexOf(key);
+      final newIndex = _customOrder.indexOf(targetKey);
+      final item = _customOrder.removeAt(oldIndex);
+      _customOrder.insert(newIndex, item);
+      _sortMode = 'custom';
+    });
+    _persistCardLayout();
+  }
+}
+
+class _StatisticsMoveControls extends StatelessWidget {
+  const _StatisticsMoveControls({
+    required this.canMoveUp,
+    required this.canMoveDown,
+    required this.onMoveUp,
+    required this.onMoveDown,
+  });
+
+  final bool canMoveUp;
+  final bool canMoveDown;
+  final VoidCallback onMoveUp;
+  final VoidCallback onMoveDown;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisAlignment: MainAxisAlignment.end,
+    children: [
+      IconButton(
+        tooltip: 'Nach oben',
+        visualDensity: VisualDensity.compact,
+        onPressed: canMoveUp ? onMoveUp : null,
+        icon: const Icon(Icons.keyboard_arrow_up_rounded),
+      ),
+      IconButton(
+        tooltip: 'Nach unten',
+        visualDensity: VisualDensity.compact,
+        onPressed: canMoveDown ? onMoveDown : null,
+        icon: const Icon(Icons.keyboard_arrow_down_rounded),
+      ),
+    ],
+  );
 }
 
 class _CompactDateRangeDialog extends StatefulWidget {
@@ -642,7 +811,6 @@ class _CashflowChart extends StatefulWidget {
 
 class _CashflowChartState extends State<_CashflowChart> {
   int _months = 6;
-  DateTimeRange? _customRange;
   final ScrollController _chartScrollController = ScrollController();
 
   @override
@@ -654,13 +822,8 @@ class _CashflowChartState extends State<_CashflowChart> {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final custom = _customRange;
-    final start = custom == null
-        ? DateTime(now.year, now.month - _months + 1)
-        : DateTime(custom.start.year, custom.start.month);
-    final end = custom == null
-        ? DateTime(now.year, now.month)
-        : DateTime(custom.end.year, custom.end.month);
+    final start = DateTime(now.year, now.month - _months + 1);
+    final end = DateTime(now.year, now.month);
     final count = ((end.year - start.year) * 12 + end.month - start.month + 1)
         .clamp(1, 60);
     final periods = List.generate(
@@ -683,9 +846,7 @@ class _CashflowChartState extends State<_CashflowChart> {
     }
     return _ChartCard(
       title: 'Cashflow',
-      description: custom == null
-          ? 'Einnahmen und Ausgaben der letzten $_months Monate'
-          : '${DateFormat('MM.yyyy').format(start)} bis ${DateFormat('MM.yyyy').format(end)}',
+      description: 'Einnahmen und Ausgaben der letzten $_months Monate',
       child: Column(
         children: [
           Row(
@@ -697,7 +858,7 @@ class _CashflowChartState extends State<_CashflowChart> {
               SizedBox(
                 width: 116,
                 child: DropdownButtonFormField<int>(
-                  initialValue: custom == null ? _months : null,
+                  initialValue: _months,
                   isDense: true,
                   decoration: const InputDecoration(labelText: 'Monate'),
                   items: const [6, 12, 24, 36]
@@ -712,16 +873,10 @@ class _CashflowChartState extends State<_CashflowChart> {
                     if (value != null) {
                       setState(() {
                         _months = value;
-                        _customRange = null;
                       });
                     }
                   },
                 ),
-              ),
-              IconButton(
-                tooltip: 'Eigenen Zeitraum wählen',
-                onPressed: _pickCashflowRange,
-                icon: const Icon(Icons.date_range_rounded),
               ),
             ],
           ),
@@ -895,16 +1050,6 @@ class _CashflowChartState extends State<_CashflowChart> {
         ],
       ),
     );
-  }
-
-  Future<void> _pickCashflowRange() async {
-    final selected = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-      initialDateRange: _customRange,
-    );
-    if (selected != null) setState(() => _customRange = selected);
   }
 }
 

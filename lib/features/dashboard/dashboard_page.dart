@@ -2,10 +2,12 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/finance/budget_period.dart';
 import '../../core/finance/dividend_math.dart';
+import '../../core/finance/portfolio_tax_summary.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -17,19 +19,31 @@ class DashboardPage extends ConsumerStatefulWidget {
 }
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
+  static const _defaultCardOrder = [
+    'netWorth',
+    'portfolio',
+    'income',
+    'expenses',
+    'savingsRate',
+    'dividends',
+    'cashflow',
+  ];
   late DateTime _selectedMonth = DateTime(
     DateTime.now().year,
     DateTime.now().month,
   );
+  String _sortMode = 'default';
+  List<String> _customOrder = [..._defaultCardOrder];
+  String? _loadedForUser;
 
   @override
   Widget build(BuildContext context) {
     final accounts =
         ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
     final investments =
-        ref.watch(investmentsProvider).valueOrNull ?? const <Investment>[];
+        ref.watch(allInvestmentsProvider).valueOrNull ?? const <Investment>[];
     final physicalAssets =
-        ref.watch(physicalAssetsProvider).valueOrNull ??
+        ref.watch(allPhysicalAssetsProvider).valueOrNull ??
         const <PhysicalAsset>[];
     final vehicles =
         ref.watch(vehiclesProvider).valueOrNull ?? const <Vehicle>[];
@@ -41,30 +55,79 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final snapshots =
         ref.watch(netWorthSnapshotsProvider).valueOrNull ??
         const <NetWorthSnapshot>[];
+    final purchases =
+        ref.watch(investmentPurchasesProvider).valueOrNull ??
+        const <InvestmentPurchase>[];
+    final sales =
+        ref.watch(portfolioSalesProvider).valueOrNull ??
+        const <PortfolioSale>[];
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId != null && _loadedForUser != userId) {
+      _loadedForUser = userId;
+      Future<void>.microtask(() => _loadCardLayout(userId));
+    }
     final user = ref.watch(authControllerProvider).user;
-    final accountBalance = accounts.fold<double>(
-      0,
-      (sum, item) => sum + item.balance,
+    final monthEnd = DateTime(
+      _selectedMonth.year,
+      _selectedMonth.month + 1,
+    ).subtract(const Duration(microseconds: 1));
+    final derivedAccountBalance = _accountBalanceAt(
+      accounts: accounts,
+      entries: entries,
+      sales: sales,
+      at: monthEnd,
     );
-    final portfolio =
+    final derivedPortfolio =
         investments.fold<double>(
           0,
-          (sum, item) => sum + item.quantity * item.currentPrice,
+          (sum, item) =>
+              sum +
+              investmentSharesAt(
+                    investment: item,
+                    date: monthEnd,
+                    purchases: purchases,
+                    sales: sales,
+                  ) *
+                  item.currentPrice,
         ) +
         physicalAssets.fold<double>(
           0,
-          (sum, item) => sum + item.weightGrams * item.currentPricePerGram,
+          (sum, item) => sum + _physicalAssetValueAt(item, sales, monthEnd),
         );
+    final snapshotAtMonthEnd = snapshots
+        .where((snapshot) => !snapshot.capturedAt.isAfter(monthEnd))
+        .lastOrNull;
+    final accountBalance =
+        snapshotAtMonthEnd?.accountBalance ?? derivedAccountBalance;
+    final portfolio = snapshotAtMonthEnd?.portfolioValue ?? derivedPortfolio;
     final vehicleValue = vehicles.fold<double>(
       0,
-      (sum, item) => sum + item.currentValue,
+      (sum, item) =>
+          sum +
+          ((item.purchaseDate ?? item.createdAt).isAfter(monthEnd)
+              ? 0
+              : item.currentValue),
     );
     final invested =
-        investments.fold<double>(
+        investments.fold<double>(0, (sum, item) {
+          final quantity = investmentSharesAt(
+            investment: item,
+            date: monthEnd,
+            purchases: purchases,
+            sales: sales,
+          );
+          return sum +
+              quantity * item.purchasePrice +
+              (item.quantity <= 0 ? 0 : item.fees * quantity / item.quantity);
+        }) +
+        physicalAssets.fold<double>(
           0,
-          (sum, item) => sum + item.quantity * item.purchasePrice + item.fees,
-        ) +
-        physicalAssets.fold<double>(0, (sum, item) => sum + item.purchasePrice);
+          (sum, item) =>
+              sum +
+              ((item.purchaseDate ?? item.createdAt).isAfter(monthEnd)
+                  ? 0
+                  : item.purchasePrice),
+        );
     final thisMonth = entries.where((entry) {
       final period = budgetMonthOf(entry.bookingDate, entry.budgetMonth);
       return period.year == _selectedMonth.year &&
@@ -104,48 +167,84 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     'Finanzieller Überblick für ' +
                     _dashboardMonthLabel(_selectedMonth) +
                     '.',
-                action: Card(
-                  margin: EdgeInsets.zero,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: 'Vorheriger Monat',
-                        onPressed: () => setState(
-                          () => _selectedMonth = DateTime(
-                            _selectedMonth.year,
-                            _selectedMonth.month - 1,
-                          ),
+                action: Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    SizedBox(
+                      width: 210,
+                      child: DropdownButtonFormField<String>(
+                        key: ValueKey(_sortMode),
+                        initialValue: _sortMode,
+                        decoration: const InputDecoration(
+                          labelText: 'Blöcke sortieren',
+                          prefixIcon: Icon(Icons.sort_rounded),
                         ),
-                        icon: const Icon(Icons.chevron_left_rounded),
-                      ),
-                      Text(
-                        _dashboardMonthLabel(_selectedMonth),
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      IconButton(
-                        tooltip: 'Nächster Monat',
-                        onPressed: () => setState(
-                          () => _selectedMonth = DateTime(
-                            _selectedMonth.year,
-                            _selectedMonth.month + 1,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'default',
+                            child: Text('Standardreihenfolge'),
                           ),
-                        ),
-                        icon: const Icon(Icons.chevron_right_rounded),
-                      ),
-                      IconButton(
-                        tooltip: 'Aktueller Monat',
-                        onPressed: () {
-                          final now = DateTime.now();
-                          setState(
-                            () =>
-                                _selectedMonth = DateTime(now.year, now.month),
-                          );
+                          DropdownMenuItem(
+                            value: 'custom',
+                            child: Text('Eigene Reihenfolge'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'alphabetical',
+                            child: Text('Alphabetisch'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) _setSortMode(value);
                         },
-                        icon: const Icon(Icons.today_rounded),
                       ),
-                    ],
-                  ),
+                    ),
+                    Card(
+                      margin: EdgeInsets.zero,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'Vorheriger Monat',
+                            onPressed: () => setState(
+                              () => _selectedMonth = DateTime(
+                                _selectedMonth.year,
+                                _selectedMonth.month - 1,
+                              ),
+                            ),
+                            icon: const Icon(Icons.chevron_left_rounded),
+                          ),
+                          Text(
+                            _dashboardMonthLabel(_selectedMonth),
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          IconButton(
+                            tooltip: 'Nächster Monat',
+                            onPressed: () => setState(
+                              () => _selectedMonth = DateTime(
+                                _selectedMonth.year,
+                                _selectedMonth.month + 1,
+                              ),
+                            ),
+                            icon: const Icon(Icons.chevron_right_rounded),
+                          ),
+                          IconButton(
+                            tooltip: 'Aktueller Monat',
+                            onPressed: () {
+                              final now = DateTime.now();
+                              setState(
+                                () => _selectedMonth = DateTime(
+                                  now.year,
+                                  now.month,
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.today_rounded),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
               LayoutBuilder(
@@ -155,90 +254,142 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   final width =
                       (constraints.maxWidth - spacing * (columns - 1)) /
                       columns;
-                  final cards = [
-                    MetricCard(
+                  final cards = <({String key, String title, Widget child})>[
+                    (
+                      key: 'netWorth',
                       title: 'Gesamtvermögen',
-                      value: money(accountBalance + portfolio),
-                      caption:
-                          '${accounts.length} Konten · ${investments.length} Positionen',
-                      icon: Icons.account_balance_wallet_rounded,
-                      color: colors.primary,
-                      onTap: () => openFinance(ref, 0),
+                      child: _NetWorthPairCard(
+                        netWorth: accountBalance + portfolio,
+                        netWorthCaption:
+                            '${accounts.length} Konten · ${investments.where((item) => investmentSharesAt(investment: item, date: monthEnd, purchases: purchases, sales: sales) > 0).length} Positionen',
+                        includingVehicles:
+                            accountBalance + portfolio + vehicleValue,
+                        vehicleValue: vehicleValue,
+                        onNetWorthTap: () => openFinance(ref, 0),
+                        onVehiclesTap: () =>
+                            ref.read(shellIndexProvider.notifier).state = 5,
+                      ),
                     ),
-                    MetricCard(
-                      title: 'Inkl. Fahrzeuge',
-                      value: money(accountBalance + portfolio + vehicleValue),
-                      caption: '${money(vehicleValue)} Fahrzeugwert',
-                      icon: Icons.directions_car_filled_rounded,
-                      color: Colors.indigo,
-                      onTap: () =>
-                          ref.read(shellIndexProvider.notifier).state = 5,
-                    ),
-                    MetricCard(
+                    (
+                      key: 'portfolio',
                       title: 'Depotwert',
-                      value: money(portfolio),
-                      caption: invested == 0
-                          ? 'Noch keine Performance'
-                          : '${portfolio >= invested ? '+' : ''}${((portfolio - invested) / invested * 100).toStringAsFixed(2)} % Performance',
-                      icon: Icons.trending_up_rounded,
-                      color: portfolio >= invested ? Colors.teal : colors.error,
-                      onTap: () => openFinance(ref, 1),
+                      child: MetricCard(
+                        title: 'Depotwert',
+                        value: money(portfolio),
+                        caption: invested == 0
+                            ? 'Noch keine Performance'
+                            : '${portfolio >= invested ? '+' : ''}${((portfolio - invested) / invested * 100).toStringAsFixed(2)} % Performance',
+                        icon: Icons.trending_up_rounded,
+                        color: portfolio >= invested
+                            ? Colors.teal
+                            : colors.error,
+                        onTap: () => openFinance(ref, 1),
+                      ),
                     ),
-                    MetricCard(
-                      title: 'Ausgaben im Monat',
-                      value: money(expenses),
-                      caption:
-                          '${thisMonth.where((entry) => !entry.isIncome).length} Buchungen',
-                      icon: Icons.shopping_bag_rounded,
-                      color: Colors.orange,
-                      onTap: () =>
-                          ref.read(shellIndexProvider.notifier).state = 2,
-                    ),
-                    MetricCard(
+                    (
+                      key: 'income',
                       title: 'Einnahmen im Monat',
-                      value: money(income),
-                      caption:
-                          '${thisMonth.where((entry) => entry.isIncome).length} Buchungen',
-                      icon: Icons.account_balance_rounded,
-                      color: Colors.green,
-                      onTap: () =>
-                          ref.read(shellIndexProvider.notifier).state = 2,
+                      child: MetricCard(
+                        title: 'Einnahmen im Monat',
+                        value: money(income),
+                        caption:
+                            '${thisMonth.where((entry) => entry.isIncome).length} Buchungen',
+                        icon: Icons.account_balance_rounded,
+                        color: Colors.green,
+                        onTap: () =>
+                            ref.read(shellIndexProvider.notifier).state = 2,
+                      ),
                     ),
-                    MetricCard(
+                    (
+                      key: 'expenses',
+                      title: 'Ausgaben im Monat',
+                      child: MetricCard(
+                        title: 'Ausgaben im Monat',
+                        value: money(expenses),
+                        caption:
+                            '${thisMonth.where((entry) => !entry.isIncome).length} Buchungen',
+                        icon: Icons.shopping_bag_rounded,
+                        color: Colors.orange,
+                        onTap: () =>
+                            ref.read(shellIndexProvider.notifier).state = 2,
+                      ),
+                    ),
+                    (
+                      key: 'savingsRate',
                       title: 'Sparquote',
-                      value: income <= 0
-                          ? '–'
-                          : '${((income - expenses) / income * 100).toStringAsFixed(1)} %',
-                      caption: '${money(income)} Einnahmen im Monat',
-                      icon: Icons.savings_rounded,
-                      color: Colors.purple,
-                      onTap: () =>
-                          ref.read(shellIndexProvider.notifier).state = 3,
+                      child: MetricCard(
+                        title: 'Sparquote',
+                        value: income <= 0
+                            ? '–'
+                            : '${((income - expenses) / income * 100).toStringAsFixed(1)} %',
+                        caption: '${money(income)} Einnahmen im Monat',
+                        icon: Icons.savings_rounded,
+                        color: Colors.purple,
+                        onTap: () =>
+                            ref.read(shellIndexProvider.notifier).state = 3,
+                      ),
                     ),
-                    MetricCard(
+                    (
+                      key: 'dividends',
                       title: 'Dividenden p. a.',
-                      value: money(yearlyDividend),
-                      caption: '${money(monthlyDividend)} pro Monat',
-                      icon: Icons.payments_rounded,
-                      color: Colors.green,
-                      onTap: () => openFinance(ref, 2),
+                      child: MetricCard(
+                        title: 'Dividenden p. a.',
+                        value: money(yearlyDividend),
+                        caption: '${money(monthlyDividend)} pro Monat',
+                        icon: Icons.payments_rounded,
+                        color: Colors.green,
+                        onTap: () => openFinance(ref, 2),
+                      ),
                     ),
-                    MetricCard(
+                    (
+                      key: 'cashflow',
                       title: 'Freier Cashflow',
-                      value: money(income - expenses),
-                      caption: 'Einnahmen abzüglich Ausgaben',
-                      icon: Icons.waterfall_chart_rounded,
-                      color: income >= expenses ? Colors.cyan : colors.error,
-                      onTap: () =>
-                          ref.read(shellIndexProvider.notifier).state = 2,
+                      child: MetricCard(
+                        title: 'Freier Cashflow',
+                        value: money(income - expenses),
+                        caption: 'Einnahmen abzüglich Ausgaben',
+                        icon: Icons.waterfall_chart_rounded,
+                        color: income >= expenses ? Colors.cyan : colors.error,
+                        onTap: () =>
+                            ref.read(shellIndexProvider.notifier).state = 2,
+                      ),
                     ),
                   ];
+                  if (_sortMode == 'alphabetical') {
+                    cards.sort((a, b) => a.title.compareTo(b.title));
+                  } else if (_sortMode == 'custom') {
+                    cards.sort(
+                      (a, b) => _customOrder
+                          .indexOf(a.key)
+                          .compareTo(_customOrder.indexOf(b.key)),
+                    );
+                  }
                   return Wrap(
                     spacing: spacing,
                     runSpacing: spacing,
                     children: [
-                      for (final card in cards)
-                        SizedBox(width: width, child: card),
+                      for (final indexed in cards.indexed)
+                        SizedBox(
+                          width: width,
+                          child: Column(
+                            children: [
+                              if (_sortMode == 'custom')
+                                _CardMoveControls(
+                                  canMoveUp: indexed.$1 > 0,
+                                  canMoveDown: indexed.$1 < cards.length - 1,
+                                  onMoveUp: () => _moveCard(
+                                    indexed.$2.key,
+                                    cards[indexed.$1 - 1].key,
+                                  ),
+                                  onMoveDown: () => _moveCard(
+                                    indexed.$2.key,
+                                    cards[indexed.$1 + 1].key,
+                                  ),
+                                ),
+                              SizedBox(height: 238, child: indexed.$2.child),
+                            ],
+                          ),
+                        ),
                     ],
                   );
                 },
@@ -246,13 +397,245 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               const SizedBox(height: 16),
               _NetWorthChart(snapshots: snapshots),
               const SizedBox(height: 16),
-              _MonthlyChart(entries: entries, selectedMonth: _selectedMonth),
+              _MonthlyChart(entries: entries),
             ],
           ),
         ),
       ),
     );
   }
+
+  Future<void> _loadCardLayout(String userId) async {
+    final preferences = await SharedPreferences.getInstance();
+    final storedOrder = preferences.getStringList(
+      'dashboard.cardOrder.$userId',
+    );
+    if (!mounted || _loadedForUser != userId) return;
+    setState(() {
+      _sortMode =
+          preferences.getString('dashboard.sortMode.$userId') ?? 'default';
+      if (storedOrder != null) {
+        _customOrder = [
+          ...storedOrder.where(_defaultCardOrder.contains),
+          ..._defaultCardOrder.where((key) => !storedOrder.contains(key)),
+        ];
+      }
+    });
+  }
+
+  Future<void> _persistCardLayout() async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString('dashboard.sortMode.$userId', _sortMode);
+    await preferences.setStringList(
+      'dashboard.cardOrder.$userId',
+      _customOrder,
+    );
+  }
+
+  void _setSortMode(String value) {
+    setState(() => _sortMode = value);
+    _persistCardLayout();
+  }
+
+  void _moveCard(String key, String targetKey) {
+    setState(() {
+      final oldIndex = _customOrder.indexOf(key);
+      final newIndex = _customOrder.indexOf(targetKey);
+      final item = _customOrder.removeAt(oldIndex);
+      _customOrder.insert(newIndex, item);
+      _sortMode = 'custom';
+    });
+    _persistCardLayout();
+  }
+}
+
+double _accountBalanceAt({
+  required List<Account> accounts,
+  required List<LedgerEntry> entries,
+  required List<PortfolioSale> sales,
+  required DateTime at,
+}) {
+  final accountIds = accounts
+      .where((account) => !account.createdAt.isAfter(at))
+      .map((account) => account.id)
+      .toSet();
+  var balance = accounts
+      .where((account) => accountIds.contains(account.id))
+      .fold<double>(0, (sum, account) => sum + account.balance);
+  for (final entry in entries.where(
+    (entry) =>
+        accountIds.contains(entry.accountId) &&
+        entry.accountApplied &&
+        entry.bookingDate.isAfter(at),
+  )) {
+    balance -= entry.isIncome ? entry.amount : -entry.amount;
+  }
+  for (final sale in sales.where(
+    (sale) => sale.accountCredited && sale.soldAt.isAfter(at),
+  )) {
+    balance -= sale.proceeds;
+  }
+  return balance;
+}
+
+double _physicalAssetValueAt(
+  PhysicalAsset asset,
+  List<PortfolioSale> sales,
+  DateTime at,
+) {
+  final purchaseDate = asset.purchaseDate ?? asset.createdAt;
+  if (purchaseDate.isAfter(at)) return 0;
+  if (asset.deletedAt != null &&
+      !asset.deletedAt!.isAfter(at) &&
+      !sales.any(
+        (sale) => sale.physicalAssetId == asset.id && !sale.soldAt.isAfter(at),
+      )) {
+    return 0;
+  }
+  final laterSales = sales
+      .where(
+        (sale) => sale.physicalAssetId == asset.id && sale.soldAt.isAfter(at),
+      )
+      .fold<double>(0, (sum, sale) => sum + sale.quantity);
+  return (asset.weightGrams + laterSales) * asset.currentPricePerGram;
+}
+
+class _CardMoveControls extends StatelessWidget {
+  const _CardMoveControls({
+    required this.canMoveUp,
+    required this.canMoveDown,
+    required this.onMoveUp,
+    required this.onMoveDown,
+  });
+
+  final bool canMoveUp;
+  final bool canMoveDown;
+  final VoidCallback onMoveUp;
+  final VoidCallback onMoveDown;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisAlignment: MainAxisAlignment.end,
+    children: [
+      IconButton(
+        tooltip: 'Nach oben',
+        visualDensity: VisualDensity.compact,
+        onPressed: canMoveUp ? onMoveUp : null,
+        icon: const Icon(Icons.keyboard_arrow_up_rounded),
+      ),
+      IconButton(
+        tooltip: 'Nach unten',
+        visualDensity: VisualDensity.compact,
+        onPressed: canMoveDown ? onMoveDown : null,
+        icon: const Icon(Icons.keyboard_arrow_down_rounded),
+      ),
+    ],
+  );
+}
+
+class _NetWorthPairCard extends StatelessWidget {
+  const _NetWorthPairCard({
+    required this.netWorth,
+    required this.netWorthCaption,
+    required this.includingVehicles,
+    required this.vehicleValue,
+    required this.onNetWorthTap,
+    required this.onVehiclesTap,
+  });
+
+  final double netWorth;
+  final String netWorthCaption;
+  final double includingVehicles;
+  final double vehicleValue;
+  final VoidCallback onNetWorthTap;
+  final VoidCallback onVehiclesTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _NetWorthHalf(
+              title: 'Gesamtvermögen',
+              value: money(netWorth),
+              caption: netWorthCaption,
+              icon: Icons.account_balance_wallet_rounded,
+              color: Theme.of(context).colorScheme.primary,
+              onTap: onNetWorthTap,
+            ),
+          ),
+          const VerticalDivider(width: 1, thickness: 1),
+          Expanded(
+            child: _NetWorthHalf(
+              title: 'Inkl. Fahrzeuge',
+              value: money(includingVehicles),
+              caption: '${money(vehicleValue)} Fahrzeugwert',
+              icon: Icons.directions_car_filled_rounded,
+              color: Colors.indigo,
+              onTap: onVehiclesTap,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _NetWorthHalf extends StatelessWidget {
+  const _NetWorthHalf({
+    required this.title,
+    required this.value,
+    required this.caption,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String title;
+  final String value;
+  final String caption;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color),
+              const Spacer(),
+              const Icon(Icons.arrow_outward_rounded, size: 18),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(title, style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 5),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(caption, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+    ),
+  );
 }
 
 double _dashboardDividendForMonth(
@@ -297,9 +680,8 @@ const _dashboardMonths = [
 ];
 
 class _MonthlyChart extends StatefulWidget {
-  const _MonthlyChart({required this.entries, required this.selectedMonth});
+  const _MonthlyChart({required this.entries});
   final List<LedgerEntry> entries;
-  final DateTime selectedMonth;
 
   @override
   State<_MonthlyChart> createState() => _MonthlyChartState();
@@ -317,11 +699,12 @@ class _MonthlyChartState extends State<_MonthlyChart> {
 
   @override
   Widget build(BuildContext context) {
+    final currentMonth = DateTime.now();
     final totals = List<double>.filled(_months, 0);
     for (var index = 0; index < _months; index++) {
       final date = DateTime(
-        widget.selectedMonth.year,
-        widget.selectedMonth.month - (_months - 1 - index),
+        currentMonth.year,
+        currentMonth.month - (_months - 1 - index),
       );
       totals[index] = widget.entries
           .where((entry) {
@@ -420,8 +803,8 @@ class _MonthlyChartState extends State<_MonthlyChart> {
                               reservedSize: 34,
                               getTitlesWidget: (value, meta) {
                                 final date = DateTime(
-                                  widget.selectedMonth.year,
-                                  widget.selectedMonth.month -
+                                  currentMonth.year,
+                                  currentMonth.month -
                                       (_months - 1 - value.toInt()),
                                 );
                                 return Padding(

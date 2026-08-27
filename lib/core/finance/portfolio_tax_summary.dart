@@ -22,6 +22,7 @@ PortfolioTaxSummary calculatePortfolioTaxYear({
   required List<Investment> investments,
   required List<DividendSchedule> schedules,
   required List<PortfolioSale> sales,
+  List<InvestmentPurchase> purchases = const [],
   bool includePhysicalAssets = false,
   DateTime? through,
 }) {
@@ -31,18 +32,62 @@ PortfolioTaxSummary calculatePortfolioTaxYear({
   var taxes = 0.0;
   final investmentById = {for (final item in investments) item.id: item};
   final events =
-      <({DateTime date, DividendSchedule? dividend, PortfolioSale? sale})>[];
+      <
+        ({
+          DateTime date,
+          Investment? investment,
+          DividendSchedule? dividend,
+          PortfolioSale? sale,
+        })
+      >[];
 
   for (final schedule in schedules) {
-    final date = schedule.paymentDate;
-    if (date != null && date.year == year && !date.isAfter(limit)) {
-      events.add((date: date, dividend: schedule, sale: null));
+    final appliesToYear =
+        schedule.paymentYear == year ||
+        (schedule.paymentYear == 0 && year == DateTime.now().year);
+    if (!appliesToYear) continue;
+    final date = schedule.paymentDate ?? DateTime(year, schedule.paymentMonth);
+    if (!date.isAfter(limit)) {
+      events.add((
+        date: date,
+        investment: investmentById[schedule.investmentId],
+        dividend: schedule,
+        sale: null,
+      ));
+    }
+  }
+  for (final investment in investments) {
+    for (final month in dividendPaymentMonths(
+      investment.dividendFrequency,
+      investment.dividendStartMonth,
+    )) {
+      final hasExact = schedules.any(
+        (schedule) =>
+            schedule.investmentId == investment.id &&
+            schedule.paymentMonth == month &&
+            (schedule.paymentYear == year ||
+                (schedule.paymentYear == 0 && year == DateTime.now().year)),
+      );
+      final date = DateTime(year, month);
+      if (!hasExact && investment.annualDividend > 0 && !date.isAfter(limit)) {
+        events.add((
+          date: date,
+          investment: investment,
+          dividend: null,
+          sale: null,
+        ));
+      }
     }
   }
   for (final sale in sales) {
     if (sale.assetKind == 'physical' && !includePhysicalAssets) continue;
     if (sale.soldAt.year == year && !sale.soldAt.isAfter(limit)) {
-      events.add((date: sale.soldAt, dividend: null, sale: sale));
+      events.add((
+        date: sale.soldAt,
+        investment: null,
+        dividend: null,
+        sale: sale,
+      ));
     }
   }
   events.sort((a, b) => a.date.compareTo(b.date));
@@ -57,13 +102,22 @@ PortfolioTaxSummary calculatePortfolioTaxYear({
       taxes += sale.taxPaid;
       continue;
     }
-    final schedule = event.dividend!;
-    final investment = investmentById[schedule.investmentId];
+    final schedule = event.dividend;
+    final investment = event.investment;
     if (investment == null) continue;
+    final quantity = investmentSharesAt(
+      investment: investment,
+      date: event.date,
+      purchases: purchases,
+      sales: sales,
+    );
+    if (quantity <= 0) continue;
     final tax = calculateGermanDividendTax(
-      grossAmount: schedule.amountPerShare * investment.quantity,
-      exchangeRate: schedule.exchangeRate,
-      withholdingTaxRate: schedule.withholdingTaxRate,
+      grossAmount:
+          (schedule?.amountPerShare ?? investment.annualDividend) * quantity,
+      exchangeRate: schedule?.exchangeRate ?? investment.dividendExchangeRate,
+      withholdingTaxRate:
+          schedule?.withholdingTaxRate ?? investment.dividendWithholdingTaxRate,
       allowanceRemaining: remaining,
     );
     used += tax.allowanceUsed;
@@ -80,4 +134,35 @@ PortfolioTaxSummary calculatePortfolioTaxYear({
     allowanceUsed: (used * 100).round() / 100,
     taxPaid: (taxes * 100).round() / 100,
   );
+}
+
+double investmentSharesAt({
+  required Investment investment,
+  required DateTime date,
+  required List<InvestmentPurchase> purchases,
+  required List<PortfolioSale> sales,
+}) {
+  final investmentPurchases = purchases
+      .where(
+        (row) => row.investmentId == investment.id && row.deletedAt == null,
+      )
+      .toList();
+  final investmentSales = sales
+      .where((sale) => sale.investmentId == investment.id)
+      .toList();
+  final purchased = investmentPurchases.isEmpty
+      ? (date.isBefore(investment.purchaseDate)
+            ? 0.0
+            : investment.quantity +
+                  investmentSales.fold<double>(
+                    0,
+                    (sum, sale) => sum + sale.quantity,
+                  ))
+      : investmentPurchases
+            .where((row) => !row.purchaseDate.isAfter(date))
+            .fold<double>(0, (sum, row) => sum + row.quantity);
+  final sold = investmentSales
+      .where((sale) => !sale.soldAt.isAfter(date))
+      .fold<double>(0, (sum, sale) => sum + sale.quantity);
+  return (purchased - sold).clamp(0, double.infinity).toDouble();
 }

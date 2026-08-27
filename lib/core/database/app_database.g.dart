@@ -6578,6 +6578,17 @@ class $VehiclesTable extends Vehicles with TableInfo<$VehiclesTable, Vehicle> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _purchaseDateMeta = const VerificationMeta(
+    'purchaseDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> purchaseDate = GeneratedColumn<DateTime>(
+    'purchase_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -6624,6 +6635,7 @@ class $VehiclesTable extends Vehicles with TableInfo<$VehiclesTable, Vehicle> {
     tankCapacity,
     purchasePrice,
     currentValue,
+    purchaseDate,
     createdAt,
     updatedAt,
     deletedAt,
@@ -6730,6 +6742,15 @@ class $VehiclesTable extends Vehicles with TableInfo<$VehiclesTable, Vehicle> {
         ),
       );
     }
+    if (data.containsKey('purchase_date')) {
+      context.handle(
+        _purchaseDateMeta,
+        purchaseDate.isAcceptableOrUnknown(
+          data['purchase_date']!,
+          _purchaseDateMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -6805,6 +6826,10 @@ class $VehiclesTable extends Vehicles with TableInfo<$VehiclesTable, Vehicle> {
         DriftSqlType.double,
         data['${effectivePrefix}current_value'],
       )!,
+      purchaseDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}purchase_date'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -6838,6 +6863,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
   final double tankCapacity;
   final double purchasePrice;
   final double currentValue;
+  final DateTime? purchaseDate;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -6853,6 +6879,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
     required this.tankCapacity,
     required this.purchasePrice,
     required this.currentValue,
+    this.purchaseDate,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -6871,6 +6898,9 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
     map['tank_capacity'] = Variable<double>(tankCapacity);
     map['purchase_price'] = Variable<double>(purchasePrice);
     map['current_value'] = Variable<double>(currentValue);
+    if (!nullToAbsent || purchaseDate != null) {
+      map['purchase_date'] = Variable<DateTime>(purchaseDate);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -6892,6 +6922,9 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
       tankCapacity: Value(tankCapacity),
       purchasePrice: Value(purchasePrice),
       currentValue: Value(currentValue),
+      purchaseDate: purchaseDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(purchaseDate),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -6917,6 +6950,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
       tankCapacity: serializer.fromJson<double>(json['tankCapacity']),
       purchasePrice: serializer.fromJson<double>(json['purchasePrice']),
       currentValue: serializer.fromJson<double>(json['currentValue']),
+      purchaseDate: serializer.fromJson<DateTime?>(json['purchaseDate']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -6937,6 +6971,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
       'tankCapacity': serializer.toJson<double>(tankCapacity),
       'purchasePrice': serializer.toJson<double>(purchasePrice),
       'currentValue': serializer.toJson<double>(currentValue),
+      'purchaseDate': serializer.toJson<DateTime?>(purchaseDate),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -6955,6 +6990,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
     double? tankCapacity,
     double? purchasePrice,
     double? currentValue,
+    Value<DateTime?> purchaseDate = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -6970,6 +7006,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
     tankCapacity: tankCapacity ?? this.tankCapacity,
     purchasePrice: purchasePrice ?? this.purchasePrice,
     currentValue: currentValue ?? this.currentValue,
+    purchaseDate: purchaseDate.present ? purchaseDate.value : this.purchaseDate,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -6997,6 +7034,9 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
       currentValue: data.currentValue.present
           ? data.currentValue.value
           : this.currentValue,
+      purchaseDate: data.purchaseDate.present
+          ? data.purchaseDate.value
+          : this.purchaseDate,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -7017,6 +7057,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
           ..write('tankCapacity: $tankCapacity, ')
           ..write('purchasePrice: $purchasePrice, ')
           ..write('currentValue: $currentValue, ')
+          ..write('purchaseDate: $purchaseDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -7037,6 +7078,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
     tankCapacity,
     purchasePrice,
     currentValue,
+    purchaseDate,
     createdAt,
     updatedAt,
     deletedAt,
@@ -7056,6 +7098,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
           other.tankCapacity == this.tankCapacity &&
           other.purchasePrice == this.purchasePrice &&
           other.currentValue == this.currentValue &&
+          other.purchaseDate == this.purchaseDate &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -7073,6 +7116,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
   final Value<double> tankCapacity;
   final Value<double> purchasePrice;
   final Value<double> currentValue;
+  final Value<DateTime?> purchaseDate;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
@@ -7089,6 +7133,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     this.tankCapacity = const Value.absent(),
     this.purchasePrice = const Value.absent(),
     this.currentValue = const Value.absent(),
+    this.purchaseDate = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -7106,6 +7151,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     this.tankCapacity = const Value.absent(),
     this.purchasePrice = const Value.absent(),
     this.currentValue = const Value.absent(),
+    this.purchaseDate = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.deletedAt = const Value.absent(),
@@ -7130,6 +7176,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     Expression<double>? tankCapacity,
     Expression<double>? purchasePrice,
     Expression<double>? currentValue,
+    Expression<DateTime>? purchaseDate,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
@@ -7147,6 +7194,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
       if (tankCapacity != null) 'tank_capacity': tankCapacity,
       if (purchasePrice != null) 'purchase_price': purchasePrice,
       if (currentValue != null) 'current_value': currentValue,
+      if (purchaseDate != null) 'purchase_date': purchaseDate,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -7166,6 +7214,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     Value<double>? tankCapacity,
     Value<double>? purchasePrice,
     Value<double>? currentValue,
+    Value<DateTime?>? purchaseDate,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
@@ -7183,6 +7232,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
       tankCapacity: tankCapacity ?? this.tankCapacity,
       purchasePrice: purchasePrice ?? this.purchasePrice,
       currentValue: currentValue ?? this.currentValue,
+      purchaseDate: purchaseDate ?? this.purchaseDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -7226,6 +7276,9 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     if (currentValue.present) {
       map['current_value'] = Variable<double>(currentValue.value);
     }
+    if (purchaseDate.present) {
+      map['purchase_date'] = Variable<DateTime>(purchaseDate.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -7255,6 +7308,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
           ..write('tankCapacity: $tankCapacity, ')
           ..write('purchasePrice: $purchasePrice, ')
           ..write('currentValue: $currentValue, ')
+          ..write('purchaseDate: $purchaseDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -21727,6 +21781,7 @@ typedef $$VehiclesTableCreateCompanionBuilder =
       Value<double> tankCapacity,
       Value<double> purchasePrice,
       Value<double> currentValue,
+      Value<DateTime?> purchaseDate,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<DateTime?> deletedAt,
@@ -21745,6 +21800,7 @@ typedef $$VehiclesTableUpdateCompanionBuilder =
       Value<double> tankCapacity,
       Value<double> purchasePrice,
       Value<double> currentValue,
+      Value<DateTime?> purchaseDate,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
@@ -21847,6 +21903,11 @@ class $$VehiclesTableFilterComposer
 
   ColumnFilters<double> get currentValue => $composableBuilder(
     column: $table.currentValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get purchaseDate => $composableBuilder(
+    column: $table.purchaseDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -21973,6 +22034,11 @@ class $$VehiclesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get purchaseDate => $composableBuilder(
+    column: $table.purchaseDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -22058,6 +22124,11 @@ class $$VehiclesTableAnnotationComposer
 
   GeneratedColumn<double> get currentValue => $composableBuilder(
     column: $table.currentValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get purchaseDate => $composableBuilder(
+    column: $table.purchaseDate,
     builder: (column) => column,
   );
 
@@ -22158,6 +22229,7 @@ class $$VehiclesTableTableManager
                 Value<double> tankCapacity = const Value.absent(),
                 Value<double> purchasePrice = const Value.absent(),
                 Value<double> currentValue = const Value.absent(),
+                Value<DateTime?> purchaseDate = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -22174,6 +22246,7 @@ class $$VehiclesTableTableManager
                 tankCapacity: tankCapacity,
                 purchasePrice: purchasePrice,
                 currentValue: currentValue,
+                purchaseDate: purchaseDate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -22192,6 +22265,7 @@ class $$VehiclesTableTableManager
                 Value<double> tankCapacity = const Value.absent(),
                 Value<double> purchasePrice = const Value.absent(),
                 Value<double> currentValue = const Value.absent(),
+                Value<DateTime?> purchaseDate = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -22208,6 +22282,7 @@ class $$VehiclesTableTableManager
                 tankCapacity: tankCapacity,
                 purchasePrice: purchasePrice,
                 currentValue: currentValue,
+                purchaseDate: purchaseDate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
