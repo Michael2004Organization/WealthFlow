@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/finance/account_balance_math.dart';
 import '../../core/finance/portfolio_tax_summary.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -35,6 +36,9 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
         ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
     final entries =
         ref.watch(ledgerEntriesProvider).valueOrNull ?? const <LedgerEntry>[];
+    final balanceHistories =
+        ref.watch(accountBalanceHistoriesProvider).valueOrNull ??
+        const <AccountBalanceHistory>[];
     final physicalAssets =
         ref.watch(physicalAssetsProvider).valueOrNull ??
         const <PhysicalAsset>[];
@@ -87,9 +91,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
               PageHeader(
                 title: 'Portfolio',
                 subtitle: 'Positionen, Performance und Erträge im Blick.',
-                action: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                action: _PortfolioHeaderActions(
                   children: [
                     FilledButton.tonalIcon(
                       style: _portfolioActionButtonStyle,
@@ -147,6 +149,12 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                           _showExchangeRates(context, ref, isAdmin: isAdmin),
                       icon: const Icon(Icons.currency_exchange_rounded),
                       label: const Text('Wechselkurse'),
+                    ),
+                    FilledButton.tonalIcon(
+                      style: _portfolioActionButtonStyle,
+                      onPressed: () => _showCurrencyConverter(context, ref),
+                      icon: const Icon(Icons.calculate_outlined),
+                      label: const Text('Währungsrechner'),
                     ),
                   ],
                 ),
@@ -308,57 +316,43 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                       (sum, item) =>
                           sum + item.weightGrams * item.currentPricePerGram,
                     );
-                    final cash =
-                        accounts
-                            .where((account) => account.id == selectedAccountId)
-                            .firstOrNull
-                            ?.balance ??
-                        0;
+                    final selectedAccount = accounts
+                        .where((account) => account.id == selectedAccountId)
+                        .firstOrNull;
+                    final cash = selectedAccount == null
+                        ? 0.0
+                        : accountBalanceAt(
+                            account: selectedAccount,
+                            date: DateTime.now(),
+                            histories: balanceHistories,
+                            entries: entries,
+                            investments: allItems,
+                            purchases: purchases,
+                            sales: sales,
+                          );
                     final filterActive = _type != 'Alle' || _query.isNotEmpty;
                     final visibleCash = filterActive ? 0.0 : cash;
                     final portfolio =
                         securitiesValue + physicalValue + visibleCash;
-                    final activeCost =
-                        items.fold<double>(
-                          0,
-                          (sum, item) => sum + _cost(item),
-                        ) +
-                        visibleAssets.fold<double>(
-                          0,
-                          (sum, item) => sum + item.purchasePrice,
-                        );
-                    final visibleInvestmentIds = items
-                        .map((item) => item.id)
-                        .toSet();
-                    final visibleAssetIds = visibleAssets
-                        .map((item) => item.id)
-                        .toSet();
-                    final accountSales = sales
-                        .where(
-                          (sale) =>
-                              sale.accountId == selectedAccountId &&
-                              (!filterActive ||
-                                  (sale.investmentId != null &&
-                                      visibleInvestmentIds.contains(
-                                        sale.investmentId,
-                                      )) ||
-                                  (sale.physicalAssetId != null &&
-                                      visibleAssetIds.contains(
-                                        sale.physicalAssetId,
-                                      ))),
-                        )
-                        .toList();
-                    final realizedGain = accountSales.fold<double>(
+                    final securitiesCost = items.fold<double>(
                       0,
-                      (sum, sale) => sum + sale.realizedGain - sale.taxPaid,
+                      (sum, item) => sum + _cost(item),
                     );
-                    final soldCost = accountSales.fold<double>(
-                      0,
-                      (sum, sale) => sum + sale.costBasis,
-                    );
-                    final unrealizedGain =
-                        securitiesValue + physicalValue - activeCost;
+                    final unrealizedStockGain =
+                        securitiesValue - securitiesCost;
                     final taxSummary = calculatePortfolioTaxYear(
+                      year: DateTime.now().year,
+                      allowance: preference?.taxAllowance ?? 1000,
+                      investments: allItems,
+                      schedules: schedules,
+                      sales: sales,
+                      purchases: purchases,
+                      includePhysicalAssets:
+                          preference?.includePhysicalAssetsInTaxAllowance ??
+                          false,
+                      through: DateTime.now(),
+                    );
+                    final taxEvents = calculatePortfolioTaxEvents(
                       year: DateTime.now().year,
                       allowance: preference?.taxAllowance ?? 1000,
                       investments: allItems,
@@ -375,8 +369,8 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                         _PortfolioSummary(
                           value: portfolio,
                           investedValue: securitiesValue + physicalValue,
-                          gain: unrealizedGain + realizedGain,
-                          performanceBase: activeCost + soldCost,
+                          gain: unrealizedStockGain,
+                          performanceBase: securitiesCost,
                           positions: items.length + visibleAssets.length,
                           cash: visibleCash,
                         ),
@@ -386,7 +380,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                           child: _TaxAllowanceTile(
                             preference: preference,
                             summary: taxSummary,
-                            sales: sales,
+                            events: taxEvents,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -508,6 +502,33 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
   }
 }
 
+class _PortfolioHeaderActions extends StatelessWidget {
+  const _PortfolioHeaderActions({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width < 520) {
+      return SizedBox(
+        width: MediaQuery.sizeOf(context).width - 56,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (var index = 0; index < children.length; index++) ...[
+                children[index],
+                if (index < children.length - 1) const SizedBox(width: 8),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+    return Wrap(spacing: 8, runSpacing: 8, children: children);
+  }
+}
+
 Future<void> _showExchangeRates(
   BuildContext context,
   WidgetRef ref, {
@@ -582,6 +603,161 @@ Future<void> _showExchangeRates(
         ),
       ],
     ),
+  );
+}
+
+Future<void> _showCurrencyConverter(BuildContext context, WidgetRef ref) async {
+  final baseCurrency =
+      ref.read(preferencesProvider).valueOrNull?.currency.toUpperCase() ??
+      'EUR';
+  final configuredRates =
+      ref.read(countryTaxRatesProvider).valueOrNull ?? const <CountryTaxRate>[];
+  final rates = <String, double>{baseCurrency: 1};
+  for (final row in configuredRates) {
+    if (row.exchangeRate > 0) {
+      rates[row.currency.toUpperCase()] = row.exchangeRate;
+    }
+  }
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) =>
+        _CurrencyConverterDialog(baseCurrency: baseCurrency, rates: rates),
+  );
+}
+
+class _CurrencyConverterDialog extends StatefulWidget {
+  const _CurrencyConverterDialog({
+    required this.baseCurrency,
+    required this.rates,
+  });
+
+  final String baseCurrency;
+  final Map<String, double> rates;
+
+  @override
+  State<_CurrencyConverterDialog> createState() =>
+      _CurrencyConverterDialogState();
+}
+
+class _CurrencyConverterDialogState extends State<_CurrencyConverterDialog> {
+  final _left = TextEditingController(text: '1');
+  final _right = TextEditingController();
+  late final List<String> _currencies = widget.rates.keys.toList()..sort();
+  late String _leftCurrency = widget.baseCurrency;
+  late String _rightCurrency = _currencies.firstWhere(
+    (value) => value != widget.baseCurrency,
+    orElse: () => widget.baseCurrency,
+  );
+  bool _updating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _convert(fromLeft: true);
+  }
+
+  @override
+  void dispose() {
+    _left.dispose();
+    _right.dispose();
+    super.dispose();
+  }
+
+  void _convert({required bool fromLeft}) {
+    if (_updating) return;
+    _updating = true;
+    final source = fromLeft ? _left : _right;
+    final target = fromLeft ? _right : _left;
+    final sourceCurrency = fromLeft ? _leftCurrency : _rightCurrency;
+    final targetCurrency = fromLeft ? _rightCurrency : _leftCurrency;
+    final amount = _parseNumber(source.text);
+    final sourceRate = widget.rates[sourceCurrency] ?? 1;
+    final targetRate = widget.rates[targetCurrency] ?? 1;
+    target.text = amount == null
+        ? ''
+        : (amount * sourceRate / targetRate).toStringAsFixed(2);
+    _updating = false;
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Währungsrechner'),
+    content: SizedBox(
+      width: (MediaQuery.sizeOf(context).width - 64).clamp(280, 620),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _converterRow(
+            controller: _left,
+            currency: _leftCurrency,
+            onAmountChanged: (_) => _convert(fromLeft: true),
+            onCurrencyChanged: (value) {
+              if (value == null) return;
+              setState(() => _leftCurrency = value);
+              _convert(fromLeft: true);
+            },
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Icon(Icons.swap_vert_rounded),
+          ),
+          _converterRow(
+            controller: _right,
+            currency: _rightCurrency,
+            onAmountChanged: (_) => _convert(fromLeft: false),
+            onCurrencyChanged: (value) {
+              if (value == null) return;
+              setState(() => _rightCurrency = value);
+              _convert(fromLeft: true);
+            },
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Umrechnung über ${widget.baseCurrency}; verwendet werden die hinterlegten Wechselkurse.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      FilledButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Fertig'),
+      ),
+    ],
+  );
+
+  Widget _converterRow({
+    required TextEditingController controller,
+    required String currency,
+    required ValueChanged<String> onAmountChanged,
+    required ValueChanged<String?> onCurrencyChanged,
+  }) => Row(
+    children: [
+      Expanded(
+        child: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: onAmountChanged,
+          decoration: const InputDecoration(labelText: 'Betrag'),
+        ),
+      ),
+      const SizedBox(width: 12),
+      SizedBox(
+        width: 130,
+        child: DropdownButtonFormField<String>(
+          initialValue: currency,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Währung'),
+          items: _currencies
+              .map(
+                (value) => DropdownMenuItem(value: value, child: Text(value)),
+              )
+              .toList(),
+          onChanged: onCurrencyChanged,
+        ),
+      ),
+    ],
   );
 }
 
@@ -740,6 +916,8 @@ class _PortfolioSummary extends StatelessWidget {
             _SummaryValue(
               label: 'Gesamtgewinn',
               value: '${positive ? '+' : ''}${money(gain)}',
+              tooltip:
+                  'Aktueller theoretischer Gewinn oder Verlust der gehaltenen Aktien. Verkäufe und physische Werte sind nicht enthalten.',
               color: positive
                   ? Colors.green
                   : Theme.of(context).colorScheme.error,
@@ -763,15 +941,33 @@ class _PortfolioSummary extends StatelessWidget {
 }
 
 class _SummaryValue extends StatelessWidget {
-  const _SummaryValue({required this.label, required this.value, this.color});
+  const _SummaryValue({
+    required this.label,
+    required this.value,
+    this.color,
+    this.tooltip,
+  });
   final String label;
   final String value;
   final Color? color;
+  final String? tooltip;
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(label, style: Theme.of(context).textTheme.labelMedium),
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.labelMedium),
+          if (tooltip != null) ...[
+            const SizedBox(width: 4),
+            Tooltip(
+              message: tooltip!,
+              child: const Icon(Icons.info_outline_rounded, size: 16),
+            ),
+          ],
+        ],
+      ),
       Text(
         value,
         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -787,12 +983,12 @@ class _TaxAllowanceTile extends ConsumerWidget {
   const _TaxAllowanceTile({
     required this.preference,
     required this.summary,
-    required this.sales,
+    required this.events,
   });
 
   final UserPreference? preference;
   final PortfolioTaxSummary summary;
-  final List<PortfolioSale> sales;
+  final List<PortfolioTaxEvent> events;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -801,12 +997,7 @@ class _TaxAllowanceTile extends ConsumerWidget {
         1000;
     return InkWell(
       borderRadius: BorderRadius.circular(999),
-      onTap: () => _showTaxAllowanceInfo(
-        context,
-        summary,
-        sales,
-        preference?.currency ?? 'EUR',
-      ),
+      onTap: () => _showTaxAllowanceInfo(context, summary, events),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
@@ -843,19 +1034,17 @@ class _TaxAllowanceTile extends ConsumerWidget {
 Future<void> _showTaxAllowanceInfo(
   BuildContext context,
   PortfolioTaxSummary summary,
-  List<PortfolioSale> sales,
-  String baseCurrency,
+  List<PortfolioTaxEvent> events,
 ) async {
   var filter = 'Alle';
   final year = DateTime.now().year;
-  final yearSales = sales.where((sale) => sale.soldAt.year == year).toList();
   await showDialog<void>(
     context: context,
     builder: (dialogContext) => StatefulBuilder(
       builder: (context, setDialogState) {
-        final visible = yearSales.where((sale) {
-          if (filter == 'Ländersteuer') return sale.taxPaid > 0;
-          if (filter == 'Quellensteuer') return false;
+        final visible = events.where((event) {
+          if (filter == 'Ländersteuer') return event.domesticTax > 0;
+          if (filter == 'Quellensteuer') return event.withholdingTax > 0;
           return true;
         }).toList();
         return AlertDialog(
@@ -896,7 +1085,7 @@ Future<void> _showTaxAllowanceInfo(
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Steuerereignisse aus Verkäufen',
+                    'Steuerereignisse aus Verkäufen und Dividenden',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -928,29 +1117,28 @@ Future<void> _showTaxAllowanceInfo(
                       ),
                     )
                   else
-                    for (final sale in visible)
+                    for (final event in visible)
                       ListTile(
-                        onTap: () => _showSaleDetail(
-                          context,
-                          sale: sale,
-                          baseCurrency: baseCurrency,
-                        ),
                         contentPadding: EdgeInsets.zero,
                         leading: Icon(
-                          sale.assetKind == 'physical'
-                              ? Icons.diamond_outlined
-                              : Icons.show_chart_rounded,
+                          event.kind == 'dividend'
+                              ? Icons.payments_outlined
+                              : Icons.sell_outlined,
                         ),
-                        title: Text(sale.assetName),
+                        title: Text(
+                          '${event.title} · ${event.kind == 'dividend' ? 'Dividende' : 'Verkauf'}',
+                        ),
                         subtitle: Text(
-                          '${DateFormat('dd.MM.yyyy').format(sale.soldAt)} · '
-                          'Quellensteuer ${money(0)} · Ländersteuer ${money(sale.taxPaid)}',
+                          '${DateFormat('dd.MM.yyyy').format(event.date)} · '
+                          'Quellensteuer ${money(event.withholdingTax)} · '
+                          'Ländersteuer ${money(event.domesticTax)} · '
+                          'Freistellung ${money(event.allowanceUsed)}',
                         ),
                         trailing: Icon(
-                          sale.taxPaid > 0
+                          event.taxPaid > 0
                               ? Icons.receipt_long_outlined
                               : Icons.check_circle_outline_rounded,
-                          color: sale.taxPaid > 0
+                          color: event.taxPaid > 0
                               ? Colors.orange
                               : Colors.green,
                         ),
@@ -1844,6 +2032,16 @@ Future<void> showInvestmentEditor(
       ref.read(assetClassesProvider).valueOrNull ?? const <AssetClassesData>[];
   final defaultFee =
       ref.read(preferencesProvider).valueOrNull?.defaultInvestmentFee ?? 0;
+  final currencies = <String>{
+    ref.read(preferencesProvider).valueOrNull?.currency.toUpperCase() ?? 'EUR',
+    ...countryTaxRates.map((item) => item.currency.toUpperCase()),
+    ...stockMasters.expand(
+      (item) => [
+        item.currency.toUpperCase(),
+        item.dividendCurrency.toUpperCase(),
+      ],
+    ),
+  }.where((value) => value.trim().isNotEmpty).toList()..sort();
   final userIdForApi = ref.read(currentUserIdProvider);
   final marketApiKey = investment == null || userIdForApi == null
       ? null
@@ -1856,14 +2054,14 @@ Future<void> showInvestmentEditor(
             .read(secureSessionStoreProvider)
             .readExchangeApiKey(userIdForApi);
   if (!context.mounted) return;
-  final result = await showDialog<InvestmentsCompanion>(
+  final saved = await showDialog<({InvestmentsCompanion investment, bool buy})>(
     context: context,
     builder: (_) => _InvestmentEditor(
       investment: investment,
       masterData: masterData,
-      existingItems: existingItems,
       stockMasters: stockMasters,
       countryTaxRates: countryTaxRates,
+      currencies: currencies,
       assetTypes: assetTypes.map((item) => item.name).toList(),
       accountId: resolvedAccountId,
       defaultFee: defaultFee,
@@ -1871,7 +2069,8 @@ Future<void> showInvestmentEditor(
       hasExchangeApiKey: exchangeApiKey?.trim().isNotEmpty ?? false,
     ),
   );
-  if (result != null) {
+  if (saved != null) {
+    final result = saved.investment;
     final database = ref.read(databaseProvider);
     final userId = ref.read(currentUserIdProvider);
     if (userId != null) {
@@ -1953,6 +2152,7 @@ Future<void> showInvestmentEditor(
             purchasePrice: result.purchasePrice.value,
             quantity: result.quantity.value,
             fees: result.fees,
+            cashApplied: Value(saved.buy),
             createdAt: DateTime.now().toUtc(),
           ),
         );
@@ -1965,6 +2165,16 @@ Future<void> showInvestmentEditor(
           exchangeRate: result.dividendExchangeRate.value,
           withholdingTaxRate: result.dividendWithholdingTaxRate.value,
         );
+        if (saved.buy) {
+          await database.applyPortfolioPurchaseToCash(
+            userId: userId,
+            accountId: result.accountId.value,
+            amount:
+                result.purchasePrice.value * result.quantity.value +
+                result.fees.value,
+            purchasedAt: result.purchaseDate.value,
+          );
+        }
       }
       for (final item in {
         'broker': result.broker.value,
@@ -2028,9 +2238,9 @@ Future<void> _importCachedDividendHistory({
 class _InvestmentEditor extends StatefulWidget {
   const _InvestmentEditor({
     required this.masterData,
-    required this.existingItems,
     required this.stockMasters,
     required this.countryTaxRates,
+    required this.currencies,
     required this.assetTypes,
     required this.accountId,
     required this.defaultFee,
@@ -2040,9 +2250,9 @@ class _InvestmentEditor extends StatefulWidget {
   });
   final Investment? investment;
   final List<MasterDataData> masterData;
-  final List<Investment> existingItems;
   final List<StockMaster> stockMasters;
   final List<CountryTaxRate> countryTaxRates;
+  final List<String> currencies;
   final List<String> assetTypes;
   final String accountId;
   final double defaultFee;
@@ -2090,7 +2300,6 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
   late String _frequency = widget.investment?.dividendFrequency ?? 'jährlich';
   late int _startMonth = widget.investment?.dividendStartMonth ?? 1;
   late DateTime _date = widget.investment?.purchaseDate ?? DateTime.now();
-  String? _selectedExistingId;
   late String? _selectedStockId = widget.investment?.stockId;
 
   @override
@@ -2122,11 +2331,14 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
   Widget build(BuildContext context) {
     return AlertDialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      actionsPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      buttonPadding: const EdgeInsets.symmetric(horizontal: 2),
       title: Text(
         widget.investment == null ? 'Position anlegen' : 'Position bearbeiten',
       ),
       content: SizedBox(
         width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 650.0),
+        height: (MediaQuery.sizeOf(context).height - 320).clamp(240.0, 680.0),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -2165,32 +2377,6 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                         'Ein Administrator muss zuerst eine Aktie im zentralen Katalog anlegen.',
                       ),
                     ),
-                  const SizedBox(height: 12),
-                ],
-                if (widget.investment == null &&
-                    widget.existingItems.isNotEmpty) ...[
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedExistingId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText:
-                          'Zu bestehender Position hinzufügen (optional)',
-                      prefixIcon: Icon(Icons.playlist_add_rounded),
-                    ),
-                    items: widget.existingItems
-                        .map(
-                          (item) => DropdownMenuItem(
-                            value: item.id,
-                            child: Text(
-                              item.name +
-                                  (item.isin.isEmpty ? '' : ' · ' + item.isin),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: _selectExisting,
-                  ),
                   const SizedBox(height: 12),
                 ],
                 _responsiveFields([
@@ -2261,7 +2447,6 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                     decoration: InputDecoration(
                       labelText: 'Dividende je Stück/Ausschüttung',
                       suffixIcon: PopupMenuButton<String>(
-                        enabled: !_exchangeLocked,
                         tooltip: 'Währung auswählen',
                         icon: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -2270,26 +2455,15 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                             const Icon(Icons.arrow_drop_down_rounded),
                           ],
                         ),
-                        onSelected: (value) =>
-                            setState(() => _dividendCurrency.text = value),
-                        itemBuilder: (context) =>
-                            {
-                                  'EUR',
-                                  'USD',
-                                  'CHF',
-                                  'GBP',
-                                  'JPY',
-                                  ...widget.countryTaxRates.map(
-                                    (item) => item.currency.toUpperCase(),
-                                  ),
-                                }
-                                .map(
-                                  (value) => PopupMenuItem(
-                                    value: value,
-                                    child: Text(value),
-                                  ),
-                                )
-                                .toList(),
+                        onSelected: _selectDividendCurrency,
+                        itemBuilder: (context) => widget.currencies
+                            .map(
+                              (value) => PopupMenuItem(
+                                value: value,
+                                child: Text(value),
+                              ),
+                            )
+                            .toList(),
                       ),
                     ),
                     validator: (value) =>
@@ -2360,7 +2534,20 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Abbrechen'),
         ),
-        FilledButton(onPressed: _save, child: const Text('Speichern')),
+        if (widget.investment == null) ...[
+          OutlinedButton(
+            onPressed: () => _save(buy: false),
+            child: const Text('Speichern'),
+          ),
+          FilledButton(
+            onPressed: () => _save(buy: true),
+            child: const Text('Kaufen'),
+          ),
+        ] else
+          FilledButton(
+            onPressed: () => _save(buy: false),
+            child: const Text('Speichern'),
+          ),
       ],
     );
   }
@@ -2508,33 +2695,6 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     ),
   );
 
-  void _selectExisting(String? id) {
-    if (id == null) return;
-    final item = widget.existingItems.firstWhere((item) => item.id == id);
-    setState(() {
-      _selectedExistingId = id;
-      _name.text = item.name;
-      _symbol.text = item.symbol;
-      _isin.text = item.isin;
-      _wkn.text = item.wkn;
-      _broker.text = item.broker;
-      _country.text = item.country;
-      _sector.text = item.sector;
-      _currentPrice.text = item.currentPrice.toString();
-      _dividend.text = item.annualDividend.toString();
-      _dividendCurrency.text = item.dividendCurrency;
-      _dividendExchangeRate.text = item.dividendExchangeRate.toString();
-      _dividendWithholdingTax.text = item.dividendWithholdingTaxRate.toString();
-      _notes.text = item.notes;
-      _type = item.assetType;
-      _frequency = item.dividendFrequency;
-      _startMonth = item.dividendStartMonth;
-      _purchasePrice.clear();
-      _quantity.clear();
-      _fees.text = '0';
-    });
-  }
-
   void _selectStock(String? id) {
     if (id == null) return;
     final stock = widget.stockMasters.firstWhere((item) => item.id == id);
@@ -2572,8 +2732,18 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
   double? _number(String? value) =>
       double.tryParse((value ?? '').replaceAll(',', '.'));
 
-  bool get _exchangeLocked {
-    return true;
+  bool get _exchangeLocked => widget.hasExchangeApiKey;
+
+  void _selectDividendCurrency(String value) {
+    final rate = widget.countryTaxRates
+        .where((item) => item.currency.toUpperCase() == value.toUpperCase())
+        .firstOrNull;
+    setState(() {
+      _dividendCurrency.text = value.toUpperCase();
+      if (rate != null) {
+        _dividendExchangeRate.text = rate.exchangeRate.toString();
+      }
+    });
   }
 
   void _countryChanged(String value) {
@@ -2605,7 +2775,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     if (selected != null) setState(() => _date = selected);
   }
 
-  void _save() {
+  void _save({required bool buy}) {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final userId = ProviderScope.containerOf(
       context,
@@ -2613,9 +2783,8 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     ).read(currentUserIdProvider);
     if (userId == null) return;
     final now = DateTime.now().toUtc();
-    Navigator.pop(
-      context,
-      InvestmentsCompanion.insert(
+    Navigator.pop(context, (
+      investment: InvestmentsCompanion.insert(
         id: widget.investment?.id ?? const Uuid().v4(),
         userId: userId,
         stockId: Value(_selectedStockId),
@@ -2645,7 +2814,8 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
         createdAt: widget.investment?.createdAt ?? now,
         updatedAt: now,
       ),
-    );
+      buy: buy,
+    ));
   }
 
   bool _isUnitedStates(String country) {

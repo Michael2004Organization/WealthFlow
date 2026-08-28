@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/finance/account_balance_math.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -21,6 +22,19 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   @override
   Widget build(BuildContext context) {
     final accounts = ref.watch(accountsProvider);
+    final histories =
+        ref.watch(accountBalanceHistoriesProvider).valueOrNull ??
+        const <AccountBalanceHistory>[];
+    final entries =
+        ref.watch(ledgerEntriesProvider).valueOrNull ?? const <LedgerEntry>[];
+    final investments =
+        ref.watch(allInvestmentsProvider).valueOrNull ?? const <Investment>[];
+    final purchases =
+        ref.watch(investmentPurchasesProvider).valueOrNull ??
+        const <InvestmentPurchase>[];
+    final sales =
+        ref.watch(portfolioSalesProvider).valueOrNull ??
+        const <PortfolioSale>[];
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -61,7 +75,17 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                     }
                     final total = items.fold<double>(
                       0,
-                      (sum, item) => sum + item.balance,
+                      (sum, item) =>
+                          sum +
+                          accountBalanceAt(
+                            account: item,
+                            date: DateTime.now(),
+                            histories: histories,
+                            entries: entries,
+                            investments: investments,
+                            purchases: purchases,
+                            sales: sales,
+                          ),
                     );
                     final sorted = _sortedAccounts(items);
                     return ListView(
@@ -233,6 +257,26 @@ class _AccountCard extends ConsumerWidget {
     final color = Theme.of(context).colorScheme;
     final entries =
         ref.watch(ledgerEntriesProvider).valueOrNull ?? const <LedgerEntry>[];
+    final histories =
+        ref.watch(accountBalanceHistoriesProvider).valueOrNull ??
+        const <AccountBalanceHistory>[];
+    final investments =
+        ref.watch(allInvestmentsProvider).valueOrNull ?? const <Investment>[];
+    final purchases =
+        ref.watch(investmentPurchasesProvider).valueOrNull ??
+        const <InvestmentPurchase>[];
+    final sales =
+        ref.watch(portfolioSalesProvider).valueOrNull ??
+        const <PortfolioSale>[];
+    final currentBalance = accountBalanceAt(
+      account: account,
+      date: DateTime.now(),
+      histories: histories,
+      entries: entries,
+      investments: investments,
+      purchases: purchases,
+      sales: sales,
+    );
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
@@ -295,6 +339,8 @@ class _AccountCard extends ConsumerWidget {
                         onMoveDown?.call();
                       } else if (value == 'edit') {
                         await showAccountEditor(context, ref, account: account);
+                      } else if (value == 'history') {
+                        await _showBalanceHistory(context, ref, account);
                       } else if (value == 'delete' &&
                           await confirmDelete(
                             context,
@@ -331,6 +377,10 @@ class _AccountCard extends ConsumerWidget {
                         child: Text('Bearbeiten'),
                       ),
                       const PopupMenuItem(
+                        value: 'history',
+                        child: Text('Kontostand-Historie'),
+                      ),
+                      const PopupMenuItem(
                         value: 'delete',
                         child: Text('Löschen'),
                       ),
@@ -340,7 +390,7 @@ class _AccountCard extends ConsumerWidget {
               ),
               const SizedBox(height: 22),
               Text(
-                money(account.balance, currency: account.currency),
+                money(currentBalance, currency: account.currency),
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
@@ -555,16 +605,197 @@ const _accountMonthNames = [
   'Dezember',
 ];
 
+Future<void> _showBalanceHistory(
+  BuildContext context,
+  WidgetRef ref,
+  Account account,
+) => showDialog<void>(
+  context: context,
+  builder: (dialogContext) => AlertDialog(
+    title: Text('${account.label} · Kontostand-Historie'),
+    content: SizedBox(
+      width: (MediaQuery.sizeOf(context).width - 64).clamp(280, 620),
+      height: (MediaQuery.sizeOf(context).height - 240).clamp(260, 560),
+      child: Consumer(
+        builder: (context, dialogRef, _) {
+          final histories = <AccountBalanceHistory>[
+            ...?dialogRef
+                .watch(accountBalanceHistoriesProvider)
+                .valueOrNull
+                ?.where((row) => row.accountId == account.id),
+          ];
+          histories.sort((a, b) => b.effectiveAt.compareTo(a.effectiveAt));
+          if (histories.isEmpty) {
+            return const Center(
+              child: Text('Noch keine datierten Kontostände vorhanden.'),
+            );
+          }
+          return ListView.separated(
+            itemCount: histories.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final row = histories[index];
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.history_rounded),
+                title: Text(
+                  money(row.balance, currency: account.currency),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: Text(
+                  'Gültig ab ${DateFormat('dd.MM.yyyy').format(row.effectiveAt)} · '
+                  '${money(row.availableBalance, currency: account.currency)} verfügbar',
+                ),
+                trailing: IconButton(
+                  tooltip: 'Historienwert löschen',
+                  onPressed: () async {
+                    final userId = dialogRef.read(currentUserIdProvider);
+                    if (userId != null) {
+                      await dialogRef
+                          .read(databaseProvider)
+                          .deleteAccountBalanceHistory(row.id, userId);
+                    }
+                  },
+                  icon: const Icon(Icons.delete_outline_rounded),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(dialogContext),
+        child: const Text('Schließen'),
+      ),
+      FilledButton.icon(
+        onPressed: () => _addBalanceHistoryPoint(dialogContext, ref, account),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Kontostand'),
+      ),
+    ],
+  ),
+);
+
+Future<void> _addBalanceHistoryPoint(
+  BuildContext context,
+  WidgetRef ref,
+  Account account,
+) async {
+  final balance = TextEditingController(
+    text: account.balance.toStringAsFixed(2),
+  );
+  final available = TextEditingController(
+    text: account.availableBalance.toStringAsFixed(2),
+  );
+  final key = GlobalKey<FormState>();
+  var effectiveAt = DateTime.now();
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: const Text('Datierten Kontostand hinzufügen'),
+        content: Form(
+          key: key,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: balance,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                decoration: const InputDecoration(labelText: 'Kontostand'),
+                validator: (value) => _parseAccountNumber(value) == null
+                    ? 'Ungültige Zahl'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: available,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                decoration: const InputDecoration(labelText: 'Verfügbar'),
+                validator: (value) => _parseAccountNumber(value) == null
+                    ? 'Ungültige Zahl'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: effectiveAt,
+                    firstDate: DateTime(1950),
+                    lastDate: DateTime(2100),
+                  );
+                  if (date != null) {
+                    setDialogState(() => effectiveAt = date);
+                  }
+                },
+                icon: const Icon(Icons.event_rounded),
+                label: Text(DateFormat('dd.MM.yyyy').format(effectiveAt)),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (key.currentState?.validate() ?? false) {
+                Navigator.pop(dialogContext, true);
+              }
+            },
+            child: const Text('Speichern'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (saved == true) {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId != null) {
+      await ref
+          .read(databaseProvider)
+          .saveAccountBalanceHistory(
+            userId: userId,
+            accountId: account.id,
+            effectiveAt: effectiveAt,
+            balance: _parseAccountNumber(balance.text)!,
+            availableBalance: _parseAccountNumber(available.text)!,
+          );
+    }
+  }
+  balance.dispose();
+  available.dispose();
+}
+
+double? _parseAccountNumber(String? value) =>
+    double.tryParse((value ?? '').trim().replaceAll(',', '.'));
+
 Future<void> showAccountEditor(
   BuildContext context,
   WidgetRef ref, {
   Account? account,
 }) async {
-  final result = await showDialog<AccountsCompanion>(
-    context: context,
-    builder: (_) => _AccountEditor(account: account),
-  );
-  if (result != null) await ref.read(databaseProvider).saveAccount(result);
+  final result =
+      await showDialog<({AccountsCompanion account, DateTime effectiveAt})>(
+        context: context,
+        builder: (_) => _AccountEditor(account: account),
+      );
+  if (result != null) {
+    await ref
+        .read(databaseProvider)
+        .saveAccount(result.account, balanceEffectiveAt: result.effectiveAt);
+  }
 }
 
 class _AccountEditor extends StatefulWidget {
@@ -606,6 +837,7 @@ class _AccountEditorState extends State<_AccountEditor> {
   );
   late String _currency = widget.account?.currency ?? 'EUR';
   late String _usageType = widget.account?.usageType ?? 'unassigned';
+  DateTime _validFrom = DateTime.now();
 
   @override
   void dispose() {
@@ -695,6 +927,17 @@ class _AccountEditorState extends State<_AccountEditor> {
                   ),
                 ]),
                 const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: _pickValidFrom,
+                    icon: const Icon(Icons.event_rounded),
+                    label: Text(
+                      'Kontostand gültig ab ${DateFormat('dd.MM.yyyy').format(_validFrom)}',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 _field(_notes, 'Notizen', lines: 3),
               ],
             ),
@@ -758,15 +1001,24 @@ class _AccountEditorState extends State<_AccountEditor> {
   double? _parse(String? value) =>
       double.tryParse((value ?? '').trim().replaceAll(',', '.'));
 
+  Future<void> _pickValidFrom() async {
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _validFrom,
+      firstDate: DateTime(1950),
+      lastDate: DateTime(2100),
+    );
+    if (selected != null) setState(() => _validFrom = selected);
+  }
+
   void _save() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final container = ProviderScope.containerOf(context, listen: false);
     final userId = container.read(currentUserIdProvider);
     if (userId == null) return;
     final now = DateTime.now().toUtc();
-    Navigator.pop(
-      context,
-      AccountsCompanion.insert(
+    Navigator.pop(context, (
+      account: AccountsCompanion.insert(
         id: widget.account?.id ?? const Uuid().v4(),
         userId: userId,
         bankName: _bank.text.trim(),
@@ -783,6 +1035,7 @@ class _AccountEditorState extends State<_AccountEditor> {
         createdAt: widget.account?.createdAt ?? now,
         updatedAt: now,
       ),
-    );
+      effectiveAt: _validFrom,
+    ));
   }
 }

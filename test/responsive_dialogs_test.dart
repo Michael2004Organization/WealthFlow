@@ -46,6 +46,21 @@ void main() {
       const AccountsPage(),
       overrides: [
         accountsProvider.overrideWith((_) => Stream.value(const <Account>[])),
+        accountBalanceHistoriesProvider.overrideWith(
+          (_) => Stream.value(const <AccountBalanceHistory>[]),
+        ),
+        ledgerEntriesProvider.overrideWith(
+          (_) => Stream.value(const <LedgerEntry>[]),
+        ),
+        allInvestmentsProvider.overrideWith(
+          (_) => Stream.value(const <Investment>[]),
+        ),
+        investmentPurchasesProvider.overrideWith(
+          (_) => Stream.value(const <InvestmentPurchase>[]),
+        ),
+        portfolioSalesProvider.overrideWith(
+          (_) => Stream.value(const <PortfolioSale>[]),
+        ),
       ],
     );
 
@@ -133,6 +148,9 @@ void main() {
         ),
         isAdminProvider.overrideWithValue(false),
         accountsProvider.overrideWith((_) => Stream.value([account])),
+        accountBalanceHistoriesProvider.overrideWith(
+          (_) => Stream.value(const <AccountBalanceHistory>[]),
+        ),
         ledgerEntriesProvider.overrideWith(
           (_) => Stream.value(const <LedgerEntry>[]),
         ),
@@ -212,11 +230,20 @@ void main() {
       const HouseholdPage(),
       overrides: [
         accountsProvider.overrideWith((_) => Stream.value([account])),
+        accountBalanceHistoriesProvider.overrideWith(
+          (_) => Stream.value(const <AccountBalanceHistory>[]),
+        ),
         ledgerEntriesProvider.overrideWith(
           (_) => Stream.value(const <LedgerEntry>[]),
         ),
-        investmentsProvider.overrideWith(
+        allInvestmentsProvider.overrideWith(
           (_) => Stream.value(const <Investment>[]),
+        ),
+        investmentPurchasesProvider.overrideWith(
+          (_) => Stream.value(const <InvestmentPurchase>[]),
+        ),
+        portfolioSalesProvider.overrideWith(
+          (_) => Stream.value(const <PortfolioSale>[]),
         ),
         physicalAssetsProvider.overrideWith(
           (_) => Stream.value(const <PhysicalAsset>[]),

@@ -1510,6 +1510,537 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   }
 }
 
+class $AccountBalanceHistoriesTable extends AccountBalanceHistories
+    with TableInfo<$AccountBalanceHistoriesTable, AccountBalanceHistory> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AccountBalanceHistoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES users (id)',
+    ),
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES accounts (id)',
+    ),
+  );
+  static const VerificationMeta _effectiveAtMeta = const VerificationMeta(
+    'effectiveAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> effectiveAt = GeneratedColumn<DateTime>(
+    'effective_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _balanceMeta = const VerificationMeta(
+    'balance',
+  );
+  @override
+  late final GeneratedColumn<double> balance = GeneratedColumn<double>(
+    'balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _availableBalanceMeta = const VerificationMeta(
+    'availableBalance',
+  );
+  @override
+  late final GeneratedColumn<double> availableBalance = GeneratedColumn<double>(
+    'available_balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    accountId,
+    effectiveAt,
+    balance,
+    availableBalance,
+    createdAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'account_balance_histories';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AccountBalanceHistory> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('effective_at')) {
+      context.handle(
+        _effectiveAtMeta,
+        effectiveAt.isAcceptableOrUnknown(
+          data['effective_at']!,
+          _effectiveAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_effectiveAtMeta);
+    }
+    if (data.containsKey('balance')) {
+      context.handle(
+        _balanceMeta,
+        balance.isAcceptableOrUnknown(data['balance']!, _balanceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_balanceMeta);
+    }
+    if (data.containsKey('available_balance')) {
+      context.handle(
+        _availableBalanceMeta,
+        availableBalance.isAcceptableOrUnknown(
+          data['available_balance']!,
+          _availableBalanceMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_availableBalanceMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AccountBalanceHistory map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AccountBalanceHistory(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      )!,
+      effectiveAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}effective_at'],
+      )!,
+      balance: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}balance'],
+      )!,
+      availableBalance: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}available_balance'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $AccountBalanceHistoriesTable createAlias(String alias) {
+    return $AccountBalanceHistoriesTable(attachedDatabase, alias);
+  }
+}
+
+class AccountBalanceHistory extends DataClass
+    implements Insertable<AccountBalanceHistory> {
+  final String id;
+  final String userId;
+  final String accountId;
+  final DateTime effectiveAt;
+  final double balance;
+  final double availableBalance;
+  final DateTime createdAt;
+  final DateTime? deletedAt;
+  const AccountBalanceHistory({
+    required this.id,
+    required this.userId,
+    required this.accountId,
+    required this.effectiveAt,
+    required this.balance,
+    required this.availableBalance,
+    required this.createdAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['account_id'] = Variable<String>(accountId);
+    map['effective_at'] = Variable<DateTime>(effectiveAt);
+    map['balance'] = Variable<double>(balance);
+    map['available_balance'] = Variable<double>(availableBalance);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  AccountBalanceHistoriesCompanion toCompanion(bool nullToAbsent) {
+    return AccountBalanceHistoriesCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      accountId: Value(accountId),
+      effectiveAt: Value(effectiveAt),
+      balance: Value(balance),
+      availableBalance: Value(availableBalance),
+      createdAt: Value(createdAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory AccountBalanceHistory.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AccountBalanceHistory(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      accountId: serializer.fromJson<String>(json['accountId']),
+      effectiveAt: serializer.fromJson<DateTime>(json['effectiveAt']),
+      balance: serializer.fromJson<double>(json['balance']),
+      availableBalance: serializer.fromJson<double>(json['availableBalance']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'accountId': serializer.toJson<String>(accountId),
+      'effectiveAt': serializer.toJson<DateTime>(effectiveAt),
+      'balance': serializer.toJson<double>(balance),
+      'availableBalance': serializer.toJson<double>(availableBalance),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  AccountBalanceHistory copyWith({
+    String? id,
+    String? userId,
+    String? accountId,
+    DateTime? effectiveAt,
+    double? balance,
+    double? availableBalance,
+    DateTime? createdAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => AccountBalanceHistory(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    accountId: accountId ?? this.accountId,
+    effectiveAt: effectiveAt ?? this.effectiveAt,
+    balance: balance ?? this.balance,
+    availableBalance: availableBalance ?? this.availableBalance,
+    createdAt: createdAt ?? this.createdAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  AccountBalanceHistory copyWithCompanion(
+    AccountBalanceHistoriesCompanion data,
+  ) {
+    return AccountBalanceHistory(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      effectiveAt: data.effectiveAt.present
+          ? data.effectiveAt.value
+          : this.effectiveAt,
+      balance: data.balance.present ? data.balance.value : this.balance,
+      availableBalance: data.availableBalance.present
+          ? data.availableBalance.value
+          : this.availableBalance,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AccountBalanceHistory(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('accountId: $accountId, ')
+          ..write('effectiveAt: $effectiveAt, ')
+          ..write('balance: $balance, ')
+          ..write('availableBalance: $availableBalance, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    accountId,
+    effectiveAt,
+    balance,
+    availableBalance,
+    createdAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AccountBalanceHistory &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.accountId == this.accountId &&
+          other.effectiveAt == this.effectiveAt &&
+          other.balance == this.balance &&
+          other.availableBalance == this.availableBalance &&
+          other.createdAt == this.createdAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class AccountBalanceHistoriesCompanion
+    extends UpdateCompanion<AccountBalanceHistory> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> accountId;
+  final Value<DateTime> effectiveAt;
+  final Value<double> balance;
+  final Value<double> availableBalance;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const AccountBalanceHistoriesCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.effectiveAt = const Value.absent(),
+    this.balance = const Value.absent(),
+    this.availableBalance = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AccountBalanceHistoriesCompanion.insert({
+    required String id,
+    required String userId,
+    required String accountId,
+    required DateTime effectiveAt,
+    required double balance,
+    required double availableBalance,
+    required DateTime createdAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       accountId = Value(accountId),
+       effectiveAt = Value(effectiveAt),
+       balance = Value(balance),
+       availableBalance = Value(availableBalance),
+       createdAt = Value(createdAt);
+  static Insertable<AccountBalanceHistory> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? accountId,
+    Expression<DateTime>? effectiveAt,
+    Expression<double>? balance,
+    Expression<double>? availableBalance,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (accountId != null) 'account_id': accountId,
+      if (effectiveAt != null) 'effective_at': effectiveAt,
+      if (balance != null) 'balance': balance,
+      if (availableBalance != null) 'available_balance': availableBalance,
+      if (createdAt != null) 'created_at': createdAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AccountBalanceHistoriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? accountId,
+    Value<DateTime>? effectiveAt,
+    Value<double>? balance,
+    Value<double>? availableBalance,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return AccountBalanceHistoriesCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      accountId: accountId ?? this.accountId,
+      effectiveAt: effectiveAt ?? this.effectiveAt,
+      balance: balance ?? this.balance,
+      availableBalance: availableBalance ?? this.availableBalance,
+      createdAt: createdAt ?? this.createdAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (effectiveAt.present) {
+      map['effective_at'] = Variable<DateTime>(effectiveAt.value);
+    }
+    if (balance.present) {
+      map['balance'] = Variable<double>(balance.value);
+    }
+    if (availableBalance.present) {
+      map['available_balance'] = Variable<double>(availableBalance.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AccountBalanceHistoriesCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('accountId: $accountId, ')
+          ..write('effectiveAt: $effectiveAt, ')
+          ..write('balance: $balance, ')
+          ..write('availableBalance: $availableBalance, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $InvestmentsTable extends Investments
     with TableInfo<$InvestmentsTable, Investment> {
   @override
@@ -3037,6 +3568,21 @@ class $InvestmentPurchasesTable extends InvestmentPurchases
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _cashAppliedMeta = const VerificationMeta(
+    'cashApplied',
+  );
+  @override
+  late final GeneratedColumn<bool> cashApplied = GeneratedColumn<bool>(
+    'cash_applied',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("cash_applied" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -3079,6 +3625,7 @@ class $InvestmentPurchasesTable extends InvestmentPurchases
     purchasePrice,
     quantity,
     fees,
+    cashApplied,
     createdAt,
     updatedAt,
     deletedAt,
@@ -3155,6 +3702,15 @@ class $InvestmentPurchasesTable extends InvestmentPurchases
         fees.isAcceptableOrUnknown(data['fees']!, _feesMeta),
       );
     }
+    if (data.containsKey('cash_applied')) {
+      context.handle(
+        _cashAppliedMeta,
+        cashApplied.isAcceptableOrUnknown(
+          data['cash_applied']!,
+          _cashAppliedMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -3212,6 +3768,10 @@ class $InvestmentPurchasesTable extends InvestmentPurchases
         DriftSqlType.double,
         data['${effectivePrefix}fees'],
       )!,
+      cashApplied: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}cash_applied'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -3242,6 +3802,7 @@ class InvestmentPurchase extends DataClass
   final double purchasePrice;
   final double quantity;
   final double fees;
+  final bool cashApplied;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -3253,6 +3814,7 @@ class InvestmentPurchase extends DataClass
     required this.purchasePrice,
     required this.quantity,
     required this.fees,
+    required this.cashApplied,
     required this.createdAt,
     this.updatedAt,
     this.deletedAt,
@@ -3267,6 +3829,7 @@ class InvestmentPurchase extends DataClass
     map['purchase_price'] = Variable<double>(purchasePrice);
     map['quantity'] = Variable<double>(quantity);
     map['fees'] = Variable<double>(fees);
+    map['cash_applied'] = Variable<bool>(cashApplied);
     map['created_at'] = Variable<DateTime>(createdAt);
     if (!nullToAbsent || updatedAt != null) {
       map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -3286,6 +3849,7 @@ class InvestmentPurchase extends DataClass
       purchasePrice: Value(purchasePrice),
       quantity: Value(quantity),
       fees: Value(fees),
+      cashApplied: Value(cashApplied),
       createdAt: Value(createdAt),
       updatedAt: updatedAt == null && nullToAbsent
           ? const Value.absent()
@@ -3309,6 +3873,7 @@ class InvestmentPurchase extends DataClass
       purchasePrice: serializer.fromJson<double>(json['purchasePrice']),
       quantity: serializer.fromJson<double>(json['quantity']),
       fees: serializer.fromJson<double>(json['fees']),
+      cashApplied: serializer.fromJson<bool>(json['cashApplied']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -3325,6 +3890,7 @@ class InvestmentPurchase extends DataClass
       'purchasePrice': serializer.toJson<double>(purchasePrice),
       'quantity': serializer.toJson<double>(quantity),
       'fees': serializer.toJson<double>(fees),
+      'cashApplied': serializer.toJson<bool>(cashApplied),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -3339,6 +3905,7 @@ class InvestmentPurchase extends DataClass
     double? purchasePrice,
     double? quantity,
     double? fees,
+    bool? cashApplied,
     DateTime? createdAt,
     Value<DateTime?> updatedAt = const Value.absent(),
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -3350,6 +3917,7 @@ class InvestmentPurchase extends DataClass
     purchasePrice: purchasePrice ?? this.purchasePrice,
     quantity: quantity ?? this.quantity,
     fees: fees ?? this.fees,
+    cashApplied: cashApplied ?? this.cashApplied,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -3369,6 +3937,9 @@ class InvestmentPurchase extends DataClass
           : this.purchasePrice,
       quantity: data.quantity.present ? data.quantity.value : this.quantity,
       fees: data.fees.present ? data.fees.value : this.fees,
+      cashApplied: data.cashApplied.present
+          ? data.cashApplied.value
+          : this.cashApplied,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -3385,6 +3956,7 @@ class InvestmentPurchase extends DataClass
           ..write('purchasePrice: $purchasePrice, ')
           ..write('quantity: $quantity, ')
           ..write('fees: $fees, ')
+          ..write('cashApplied: $cashApplied, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -3401,6 +3973,7 @@ class InvestmentPurchase extends DataClass
     purchasePrice,
     quantity,
     fees,
+    cashApplied,
     createdAt,
     updatedAt,
     deletedAt,
@@ -3416,6 +3989,7 @@ class InvestmentPurchase extends DataClass
           other.purchasePrice == this.purchasePrice &&
           other.quantity == this.quantity &&
           other.fees == this.fees &&
+          other.cashApplied == this.cashApplied &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -3429,6 +4003,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
   final Value<double> purchasePrice;
   final Value<double> quantity;
   final Value<double> fees;
+  final Value<bool> cashApplied;
   final Value<DateTime> createdAt;
   final Value<DateTime?> updatedAt;
   final Value<DateTime?> deletedAt;
@@ -3441,6 +4016,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
     this.purchasePrice = const Value.absent(),
     this.quantity = const Value.absent(),
     this.fees = const Value.absent(),
+    this.cashApplied = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -3454,6 +4030,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
     required double purchasePrice,
     required double quantity,
     this.fees = const Value.absent(),
+    this.cashApplied = const Value.absent(),
     required DateTime createdAt,
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -3473,6 +4050,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
     Expression<double>? purchasePrice,
     Expression<double>? quantity,
     Expression<double>? fees,
+    Expression<bool>? cashApplied,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
@@ -3486,6 +4064,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
       if (purchasePrice != null) 'purchase_price': purchasePrice,
       if (quantity != null) 'quantity': quantity,
       if (fees != null) 'fees': fees,
+      if (cashApplied != null) 'cash_applied': cashApplied,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -3501,6 +4080,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
     Value<double>? purchasePrice,
     Value<double>? quantity,
     Value<double>? fees,
+    Value<bool>? cashApplied,
     Value<DateTime>? createdAt,
     Value<DateTime?>? updatedAt,
     Value<DateTime?>? deletedAt,
@@ -3514,6 +4094,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
       purchasePrice: purchasePrice ?? this.purchasePrice,
       quantity: quantity ?? this.quantity,
       fees: fees ?? this.fees,
+      cashApplied: cashApplied ?? this.cashApplied,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -3545,6 +4126,9 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
     if (fees.present) {
       map['fees'] = Variable<double>(fees.value);
     }
+    if (cashApplied.present) {
+      map['cash_applied'] = Variable<bool>(cashApplied.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3570,6 +4154,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
           ..write('purchasePrice: $purchasePrice, ')
           ..write('quantity: $quantity, ')
           ..write('fees: $fees, ')
+          ..write('cashApplied: $cashApplied, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -16019,6 +16604,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $UsersTable users = $UsersTable(this);
   late final $AccountsTable accounts = $AccountsTable(this);
+  late final $AccountBalanceHistoriesTable accountBalanceHistories =
+      $AccountBalanceHistoriesTable(this);
   late final $InvestmentsTable investments = $InvestmentsTable(this);
   late final $InvestmentPurchasesTable investmentPurchases =
       $InvestmentPurchasesTable(this);
@@ -16058,6 +16645,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     users,
     accounts,
+    accountBalanceHistories,
     investments,
     investmentPurchases,
     dividendSchedules,
@@ -16128,6 +16716,31 @@ final class $$UsersTableReferences
     ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_accountsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $AccountBalanceHistoriesTable,
+    List<AccountBalanceHistory>
+  >
+  _accountBalanceHistoriesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.accountBalanceHistories,
+        aliasName: 'users__id__account_balance_histories__user_id',
+      );
+
+  $$AccountBalanceHistoriesTableProcessedTableManager
+  get accountBalanceHistoriesRefs {
+    final manager = $$AccountBalanceHistoriesTableTableManager(
+      $_db,
+      $_db.accountBalanceHistories,
+    ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _accountBalanceHistoriesRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -16461,6 +17074,32 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> accountBalanceHistoriesRefs(
+    Expression<bool> Function($$AccountBalanceHistoriesTableFilterComposer f) f,
+  ) {
+    final $$AccountBalanceHistoriesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.accountBalanceHistories,
+          getReferencedColumn: (t) => t.userId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$AccountBalanceHistoriesTableFilterComposer(
+                $db: $db,
+                $table: $db.accountBalanceHistories,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 
@@ -16914,6 +17553,33 @@ class $$UsersTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> accountBalanceHistoriesRefs<T extends Object>(
+    Expression<T> Function($$AccountBalanceHistoriesTableAnnotationComposer a)
+    f,
+  ) {
+    final $$AccountBalanceHistoriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.accountBalanceHistories,
+          getReferencedColumn: (t) => t.userId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$AccountBalanceHistoriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.accountBalanceHistories,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
   Expression<T> investmentsRefs<T extends Object>(
     Expression<T> Function($$InvestmentsTableAnnotationComposer a) f,
   ) {
@@ -17259,6 +17925,7 @@ class $$UsersTableTableManager
           User,
           PrefetchHooks Function({
             bool accountsRefs,
+            bool accountBalanceHistoriesRefs,
             bool investmentsRefs,
             bool investmentPurchasesRefs,
             bool dividendSchedulesRefs,
@@ -17342,6 +18009,7 @@ class $$UsersTableTableManager
           prefetchHooksCallback:
               ({
                 accountsRefs = false,
+                accountBalanceHistoriesRefs = false,
                 investmentsRefs = false,
                 investmentPurchasesRefs = false,
                 dividendSchedulesRefs = false,
@@ -17360,6 +18028,7 @@ class $$UsersTableTableManager
                   db: db,
                   explicitlyWatchedTables: [
                     if (accountsRefs) db.accounts,
+                    if (accountBalanceHistoriesRefs) db.accountBalanceHistories,
                     if (investmentsRefs) db.investments,
                     if (investmentPurchasesRefs) db.investmentPurchases,
                     if (dividendSchedulesRefs) db.dividendSchedules,
@@ -17388,6 +18057,27 @@ class $$UsersTableTableManager
                                 table,
                                 p0,
                               ).accountsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (accountBalanceHistoriesRefs)
+                        await $_getPrefetchedData<
+                          User,
+                          $UsersTable,
+                          AccountBalanceHistory
+                        >(
+                          currentTable: table,
+                          referencedTable: $$UsersTableReferences
+                              ._accountBalanceHistoriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$UsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).accountBalanceHistoriesRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.userId == item.id,
@@ -17685,6 +18375,7 @@ typedef $$UsersTableProcessedTableManager =
       User,
       PrefetchHooks Function({
         bool accountsRefs,
+        bool accountBalanceHistoriesRefs,
         bool investmentsRefs,
         bool investmentPurchasesRefs,
         bool dividendSchedulesRefs,
@@ -17761,6 +18452,31 @@ final class $$AccountsTableReferences
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $AccountBalanceHistoriesTable,
+    List<AccountBalanceHistory>
+  >
+  _accountBalanceHistoriesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.accountBalanceHistories,
+        aliasName: 'accounts__id__account_balance_histories__account_id',
+      );
+
+  $$AccountBalanceHistoriesTableProcessedTableManager
+  get accountBalanceHistoriesRefs {
+    final manager = $$AccountBalanceHistoriesTableTableManager(
+      $_db,
+      $_db.accountBalanceHistories,
+    ).filter((f) => f.accountId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _accountBalanceHistoriesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 
@@ -17893,6 +18609,32 @@ class $$AccountsTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> accountBalanceHistoriesRefs(
+    Expression<bool> Function($$AccountBalanceHistoriesTableFilterComposer f) f,
+  ) {
+    final $$AccountBalanceHistoriesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.accountBalanceHistories,
+          getReferencedColumn: (t) => t.accountId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$AccountBalanceHistoriesTableFilterComposer(
+                $db: $db,
+                $table: $db.accountBalanceHistories,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
   }
 
   Expression<bool> portfolioSalesRefs(
@@ -18120,6 +18862,33 @@ class $$AccountsTableAnnotationComposer
     return composer;
   }
 
+  Expression<T> accountBalanceHistoriesRefs<T extends Object>(
+    Expression<T> Function($$AccountBalanceHistoriesTableAnnotationComposer a)
+    f,
+  ) {
+    final $$AccountBalanceHistoriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.accountBalanceHistories,
+          getReferencedColumn: (t) => t.accountId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$AccountBalanceHistoriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.accountBalanceHistories,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
   Expression<T> portfolioSalesRefs<T extends Object>(
     Expression<T> Function($$PortfolioSalesTableAnnotationComposer a) f,
   ) {
@@ -18159,7 +18928,11 @@ class $$AccountsTableTableManager
           $$AccountsTableUpdateCompanionBuilder,
           (Account, $$AccountsTableReferences),
           Account,
-          PrefetchHooks Function({bool userId, bool portfolioSalesRefs})
+          PrefetchHooks Function({
+            bool userId,
+            bool accountBalanceHistoriesRefs,
+            bool portfolioSalesRefs,
+          })
         > {
   $$AccountsTableTableManager(_$AppDatabase db, $AccountsTable table)
     : super(
@@ -18261,10 +19034,15 @@ class $$AccountsTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({userId = false, portfolioSalesRefs = false}) {
+              ({
+                userId = false,
+                accountBalanceHistoriesRefs = false,
+                portfolioSalesRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
+                    if (accountBalanceHistoriesRefs) db.accountBalanceHistories,
                     if (portfolioSalesRefs) db.portfolioSales,
                   ],
                   addJoins:
@@ -18301,6 +19079,27 @@ class $$AccountsTableTableManager
                       },
                   getPrefetchedDataCallback: (items) async {
                     return [
+                      if (accountBalanceHistoriesRefs)
+                        await $_getPrefetchedData<
+                          Account,
+                          $AccountsTable,
+                          AccountBalanceHistory
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AccountsTableReferences
+                              ._accountBalanceHistoriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AccountsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).accountBalanceHistoriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.accountId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (portfolioSalesRefs)
                         await $_getPrefetchedData<
                           Account,
@@ -18342,7 +19141,499 @@ typedef $$AccountsTableProcessedTableManager =
       $$AccountsTableUpdateCompanionBuilder,
       (Account, $$AccountsTableReferences),
       Account,
-      PrefetchHooks Function({bool userId, bool portfolioSalesRefs})
+      PrefetchHooks Function({
+        bool userId,
+        bool accountBalanceHistoriesRefs,
+        bool portfolioSalesRefs,
+      })
+    >;
+typedef $$AccountBalanceHistoriesTableCreateCompanionBuilder =
+    AccountBalanceHistoriesCompanion Function({
+      required String id,
+      required String userId,
+      required String accountId,
+      required DateTime effectiveAt,
+      required double balance,
+      required double availableBalance,
+      required DateTime createdAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$AccountBalanceHistoriesTableUpdateCompanionBuilder =
+    AccountBalanceHistoriesCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> accountId,
+      Value<DateTime> effectiveAt,
+      Value<double> balance,
+      Value<double> availableBalance,
+      Value<DateTime> createdAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $$AccountBalanceHistoriesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $AccountBalanceHistoriesTable,
+          AccountBalanceHistory
+        > {
+  $$AccountBalanceHistoriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $UsersTable _userIdTable(_$AppDatabase db) =>
+      db.users.createAlias('account_balance_histories__user_id__users__id');
+
+  $$UsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$UsersTableTableManager(
+      $_db,
+      $_db.users,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $AccountsTable _accountIdTable(_$AppDatabase db) => db.accounts
+      .createAlias('account_balance_histories__account_id__accounts__id');
+
+  $$AccountsTableProcessedTableManager get accountId {
+    final $_column = $_itemColumn<String>('account_id')!;
+
+    final manager = $$AccountsTableTableManager(
+      $_db,
+      $_db.accounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_accountIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$AccountBalanceHistoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $AccountBalanceHistoriesTable> {
+  $$AccountBalanceHistoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get effectiveAt => $composableBuilder(
+    column: $table.effectiveAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get balance => $composableBuilder(
+    column: $table.balance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get availableBalance => $composableBuilder(
+    column: $table.availableBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$UsersTableFilterComposer get userId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableFilterComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableFilterComposer get accountId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AccountBalanceHistoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $AccountBalanceHistoriesTable> {
+  $$AccountBalanceHistoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get effectiveAt => $composableBuilder(
+    column: $table.effectiveAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get balance => $composableBuilder(
+    column: $table.balance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get availableBalance => $composableBuilder(
+    column: $table.availableBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$UsersTableOrderingComposer get userId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableOrderingComposer get accountId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AccountBalanceHistoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AccountBalanceHistoriesTable> {
+  $$AccountBalanceHistoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get effectiveAt => $composableBuilder(
+    column: $table.effectiveAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get balance =>
+      $composableBuilder(column: $table.balance, builder: (column) => column);
+
+  GeneratedColumn<double> get availableBalance => $composableBuilder(
+    column: $table.availableBalance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$UsersTableAnnotationComposer get userId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableAnnotationComposer get accountId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AccountBalanceHistoriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AccountBalanceHistoriesTable,
+          AccountBalanceHistory,
+          $$AccountBalanceHistoriesTableFilterComposer,
+          $$AccountBalanceHistoriesTableOrderingComposer,
+          $$AccountBalanceHistoriesTableAnnotationComposer,
+          $$AccountBalanceHistoriesTableCreateCompanionBuilder,
+          $$AccountBalanceHistoriesTableUpdateCompanionBuilder,
+          (AccountBalanceHistory, $$AccountBalanceHistoriesTableReferences),
+          AccountBalanceHistory,
+          PrefetchHooks Function({bool userId, bool accountId})
+        > {
+  $$AccountBalanceHistoriesTableTableManager(
+    _$AppDatabase db,
+    $AccountBalanceHistoriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AccountBalanceHistoriesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$AccountBalanceHistoriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$AccountBalanceHistoriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
+                Value<DateTime> effectiveAt = const Value.absent(),
+                Value<double> balance = const Value.absent(),
+                Value<double> availableBalance = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AccountBalanceHistoriesCompanion(
+                id: id,
+                userId: userId,
+                accountId: accountId,
+                effectiveAt: effectiveAt,
+                balance: balance,
+                availableBalance: availableBalance,
+                createdAt: createdAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String accountId,
+                required DateTime effectiveAt,
+                required double balance,
+                required double availableBalance,
+                required DateTime createdAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AccountBalanceHistoriesCompanion.insert(
+                id: id,
+                userId: userId,
+                accountId: accountId,
+                effectiveAt: effectiveAt,
+                balance: balance,
+                availableBalance: availableBalance,
+                createdAt: createdAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$AccountBalanceHistoriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({userId = false, accountId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (userId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.userId,
+                                referencedTable:
+                                    $$AccountBalanceHistoriesTableReferences
+                                        ._userIdTable(db),
+                                referencedColumn:
+                                    $$AccountBalanceHistoriesTableReferences
+                                        ._userIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (accountId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.accountId,
+                                referencedTable:
+                                    $$AccountBalanceHistoriesTableReferences
+                                        ._accountIdTable(db),
+                                referencedColumn:
+                                    $$AccountBalanceHistoriesTableReferences
+                                        ._accountIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$AccountBalanceHistoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AccountBalanceHistoriesTable,
+      AccountBalanceHistory,
+      $$AccountBalanceHistoriesTableFilterComposer,
+      $$AccountBalanceHistoriesTableOrderingComposer,
+      $$AccountBalanceHistoriesTableAnnotationComposer,
+      $$AccountBalanceHistoriesTableCreateCompanionBuilder,
+      $$AccountBalanceHistoriesTableUpdateCompanionBuilder,
+      (AccountBalanceHistory, $$AccountBalanceHistoriesTableReferences),
+      AccountBalanceHistory,
+      PrefetchHooks Function({bool userId, bool accountId})
     >;
 typedef $$InvestmentsTableCreateCompanionBuilder =
     InvestmentsCompanion Function({
@@ -19314,6 +20605,7 @@ typedef $$InvestmentPurchasesTableCreateCompanionBuilder =
       required double purchasePrice,
       required double quantity,
       Value<double> fees,
+      Value<bool> cashApplied,
       required DateTime createdAt,
       Value<DateTime?> updatedAt,
       Value<DateTime?> deletedAt,
@@ -19328,6 +20620,7 @@ typedef $$InvestmentPurchasesTableUpdateCompanionBuilder =
       Value<double> purchasePrice,
       Value<double> quantity,
       Value<double> fees,
+      Value<bool> cashApplied,
       Value<DateTime> createdAt,
       Value<DateTime?> updatedAt,
       Value<DateTime?> deletedAt,
@@ -19414,6 +20707,11 @@ class $$InvestmentPurchasesTableFilterComposer
 
   ColumnFilters<double> get fees => $composableBuilder(
     column: $table.fees,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get cashApplied => $composableBuilder(
+    column: $table.cashApplied,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -19513,6 +20811,11 @@ class $$InvestmentPurchasesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get cashApplied => $composableBuilder(
+    column: $table.cashApplied,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -19602,6 +20905,11 @@ class $$InvestmentPurchasesTableAnnotationComposer
 
   GeneratedColumn<double> get fees =>
       $composableBuilder(column: $table.fees, builder: (column) => column);
+
+  GeneratedColumn<bool> get cashApplied => $composableBuilder(
+    column: $table.cashApplied,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -19702,6 +21010,7 @@ class $$InvestmentPurchasesTableTableManager
                 Value<double> purchasePrice = const Value.absent(),
                 Value<double> quantity = const Value.absent(),
                 Value<double> fees = const Value.absent(),
+                Value<bool> cashApplied = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -19714,6 +21023,7 @@ class $$InvestmentPurchasesTableTableManager
                 purchasePrice: purchasePrice,
                 quantity: quantity,
                 fees: fees,
+                cashApplied: cashApplied,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -19728,6 +21038,7 @@ class $$InvestmentPurchasesTableTableManager
                 required double purchasePrice,
                 required double quantity,
                 Value<double> fees = const Value.absent(),
+                Value<bool> cashApplied = const Value.absent(),
                 required DateTime createdAt,
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -19740,6 +21051,7 @@ class $$InvestmentPurchasesTableTableManager
                 purchasePrice: purchasePrice,
                 quantity: quantity,
                 fees: fees,
+                cashApplied: cashApplied,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -28076,6 +29388,11 @@ class $AppDatabaseManager {
       $$UsersTableTableManager(_db, _db.users);
   $$AccountsTableTableManager get accounts =>
       $$AccountsTableTableManager(_db, _db.accounts);
+  $$AccountBalanceHistoriesTableTableManager get accountBalanceHistories =>
+      $$AccountBalanceHistoriesTableTableManager(
+        _db,
+        _db.accountBalanceHistories,
+      );
   $$InvestmentsTableTableManager get investments =>
       $$InvestmentsTableTableManager(_db, _db.investments);
   $$InvestmentPurchasesTableTableManager get investmentPurchases =>

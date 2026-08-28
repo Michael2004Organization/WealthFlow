@@ -16,7 +16,61 @@ final class PortfolioTaxSummary {
       (allowance - allowanceUsed).clamp(0, double.infinity);
 }
 
+final class PortfolioTaxEvent {
+  const PortfolioTaxEvent({
+    required this.date,
+    required this.title,
+    required this.kind,
+    required this.allowanceUsed,
+    required this.taxPaid,
+    this.withholdingTax = 0,
+    this.domesticTax = 0,
+  });
+
+  final DateTime date;
+  final String title;
+  final String kind;
+  final double allowanceUsed;
+  final double taxPaid;
+  final double withholdingTax;
+  final double domesticTax;
+}
+
 PortfolioTaxSummary calculatePortfolioTaxYear({
+  required int year,
+  required double allowance,
+  required List<Investment> investments,
+  required List<DividendSchedule> schedules,
+  required List<PortfolioSale> sales,
+  List<InvestmentPurchase> purchases = const [],
+  bool includePhysicalAssets = false,
+  DateTime? through,
+}) {
+  final events = calculatePortfolioTaxEvents(
+    year: year,
+    allowance: allowance,
+    investments: investments,
+    schedules: schedules,
+    sales: sales,
+    purchases: purchases,
+    includePhysicalAssets: includePhysicalAssets,
+    through: through,
+  );
+  return PortfolioTaxSummary(
+    allowance: allowance,
+    allowanceUsed:
+        (events.fold<double>(0, (sum, event) => sum + event.allowanceUsed) *
+                100)
+            .round() /
+        100,
+    taxPaid:
+        (events.fold<double>(0, (sum, event) => sum + event.taxPaid) * 100)
+            .round() /
+        100,
+  );
+}
+
+List<PortfolioTaxEvent> calculatePortfolioTaxEvents({
   required int year,
   required double allowance,
   required List<Investment> investments,
@@ -28,8 +82,7 @@ PortfolioTaxSummary calculatePortfolioTaxYear({
 }) {
   final limit = through ?? DateTime(year + 1);
   var remaining = allowance.clamp(0, double.infinity).toDouble();
-  var used = 0.0;
-  var taxes = 0.0;
+  final results = <PortfolioTaxEvent>[];
   final investmentById = {for (final item in investments) item.id: item};
   final events =
       <
@@ -97,9 +150,17 @@ PortfolioTaxSummary calculatePortfolioTaxYear({
     if (sale != null) {
       final gain = sale.realizedGain.clamp(0, double.infinity).toDouble();
       final consumed = gain.clamp(0, remaining).toDouble();
-      used += consumed;
       remaining -= consumed;
-      taxes += sale.taxPaid;
+      results.add(
+        PortfolioTaxEvent(
+          date: event.date,
+          title: sale.assetName,
+          kind: 'sale',
+          allowanceUsed: consumed,
+          taxPaid: sale.taxPaid,
+          domesticTax: sale.taxPaid,
+        ),
+      );
       continue;
     }
     final schedule = event.dividend;
@@ -120,20 +181,23 @@ PortfolioTaxSummary calculatePortfolioTaxYear({
           schedule?.withholdingTaxRate ?? investment.dividendWithholdingTaxRate,
       allowanceRemaining: remaining,
     );
-    used += tax.allowanceUsed;
     remaining = tax.allowanceRemaining;
-    taxes +=
-        tax.withholdingTax +
-        tax.germanCapitalTax +
-        tax.solidaritySurcharge +
-        tax.churchTax;
+    final domesticTax =
+        tax.germanCapitalTax + tax.solidaritySurcharge + tax.churchTax;
+    final totalTax = tax.withholdingTax + domesticTax;
+    results.add(
+      PortfolioTaxEvent(
+        date: event.date,
+        title: investment.name,
+        kind: 'dividend',
+        allowanceUsed: tax.allowanceUsed,
+        taxPaid: totalTax,
+        withholdingTax: tax.withholdingTax,
+        domesticTax: domesticTax,
+      ),
+    );
   }
-
-  return PortfolioTaxSummary(
-    allowance: allowance,
-    allowanceUsed: (used * 100).round() / 100,
-    taxPaid: (taxes * 100).round() / 100,
-  );
+  return results;
 }
 
 double investmentSharesAt({

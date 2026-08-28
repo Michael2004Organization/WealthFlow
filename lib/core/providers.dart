@@ -42,6 +42,14 @@ final accountsProvider = StreamProvider<List<Account>>((ref) {
       : ref.watch(databaseProvider).watchAccounts(userId);
 });
 
+final accountBalanceHistoriesProvider =
+    StreamProvider<List<AccountBalanceHistory>>((ref) {
+      final userId = ref.watch(currentUserIdProvider);
+      return userId == null
+          ? Stream.value(const <AccountBalanceHistory>[])
+          : ref.watch(databaseProvider).watchAccountBalanceHistories(userId);
+    });
+
 final investmentsProvider = StreamProvider<List<Investment>>((ref) {
   final userId = ref.watch(currentUserIdProvider);
   return userId == null

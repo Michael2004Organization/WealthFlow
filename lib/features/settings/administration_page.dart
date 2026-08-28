@@ -776,6 +776,15 @@ Future<void> _editStock(
             : 0);
   }
 
+  String? countryCurrency(String value) {
+    final normalized = value.trim().toLowerCase();
+    return rates
+        .where((rate) => rate.country.trim().toLowerCase() == normalized)
+        .firstOrNull
+        ?.currency
+        .toUpperCase();
+  }
+
   final key = GlobalKey<FormState>();
   final saved = await showDialog<bool>(
     context: context,
@@ -819,7 +828,12 @@ Future<void> _editStock(
                     width: 285,
                     child: TextFormField(
                       controller: country,
-                      onChanged: (_) => setDialogState(() {}),
+                      onChanged: (value) => setDialogState(() {
+                        final linkedCurrency = countryCurrency(value);
+                        if (linkedCurrency != null) {
+                          dividendCurrency.text = linkedCurrency;
+                        }
+                      }),
                       decoration: InputDecoration(
                         labelText: 'Land',
                         helperText:
@@ -832,6 +846,10 @@ Future<void> _editStock(
                             country.selection = TextSelection.collapsed(
                               offset: value.length,
                             );
+                            final linkedCurrency = countryCurrency(value);
+                            if (linkedCurrency != null) {
+                              dividendCurrency.text = linkedCurrency;
+                            }
                           }),
                           itemBuilder: (_) => countries
                               .map(

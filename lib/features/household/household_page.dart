@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/finance/account_balance_math.dart';
 import '../../core/finance/budget_period.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -27,9 +28,19 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
     final asyncEntries = ref.watch(ledgerEntriesProvider);
     final accounts =
         ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
+    final balanceHistories =
+        ref.watch(accountBalanceHistoriesProvider).valueOrNull ??
+        const <AccountBalanceHistory>[];
     final preference = ref.watch(preferencesProvider).valueOrNull;
     final investments =
-        ref.watch(investmentsProvider).valueOrNull ?? const <Investment>[];
+        ref.watch(allInvestmentsProvider).valueOrNull ?? const <Investment>[];
+    final purchases =
+        ref.watch(investmentPurchasesProvider).valueOrNull ??
+        const <InvestmentPurchase>[];
+    final sales =
+        ref.watch(portfolioSalesProvider).valueOrNull ??
+        const <PortfolioSale>[];
+    final entries = asyncEntries.valueOrNull ?? const <LedgerEntry>[];
     final physicalAssets =
         ref.watch(physicalAssetsProvider).valueOrNull ??
         const <PhysicalAsset>[];
@@ -84,7 +95,23 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                                 child: Text(
                                   account.label +
                                       ' · ' +
-                                      money(account.balance),
+                                      money(
+                                        accountBalanceAt(
+                                          account: account,
+                                          date:
+                                              DateTime(
+                                                _selectedMonth.year,
+                                                _selectedMonth.month + 1,
+                                              ).subtract(
+                                                const Duration(microseconds: 1),
+                                              ),
+                                          histories: balanceHistories,
+                                          entries: entries,
+                                          investments: investments,
+                                          purchases: purchases,
+                                          sales: sales,
+                                        ),
+                                      ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),

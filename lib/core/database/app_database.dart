@@ -50,6 +50,20 @@ class Accounts extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class AccountBalanceHistories extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text().references(Users, #id)();
+  TextColumn get accountId => text().references(Accounts, #id)();
+  DateTimeColumn get effectiveAt => dateTime()();
+  RealColumn get balance => real()();
+  RealColumn get availableBalance => real()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class Investments extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text().references(Users, #id)();
@@ -99,6 +113,7 @@ class InvestmentPurchases extends Table {
   RealColumn get purchasePrice => real()();
   RealColumn get quantity => real()();
   RealColumn get fees => real().withDefault(const Constant(0))();
+  BoolColumn get cashApplied => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime().nullable()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
@@ -456,6 +471,7 @@ class NetWorthSnapshots extends Table {
   tables: [
     Users,
     Accounts,
+    AccountBalanceHistories,
     Investments,
     InvestmentPurchases,
     DividendSchedules,
@@ -517,7 +533,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -715,6 +731,13 @@ final class AppDatabase extends _$AppDatabase {
         await customStatement(
           'UPDATE vehicles SET purchase_date = created_at '
           'WHERE purchase_date IS NULL',
+        );
+      }
+      if (from < 16) {
+        await migrator.createTable(accountBalanceHistories);
+        await migrator.addColumn(
+          investmentPurchases,
+          investmentPurchases.cashApplied,
         );
       }
     },
@@ -1249,7 +1272,18 @@ final class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
-  Future<void> saveAccount(AccountsCompanion value) async {
+  Stream<List<AccountBalanceHistory>> watchAccountBalanceHistories(
+    String userId,
+  ) =>
+      (select(accountBalanceHistories)
+            ..where((row) => row.userId.equals(userId) & row.deletedAt.isNull())
+            ..orderBy([(row) => OrderingTerm.asc(row.effectiveAt)]))
+          .watch();
+
+  Future<void> saveAccount(
+    AccountsCompanion value, {
+    DateTime? balanceEffectiveAt,
+  }) async {
     final old = await (select(
       accounts,
     )..where((row) => row.id.equals(value.id.value))).getSingleOrNull();
@@ -1283,8 +1317,80 @@ final class AppDatabase extends _$AppDatabase {
           1;
       valueToSave = value.copyWith(displayOrder: Value(nextOrder));
     }
-    await into(accounts).insertOnConflictUpdate(valueToSave);
+    await transaction(() async {
+      await into(accounts).insertOnConflictUpdate(valueToSave);
+      if (balanceEffectiveAt != null) {
+        final saved = await (select(
+          accounts,
+        )..where((row) => row.id.equals(value.id.value))).getSingle();
+        await into(accountBalanceHistories).insert(
+          AccountBalanceHistoriesCompanion.insert(
+            id: _uuid.v4(),
+            userId: saved.userId,
+            accountId: saved.id,
+            effectiveAt: balanceEffectiveAt,
+            balance: saved.balance,
+            availableBalance: saved.availableBalance,
+            createdAt: DateTime.now().toUtc(),
+          ),
+        );
+      }
+    });
     await captureNetWorth(value.userId.value);
+  }
+
+  Future<void> saveAccountBalanceHistory({
+    required String userId,
+    required String accountId,
+    required DateTime effectiveAt,
+    required double balance,
+    required double availableBalance,
+  }) async {
+    final account =
+        await (select(accounts)..where(
+              (row) =>
+                  row.id.equals(accountId) &
+                  row.userId.equals(userId) &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    if (account == null) throw StateError('Das Konto wurde nicht gefunden.');
+    await transaction(() async {
+      await into(accountBalanceHistories).insert(
+        AccountBalanceHistoriesCompanion.insert(
+          id: _uuid.v4(),
+          userId: userId,
+          accountId: accountId,
+          effectiveAt: effectiveAt,
+          balance: balance,
+          availableBalance: availableBalance,
+          createdAt: DateTime.now().toUtc(),
+        ),
+      );
+      if (!effectiveAt.isAfter(DateTime.now())) {
+        await (update(
+          accounts,
+        )..where((row) => row.id.equals(accountId))).write(
+          AccountsCompanion(
+            balance: Value(balance),
+            availableBalance: Value(availableBalance),
+            updatedAt: Value(DateTime.now().toUtc()),
+          ),
+        );
+      }
+    });
+    await captureNetWorth(userId);
+  }
+
+  Future<void> deleteAccountBalanceHistory(String id, String userId) async {
+    await (update(
+      accountBalanceHistories,
+    )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+      AccountBalanceHistoriesCompanion(
+        deletedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    await captureNetWorth(userId);
   }
 
   Future<void> reorderAccounts(String userId, List<String> accountIds) async {
@@ -1518,6 +1624,38 @@ final class AppDatabase extends _$AppDatabase {
     final stamped = value.copyWith(updatedAt: Value(DateTime.now().toUtc()));
     await into(investmentPurchases).insertOnConflictUpdate(stamped);
     await persistUserFile(value.userId.value);
+  }
+
+  Future<void> applyPortfolioPurchaseToCash({
+    required String userId,
+    required String accountId,
+    required double amount,
+    required DateTime purchasedAt,
+  }) async {
+    if (amount < 0) throw ArgumentError('Der Kaufbetrag ist ungültig.');
+    final account =
+        await (select(accounts)..where(
+              (row) => row.id.equals(accountId) & row.userId.equals(userId),
+            ))
+            .getSingleOrNull();
+    if (account == null) throw StateError('Das Portfolio-Konto fehlt.');
+    await (update(accounts)..where((row) => row.id.equals(accountId))).write(
+      AccountsCompanion(
+        balance: Value(account.balance - amount),
+        availableBalance: Value(account.availableBalance - amount),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    await _writePortfolioAudit(
+      userId: userId,
+      action: 'purchase_cash',
+      entityType: 'account',
+      entityId: accountId,
+      entityName: account.label,
+      details:
+          '${purchasedAt.toIso8601String()} · ${amount.toStringAsFixed(2)} ${account.currency}',
+    );
+    await captureNetWorth(userId);
   }
 
   Future<void> updateInvestmentPurchase({
@@ -2611,6 +2749,9 @@ final class AppDatabase extends _$AppDatabase {
     final accountRows = await (select(
       accounts,
     )..where((r) => r.userId.equals(userId))).get();
+    final accountHistoryRows = await (select(
+      accountBalanceHistories,
+    )..where((r) => r.userId.equals(userId))).get();
     final investmentRows = await (select(
       investments,
     )..where((r) => r.userId.equals(userId))).get();
@@ -2661,6 +2802,9 @@ final class AppDatabase extends _$AppDatabase {
               'displayName': user.displayName,
             },
       'accounts': accountRows.map((e) => e.toJson()).toList(),
+      'accountBalanceHistories': accountHistoryRows
+          .map((e) => e.toJson())
+          .toList(),
       'investments': investmentRows.map((e) => e.toJson()).toList(),
       'physicalAssets': physicalAssetRows.map((e) => e.toJson()).toList(),
       'investmentPurchases': purchaseRows.map((e) => e.toJson()).toList(),
@@ -2697,6 +2841,13 @@ final class AppDatabase extends _$AppDatabase {
           ).insertOnConflictUpdate(remote.toCompanion(false));
         }
       }
+      for (final json in rows('accountBalanceHistories')) {
+        final remote = AccountBalanceHistory.fromJson(json);
+        if (remote.userId != userId) continue;
+        await into(
+          accountBalanceHistories,
+        ).insertOnConflictUpdate(remote.toCompanion(false));
+      }
       for (final json in rows('investments')) {
         final remote = Investment.fromJson(json);
         if (remote.userId != userId) continue;
@@ -2722,7 +2873,10 @@ final class AppDatabase extends _$AppDatabase {
         }
       }
       for (final json in rows('investmentPurchases')) {
-        final remote = InvestmentPurchase.fromJson(json);
+        final remote = InvestmentPurchase.fromJson({
+          'cashApplied': false,
+          ...json,
+        });
         if (remote.userId != userId) continue;
         await into(
           investmentPurchases,

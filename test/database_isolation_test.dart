@@ -533,4 +533,52 @@ void main() {
     expect(sale.allowanceUsed, 90);
     expect(sale.taxPaid, 0);
   });
+
+  test(
+    'dated balances are stored and portfolio purchases reduce cash',
+    () async {
+      final now = DateTime(2026, 8, 20);
+      await database.createUser(
+        UsersCompanion.insert(
+          id: 'history-owner',
+          email: 'history@example.test',
+          displayName: 'History',
+          passwordHash: 'hash',
+          passwordSalt: 'salt',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await database.saveAccount(
+        AccountsCompanion.insert(
+          id: 'history-account',
+          userId: 'history-owner',
+          bankName: 'Broker',
+          label: 'Cash',
+          balance: const Value(1000),
+          availableBalance: const Value(1000),
+          createdAt: now,
+          updatedAt: now,
+        ),
+        balanceEffectiveAt: DateTime(2026, 1, 1),
+      );
+
+      await database.applyPortfolioPurchaseToCash(
+        userId: 'history-owner',
+        accountId: 'history-account',
+        amount: 275,
+        purchasedAt: now,
+      );
+
+      final histories = await database
+          .watchAccountBalanceHistories('history-owner')
+          .first;
+      final account =
+          (await database.watchAccounts('history-owner').first).single;
+      expect(histories, hasLength(1));
+      expect(histories.single.balance, 1000);
+      expect(account.balance, 725);
+      expect(account.availableBalance, 725);
+    },
+  );
 }

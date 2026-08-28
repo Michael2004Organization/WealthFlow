@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/finance/account_balance_math.dart';
 import '../../core/finance/budget_period.dart';
 import '../../core/finance/dividend_math.dart';
 import '../../core/finance/portfolio_tax_summary.dart';
@@ -52,6 +53,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         const <DividendSchedule>[];
     final entries =
         ref.watch(ledgerEntriesProvider).valueOrNull ?? const <LedgerEntry>[];
+    final balanceHistories =
+        ref.watch(accountBalanceHistoriesProvider).valueOrNull ??
+        const <AccountBalanceHistory>[];
     final snapshots =
         ref.watch(netWorthSnapshotsProvider).valueOrNull ??
         const <NetWorthSnapshot>[];
@@ -71,11 +75,19 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       _selectedMonth.year,
       _selectedMonth.month + 1,
     ).subtract(const Duration(microseconds: 1));
-    final derivedAccountBalance = _accountBalanceAt(
-      accounts: accounts,
-      entries: entries,
-      sales: sales,
-      at: monthEnd,
+    final derivedAccountBalance = accounts.fold<double>(
+      0,
+      (sum, account) =>
+          sum +
+          accountBalanceAt(
+            account: account,
+            date: monthEnd,
+            histories: balanceHistories,
+            entries: entries,
+            investments: investments,
+            purchases: purchases,
+            sales: sales,
+          ),
     );
     final derivedPortfolio =
         investments.fold<double>(
@@ -97,9 +109,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final snapshotAtMonthEnd = snapshots
         .where((snapshot) => !snapshot.capturedAt.isAfter(monthEnd))
         .lastOrNull;
-    final accountBalance =
-        snapshotAtMonthEnd?.accountBalance ?? derivedAccountBalance;
-    final portfolio = snapshotAtMonthEnd?.portfolioValue ?? derivedPortfolio;
+    final accountBalance = balanceHistories.isNotEmpty
+        ? derivedAccountBalance
+        : snapshotAtMonthEnd?.accountBalance ?? derivedAccountBalance;
+    final portfolio = derivedPortfolio;
     final vehicleValue = vehicles.fold<double>(
       0,
       (sum, item) =>
@@ -147,7 +160,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           sum +
           List.generate(
             12,
-            (index) => _dashboardDividendForMonth(item, schedules, index + 1),
+            (index) => _dashboardDividendForMonth(
+              item,
+              schedules,
+              DateTime(_selectedMonth.year, index + 1),
+              purchases,
+              sales,
+            ),
           ).fold<double>(0, (total, value) => total + value),
     );
     final monthlyDividend = yearlyDividend / 12;
@@ -176,6 +195,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                       child: DropdownButtonFormField<String>(
                         key: ValueKey(_sortMode),
                         initialValue: _sortMode,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'Blöcke sortieren',
                           prefixIcon: Icon(Icons.sort_rounded),
@@ -451,35 +471,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 }
 
-double _accountBalanceAt({
-  required List<Account> accounts,
-  required List<LedgerEntry> entries,
-  required List<PortfolioSale> sales,
-  required DateTime at,
-}) {
-  final accountIds = accounts
-      .where((account) => !account.createdAt.isAfter(at))
-      .map((account) => account.id)
-      .toSet();
-  var balance = accounts
-      .where((account) => accountIds.contains(account.id))
-      .fold<double>(0, (sum, account) => sum + account.balance);
-  for (final entry in entries.where(
-    (entry) =>
-        accountIds.contains(entry.accountId) &&
-        entry.accountApplied &&
-        entry.bookingDate.isAfter(at),
-  )) {
-    balance -= entry.isIncome ? entry.amount : -entry.amount;
-  }
-  for (final sale in sales.where(
-    (sale) => sale.accountCredited && sale.soldAt.isAfter(at),
-  )) {
-    balance -= sale.proceeds;
-  }
-  return balance;
-}
-
 double _physicalAssetValueAt(
   PhysicalAsset asset,
   List<PortfolioSale> sales,
@@ -608,6 +599,7 @@ class _NetWorthHalf extends StatelessWidget {
     child: Padding(
       padding: const EdgeInsets.all(18),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -641,23 +633,37 @@ class _NetWorthHalf extends StatelessWidget {
 double _dashboardDividendForMonth(
   Investment investment,
   List<DividendSchedule> schedules,
-  int month,
+  DateTime month,
+  List<InvestmentPurchase> purchases,
+  List<PortfolioSale> sales,
 ) {
+  final paymentDate = DateTime(month.year, month.month, 28, 23, 59, 59);
+  final quantity = investmentSharesAt(
+    investment: investment,
+    date: paymentDate,
+    purchases: purchases,
+    sales: sales,
+  );
+  if (quantity <= 0) return 0;
   final exact = schedules.where(
-    (row) => row.investmentId == investment.id && row.paymentMonth == month,
+    (row) =>
+        row.investmentId == investment.id &&
+        row.paymentMonth == month.month &&
+        (row.paymentYear == month.year ||
+            (row.paymentYear == 0 && month.year == DateTime.now().year)),
   );
   if (exact.isNotEmpty) {
     return exact.fold<double>(
       0,
-      (sum, row) => sum + row.amountPerShare * investment.quantity,
+      (sum, row) => sum + row.amountPerShare * quantity,
     );
   }
   final paymentMonths = dividendPaymentMonths(
     investment.dividendFrequency,
     investment.dividendStartMonth,
   );
-  return paymentMonths.contains(month)
-      ? investment.annualDividend * investment.quantity
+  return paymentMonths.contains(month.month)
+      ? investment.annualDividend * quantity
       : 0;
 }
 
@@ -690,6 +696,7 @@ class _MonthlyChart extends StatefulWidget {
 class _MonthlyChartState extends State<_MonthlyChart> {
   int _months = 6;
   final ScrollController _scrollController = ScrollController();
+  bool _alignToCurrentMonth = true;
 
   @override
   void dispose() {
@@ -699,6 +706,13 @@ class _MonthlyChartState extends State<_MonthlyChart> {
 
   @override
   Widget build(BuildContext context) {
+    if (_alignToCurrentMonth) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scrollController.hasClients) return;
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        _alignToCurrentMonth = false;
+      });
+    }
     final currentMonth = DateTime.now();
     final totals = List<double>.filled(_months, 0);
     for (var index = 0; index < _months; index++) {
@@ -752,7 +766,12 @@ class _MonthlyChartState extends State<_MonthlyChart> {
                         )
                         .toList(),
                     onChanged: (value) {
-                      if (value != null) setState(() => _months = value);
+                      if (value != null) {
+                        setState(() {
+                          _months = value;
+                          _alignToCurrentMonth = true;
+                        });
+                      }
                     },
                   ),
                 ),

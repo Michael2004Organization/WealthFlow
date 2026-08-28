@@ -61,19 +61,19 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
       (
         key: 'accounts',
         title: 'Kontostände',
-        height: 380,
+        height: 430,
         child: _AccountsChart(accounts: accounts),
       ),
       (
         key: 'portfolio',
         title: 'Depotentwicklung',
-        height: 380,
+        height: 430,
         child: _PortfolioChart(investments: investments),
       ),
       (
         key: 'categories',
         title: 'Ausgabenkategorien',
-        height: 380,
+        height: 430,
         child: _CategoryChart(entries: entries),
       ),
       (
@@ -85,13 +85,13 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
       (
         key: 'vehicleCosts',
         title: 'Fahrzeugkosten',
-        height: 380,
+        height: 430,
         child: _VehicleCostChart(costs: costs),
       ),
       (
         key: 'savings',
         title: 'Sparentwicklung',
-        height: 380,
+        height: 430,
         child: _SavingsChart(entries: entries),
       ),
     ];
@@ -119,6 +119,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                   child: DropdownButtonFormField<String>(
                     key: ValueKey(_sortMode),
                     initialValue: _sortMode,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Blöcke sortieren',
                       prefixIcon: Icon(Icons.sort_rounded),
@@ -812,6 +813,7 @@ class _CashflowChart extends StatefulWidget {
 class _CashflowChartState extends State<_CashflowChart> {
   int _months = 6;
   final ScrollController _chartScrollController = ScrollController();
+  bool _alignToCurrentMonth = true;
 
   @override
   void dispose() {
@@ -821,6 +823,15 @@ class _CashflowChartState extends State<_CashflowChart> {
 
   @override
   Widget build(BuildContext context) {
+    if (_alignToCurrentMonth) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_chartScrollController.hasClients) return;
+        _chartScrollController.jumpTo(
+          _chartScrollController.position.maxScrollExtent,
+        );
+        _alignToCurrentMonth = false;
+      });
+    }
     final now = DateTime.now();
     final start = DateTime(now.year, now.month - _months + 1);
     final end = DateTime(now.year, now.month);
@@ -873,6 +884,7 @@ class _CashflowChartState extends State<_CashflowChart> {
                     if (value != null) {
                       setState(() {
                         _months = value;
+                        _alignToCurrentMonth = true;
                       });
                     }
                   },

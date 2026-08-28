@@ -24,6 +24,7 @@ class DividendsPage extends ConsumerStatefulWidget {
 
 class _DividendsPageState extends ConsumerState<DividendsPage> {
   int _selectedYear = DateTime.now().year;
+  bool _projectTaxToYearEnd = false;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +47,11 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
         final purchases =
             ref.watch(investmentPurchasesProvider).valueOrNull ??
             const <InvestmentPurchase>[];
+        final taxThrough = _selectedYear == DateTime.now().year
+            ? (_projectTaxToYearEnd
+                  ? DateTime(_selectedYear, 12, 31, 23, 59, 59)
+                  : DateTime.now())
+            : DateTime(_selectedYear, 12, 31, 23, 59, 59);
         final taxYear = calculatePortfolioTaxYear(
           year: _selectedYear,
           allowance: taxAllowance,
@@ -55,9 +61,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
           purchases: purchases,
           includePhysicalAssets:
               preference?.includePhysicalAssetsInTaxAllowance ?? false,
-          through: _selectedYear == DateTime.now().year
-              ? DateTime.now()
-              : DateTime(_selectedYear + 1),
+          through: taxThrough,
         );
         var dividendItems = items
             .where(
@@ -202,6 +206,18 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                                           .state =
                                       value,
                             ),
+                          ),
+                        if (_selectedYear == current.year)
+                          FilterChip(
+                            selected: _projectTaxToYearEnd,
+                            avatar: const Icon(Icons.event_available_rounded),
+                            label: Text(
+                              _projectTaxToYearEnd
+                                  ? 'Freistellung: Jahresende'
+                                  : 'Freistellung: heute',
+                            ),
+                            onSelected: (value) =>
+                                setState(() => _projectTaxToYearEnd = value),
                           ),
                         FilledButton.icon(
                           onPressed: () => openFinance(ref, 1),
@@ -373,6 +389,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                                           projection,
                                           sales,
                                           _selectedYear,
+                                          taxThrough,
                                         ),
                                         child: Padding(
                                           padding: const EdgeInsets.all(12),
@@ -520,6 +537,7 @@ Future<void> _showDividendTaxInfo(
   List<_ProjectedDividend> projection,
   List<PortfolioSale> sales,
   int year,
+  DateTime through,
 ) async {
   var filter = 'Alle';
   await showDialog<void>(
@@ -527,6 +545,7 @@ Future<void> _showDividendTaxInfo(
     builder: (dialogContext) => StatefulBuilder(
       builder: (context, setDialogState) {
         final payments = projection.where((payment) {
+          if (payment.date.isAfter(through)) return false;
           if (filter == 'Quellensteuer') return payment.tax.withholdingTax > 0;
           if (filter == 'Ländersteuer') {
             return payment.tax.germanCapitalTax +
@@ -537,7 +556,13 @@ Future<void> _showDividendTaxInfo(
         }).toList();
         final yearSales = filter == 'Quellensteuer'
             ? const <PortfolioSale>[]
-            : sales.where((sale) => sale.soldAt.year == year).toList();
+            : sales
+                  .where(
+                    (sale) =>
+                        sale.soldAt.year == year &&
+                        !sale.soldAt.isAfter(through),
+                  )
+                  .toList();
         return AlertDialog(
           title: Text('Steuern & Freistellung $year'),
           content: SizedBox(
@@ -2148,7 +2173,7 @@ class _DividendCurrencyHeader extends StatelessWidget {
       Expanded(
         flex: 2,
         child: Text(
-          'Aktienwährung\n${sourceCurrency.toUpperCase()}',
+          'Währung der Aktie\n${sourceCurrency.toUpperCase()}',
           textAlign: TextAlign.right,
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
