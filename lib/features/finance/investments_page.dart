@@ -97,25 +97,13 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                       style: _portfolioActionButtonStyle,
                       onPressed: selectedAccountId == null
                           ? null
-                          : () => showInvestmentEditor(
+                          : () => _showAddPortfolioItem(
                               context,
                               ref,
                               accountId: selectedAccountId,
                             ),
                       icon: const Icon(Icons.add_rounded),
-                      label: const Text('Position'),
-                    ),
-                    FilledButton.tonalIcon(
-                      style: _portfolioActionButtonStyle,
-                      onPressed: selectedAccountId == null
-                          ? null
-                          : () => _showPhysicalAssetEditor(
-                              context,
-                              ref,
-                              accountId: selectedAccountId,
-                            ),
-                      icon: const Icon(Icons.diamond_outlined),
-                      label: const Text('Wertgegenstand'),
+                      label: const Text('Anlage hinzufügen'),
                     ),
                     FilledButton.tonalIcon(
                       style: _portfolioActionButtonStyle,
@@ -297,13 +285,13 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                         message:
                             'Erfasse eine Aktie, einen ETF oder eine andere Anlage. Wert und Performance werden automatisch berechnet.',
                         action: FilledButton.icon(
-                          onPressed: () => showInvestmentEditor(
+                          onPressed: () => _showAddPortfolioItem(
                             context,
                             ref,
                             accountId: selectedAccountId,
                           ),
                           icon: const Icon(Icons.add_rounded),
-                          label: const Text('Erste Position'),
+                          label: const Text('Erste Anlage'),
                         ),
                       );
                     }
@@ -1995,6 +1983,88 @@ Future<void> _editCurrentPrice(
   controller.dispose();
 }
 
+Future<void> _showAddPortfolioItem(
+  BuildContext context,
+  WidgetRef ref, {
+  required String accountId,
+}) async {
+  var kind = 'position';
+  final selected = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: const Text('Anlage hinzufügen'),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(
+                    value: 'position',
+                    icon: Icon(Icons.candlestick_chart_rounded),
+                    label: Text('Position'),
+                  ),
+                  ButtonSegment(
+                    value: 'physical',
+                    icon: Icon(Icons.diamond_outlined),
+                    label: Text('Wertgegenstand'),
+                  ),
+                ],
+                selected: {kind},
+                onSelectionChanged: (value) =>
+                    setDialogState(() => kind = value.single),
+              ),
+              const SizedBox(height: 18),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: ListTile(
+                  key: ValueKey(kind),
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    kind == 'position'
+                        ? Icons.account_balance_wallet_outlined
+                        : Icons.inventory_2_outlined,
+                  ),
+                  title: Text(
+                    kind == 'position'
+                        ? 'Wertpapier oder Derivat'
+                        : 'Physischer Wertgegenstand',
+                  ),
+                  subtitle: Text(
+                    kind == 'position'
+                        ? 'Aktien, Anleihen sowie Knock-Outs, Optionsscheine und Faktorprodukte.'
+                        : 'Zum Beispiel Edelmetalle, Sammlerstücke oder andere Sachwerte.',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, kind),
+            icon: const Icon(Icons.arrow_forward_rounded),
+            label: const Text('Weiter'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (selected == null || !context.mounted) return;
+  if (selected == 'physical') {
+    await _showPhysicalAssetEditor(context, ref, accountId: accountId);
+  } else {
+    await showInvestmentEditor(context, ref, accountId: accountId);
+  }
+}
+
 Future<void> showInvestmentEditor(
   BuildContext context,
   WidgetRef ref, {
@@ -2018,8 +2088,6 @@ Future<void> showInvestmentEditor(
     );
     return;
   }
-  final masterData =
-      ref.read(masterDataProvider).valueOrNull ?? const <MasterDataData>[];
   final existingItems =
       (ref.read(investmentsProvider).valueOrNull ?? const <Investment>[])
           .where((item) => item.accountId == resolvedAccountId)
@@ -2033,14 +2101,9 @@ Future<void> showInvestmentEditor(
   final defaultFee =
       ref.read(preferencesProvider).valueOrNull?.defaultInvestmentFee ?? 0;
   final currencies = <String>{
-    ref.read(preferencesProvider).valueOrNull?.currency.toUpperCase() ?? 'EUR',
     ...countryTaxRates.map((item) => item.currency.toUpperCase()),
-    ...stockMasters.expand(
-      (item) => [
-        item.currency.toUpperCase(),
-        item.dividendCurrency.toUpperCase(),
-      ],
-    ),
+    if (investment != null) investment.dividendCurrency.toUpperCase(),
+    if (countryTaxRates.isEmpty) 'EUR',
   }.where((value) => value.trim().isNotEmpty).toList()..sort();
   final userIdForApi = ref.read(currentUserIdProvider);
   final marketApiKey = investment == null || userIdForApi == null
@@ -2058,7 +2121,6 @@ Future<void> showInvestmentEditor(
     context: context,
     builder: (_) => _InvestmentEditor(
       investment: investment,
-      masterData: masterData,
       stockMasters: stockMasters,
       countryTaxRates: countryTaxRates,
       currencies: currencies,
@@ -2119,6 +2181,18 @@ Future<void> showInvestmentEditor(
             isin: result.isin,
             wkn: result.wkn,
             assetType: result.assetType.value,
+            instrumentSubtype: result.instrumentSubtype,
+            positionDirection: result.positionDirection,
+            issuer: result.issuer,
+            underlying: result.underlying,
+            instrumentCurrency: result.instrumentCurrency,
+            nominalValue: result.nominalValue,
+            couponRate: result.couponRate,
+            maturityDate: result.maturityDate,
+            strikePrice: result.strikePrice,
+            knockOutBarrier: result.knockOutBarrier,
+            leverage: result.leverage,
+            subscriptionRatio: result.subscriptionRatio,
             broker: result.broker,
             country: result.country,
             sector: result.sector,
@@ -2237,7 +2311,6 @@ Future<void> _importCachedDividendHistory({
 
 class _InvestmentEditor extends StatefulWidget {
   const _InvestmentEditor({
-    required this.masterData,
     required this.stockMasters,
     required this.countryTaxRates,
     required this.currencies,
@@ -2249,7 +2322,6 @@ class _InvestmentEditor extends StatefulWidget {
     this.investment,
   });
   final Investment? investment;
-  final List<MasterDataData> masterData;
   final List<StockMaster> stockMasters;
   final List<CountryTaxRate> countryTaxRates;
   final List<String> currencies;
@@ -2296,7 +2368,41 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     text: widget.investment?.dividendWithholdingTaxRate.toString() ?? '0',
   );
   late final _notes = TextEditingController(text: widget.investment?.notes);
+  late final _issuer = TextEditingController(text: widget.investment?.issuer);
+  late final _underlying = TextEditingController(
+    text: widget.investment?.underlying,
+  );
+  late final _instrumentCurrency = TextEditingController(
+    text: widget.investment?.instrumentCurrency ?? 'EUR',
+  );
+  late final _nominalValue = TextEditingController(
+    text: widget.investment?.nominalValue.toString() ?? '0',
+  );
+  late final _couponRate = TextEditingController(
+    text: widget.investment?.couponRate.toString() ?? '0',
+  );
+  late final _strikePrice = TextEditingController(
+    text: widget.investment?.strikePrice.toString() ?? '0',
+  );
+  late final _knockOutBarrier = TextEditingController(
+    text: widget.investment?.knockOutBarrier.toString() ?? '0',
+  );
+  late final _leverage = TextEditingController(
+    text: widget.investment?.leverage.toString() ?? '0',
+  );
+  late final _subscriptionRatio = TextEditingController(
+    text: widget.investment?.subscriptionRatio.toString() ?? '0',
+  );
   late String _type = widget.investment?.assetType ?? 'Aktie';
+  late String _instrumentSubtype =
+      widget.investment?.instrumentSubtype.isNotEmpty == true
+      ? widget.investment!.instrumentSubtype
+      : 'Knock-Out';
+  late String _positionDirection =
+      widget.investment?.positionDirection.isNotEmpty == true
+      ? widget.investment!.positionDirection
+      : 'Long';
+  late DateTime? _maturityDate = widget.investment?.maturityDate;
   late String _frequency = widget.investment?.dividendFrequency ?? 'jährlich';
   late int _startMonth = widget.investment?.dividendStartMonth ?? 1;
   late DateTime _date = widget.investment?.purchaseDate ?? DateTime.now();
@@ -2321,6 +2427,15 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       _dividendExchangeRate,
       _dividendWithholdingTax,
       _notes,
+      _issuer,
+      _underlying,
+      _instrumentCurrency,
+      _nominalValue,
+      _couponRate,
+      _strikePrice,
+      _knockOutBarrier,
+      _leverage,
+      _subscriptionRatio,
     ]) {
       controller.dispose();
     }
@@ -2344,7 +2459,50 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                if (widget.investment == null) ...[
+                DropdownButtonFormField<String>(
+                  initialValue: _normalizedType,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Instrumenttyp',
+                    prefixIcon: Icon(Icons.category_outlined),
+                  ),
+                  items:
+                      ({
+                            ...widget.assetTypes,
+                            'Aktie',
+                            'Anleihe',
+                            'Derivate',
+                            _normalizedType,
+                          }.toList()..sort())
+                          .map(
+                            (value) => DropdownMenuItem(
+                              value: value,
+                              child: Text(value),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: widget.investment != null
+                      ? null
+                      : (value) => setState(() {
+                          _type = value ?? 'Aktie';
+                          if (!_requiresStockMaster) {
+                            _selectedStockId = null;
+                            for (final controller in [
+                              _name,
+                              _symbol,
+                              _isin,
+                              _wkn,
+                              _broker,
+                              _country,
+                              _sector,
+                            ]) {
+                              controller.clear();
+                            }
+                          }
+                        }),
+                ),
+                const SizedBox(height: 12),
+                if (widget.investment == null && _requiresStockMaster) ...[
                   DropdownButtonFormField<String>(
                     initialValue: _selectedStockId,
                     isExpanded: true,
@@ -2365,7 +2523,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                           ),
                         )
                         .toList(),
-                    validator: (value) => value == null
+                    validator: (value) => _requiresStockMaster && value == null
                         ? 'Bitte eine Aktie aus den Stammdaten wählen.'
                         : null,
                     onChanged: _selectStock,
@@ -2380,39 +2538,163 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                   const SizedBox(height: 12),
                 ],
                 _responsiveFields([
-                  _field(_name, 'Name', required: true, readOnly: true),
-                  _field(_symbol, 'Symbol', readOnly: true),
+                  _field(
+                    _name,
+                    'Name',
+                    required: true,
+                    readOnly: _requiresStockMaster,
+                  ),
+                  _field(_symbol, 'Symbol', readOnly: _requiresStockMaster),
                 ]),
                 const SizedBox(height: 12),
                 _responsiveFields([
-                  _field(_isin, 'ISIN', readOnly: true),
-                  _field(_wkn, 'WKN', readOnly: true),
+                  _field(_isin, 'ISIN', readOnly: _requiresStockMaster),
+                  _field(_wkn, 'WKN', readOnly: _requiresStockMaster),
                 ]),
                 const SizedBox(height: 12),
                 _responsiveFields([
-                  DropdownButtonFormField<String>(
-                    initialValue: _type,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Anlageklasse',
+                  _readOnlyValue('Anlageklasse', _normalizedType),
+                  _field(_broker, 'Broker', readOnly: _requiresStockMaster),
+                ]),
+                const SizedBox(height: 12),
+                _responsiveFields([
+                  _field(_country, 'Land', readOnly: true),
+                  _field(_sector, 'Branche', readOnly: _requiresStockMaster),
+                ]),
+                if (_isBond) ...[
+                  const SizedBox(height: 12),
+                  _responsiveFields([
+                    _field(_issuer, 'Emittent', required: true),
+                    _currencyDropdown(
+                      controller: _instrumentCurrency,
+                      label: 'Anleihewährung',
                     ),
-                    items: ({...widget.assetTypes, _type}.toList()..sort())
-                        .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                        .toList(),
-                    onChanged: (v) => _type = v ?? 'Aktie',
-                  ),
-                  _field(_broker, 'Broker', readOnly: true),
-                ]),
-                const SizedBox(height: 12),
-                _responsiveFields([
-                  _masterField(
-                    _country,
-                    'Land',
-                    'country',
-                    onSelected: _countryChanged,
-                  ),
-                  _field(_sector, 'Branche', readOnly: true),
-                ]),
+                  ]),
+                  const SizedBox(height: 12),
+                  _responsiveFields([
+                    _field(
+                      _nominalValue,
+                      'Nennwert',
+                      number: true,
+                      required: true,
+                      minimum: .000001,
+                    ),
+                    _field(
+                      _couponRate,
+                      'Kupon',
+                      number: true,
+                      required: true,
+                      suffixText: '%',
+                      maximum: 100,
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _pickMaturityDate,
+                      icon: const Icon(Icons.event_rounded),
+                      label: Text(
+                        _maturityDate == null
+                            ? 'Fälligkeit wählen'
+                            : 'Fällig: ${DateFormat('dd.MM.yyyy').format(_maturityDate!)}',
+                      ),
+                    ),
+                  ]),
+                ],
+                if (_isDerivative) ...[
+                  const SizedBox(height: 12),
+                  _responsiveFields([
+                    DropdownButtonFormField<String>(
+                      initialValue: _instrumentSubtype,
+                      decoration: const InputDecoration(labelText: 'Derivat'),
+                      items: const ['Knock-Out', 'Optionsschein', 'Faktor']
+                          .map(
+                            (value) => DropdownMenuItem(
+                              value: value,
+                              child: Text(value),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) => setState(() {
+                        _instrumentSubtype = value ?? 'Knock-Out';
+                        _positionDirection =
+                            _instrumentSubtype == 'Optionsschein'
+                            ? 'Call'
+                            : 'Long';
+                      }),
+                    ),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey(_instrumentSubtype),
+                      initialValue: _positionDirection,
+                      decoration: InputDecoration(
+                        labelText: _instrumentSubtype == 'Optionsschein'
+                            ? 'Optionsart'
+                            : 'Richtung',
+                      ),
+                      items:
+                          (_instrumentSubtype == 'Optionsschein'
+                                  ? const ['Call', 'Put']
+                                  : const ['Long', 'Short'])
+                              .map(
+                                (value) => DropdownMenuItem(
+                                  value: value,
+                                  child: Text(value),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (value) =>
+                          _positionDirection = value ?? _positionDirection,
+                    ),
+                  ]),
+                  const SizedBox(height: 12),
+                  _responsiveFields([
+                    _field(_issuer, 'Emittent', required: true),
+                    _field(_underlying, 'Basiswert', required: true),
+                    _currencyDropdown(
+                      controller: _instrumentCurrency,
+                      label: 'Produktwährung',
+                    ),
+                  ]),
+                  const SizedBox(height: 12),
+                  _responsiveFields([
+                    if (_instrumentSubtype == 'Optionsschein')
+                      _field(
+                        _strikePrice,
+                        'Basispreis',
+                        number: true,
+                        required: true,
+                      ),
+                    if (_instrumentSubtype == 'Knock-Out')
+                      _field(
+                        _knockOutBarrier,
+                        'Knock-Out-Schwelle',
+                        number: true,
+                        required: true,
+                      ),
+                    _field(
+                      _leverage,
+                      _instrumentSubtype == 'Faktor' ? 'Faktor' : 'Hebel',
+                      number: true,
+                      required: true,
+                      minimum: .000001,
+                    ),
+                    if (_instrumentSubtype != 'Faktor')
+                      _field(
+                        _subscriptionRatio,
+                        'Bezugsverhältnis',
+                        number: true,
+                        required: true,
+                        minimum: .000001,
+                      ),
+                    if (_instrumentSubtype == 'Optionsschein')
+                      OutlinedButton.icon(
+                        onPressed: _pickMaturityDate,
+                        icon: const Icon(Icons.event_rounded),
+                        label: Text(
+                          _maturityDate == null
+                              ? 'Laufzeitende wählen'
+                              : 'Bis ${DateFormat('dd.MM.yyyy').format(_maturityDate!)}',
+                        ),
+                      ),
+                  ]),
+                ],
                 const SizedBox(height: 12),
                 _responsiveFields([
                   _field(
@@ -2437,81 +2719,84 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                     'Aktueller Kurs',
                     number: true,
                     required: true,
-                    readOnly: widget.hasMarketApiKey,
+                    readOnly: widget.hasMarketApiKey && _requiresStockMaster,
                   ),
-                  TextFormField(
-                    controller: _dividend,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Dividende je Stück/Ausschüttung',
-                      suffixIcon: PopupMenuButton<String>(
-                        tooltip: 'Währung auswählen',
-                        icon: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(_dividendCurrency.text.toUpperCase()),
-                            const Icon(Icons.arrow_drop_down_rounded),
-                          ],
-                        ),
-                        onSelected: _selectDividendCurrency,
-                        itemBuilder: (context) => widget.currencies
-                            .map(
-                              (value) => PopupMenuItem(
-                                value: value,
-                                child: Text(value),
-                              ),
-                            )
-                            .toList(),
+                  if (_supportsDividends)
+                    TextFormField(
+                      controller: _dividend,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
                       ),
+                      decoration: InputDecoration(
+                        labelText: 'Dividende je Stück/Ausschüttung',
+                        suffixIcon: PopupMenuButton<String>(
+                          tooltip: 'Währung auswählen',
+                          icon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_dividendCurrency.text.toUpperCase()),
+                              const Icon(Icons.arrow_drop_down_rounded),
+                            ],
+                          ),
+                          onSelected: _selectDividendCurrency,
+                          itemBuilder: (context) => widget.currencies
+                              .map(
+                                (value) => PopupMenuItem(
+                                  value: value,
+                                  child: Text(value),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                      validator: (value) =>
+                          (_number(value) ?? -1) < 0 ? 'Ungültiger Wert' : null,
                     ),
-                    validator: (value) =>
-                        (_number(value) ?? -1) < 0 ? 'Ungültiger Wert' : null,
-                  ),
                 ]),
-                const SizedBox(height: 12),
-                _responsiveFields([
-                  _field(
-                    _dividendCurrency,
-                    'Dividendenwährung',
-                    required: true,
-                    readOnly: true,
+                if (_supportsDividends) ...[
+                  const SizedBox(height: 12),
+                  _responsiveFields([
+                    _field(
+                      _dividendCurrency,
+                      'Dividendenwährung',
+                      required: true,
+                      readOnly: true,
+                    ),
+                    _field(
+                      _dividendExchangeRate,
+                      'Kurs zur Standardwährung',
+                      number: true,
+                      required: true,
+                      minimum: 0.000001,
+                      readOnly: _exchangeLocked,
+                    ),
+                    _field(
+                      _dividendWithholdingTax,
+                      'Quellensteuer',
+                      number: true,
+                      required: true,
+                      readOnly: true,
+                      suffixText: '%',
+                      maximum: 100,
+                    ),
+                  ]),
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Beispiel: 1 USD × 0,92 Kurs × 85 % nach 15 % Quellensteuer.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ),
-                  _field(
-                    _dividendExchangeRate,
-                    'Kurs zur Standardwährung',
-                    number: true,
-                    required: true,
-                    minimum: 0.000001,
-                    readOnly: _exchangeLocked,
-                  ),
-                  _field(
-                    _dividendWithholdingTax,
-                    'Quellensteuer',
-                    number: true,
-                    required: true,
-                    readOnly: true,
-                    suffixText: '%',
-                    maximum: 100,
-                  ),
-                ]),
-                const SizedBox(height: 6),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Beispiel: 1 USD × 0,92 Kurs × 85 % nach 15 % Quellensteuer.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _responsiveFields([
-                  _readOnlyValue('Auszahlungsrhythmus', _frequency),
-                  _readOnlyValue(
-                    'Startmonat des Rhythmus',
-                    _investmentMonthNames[_startMonth - 1],
-                  ),
-                ]),
+                  const SizedBox(height: 12),
+                  _responsiveFields([
+                    _readOnlyValue('Auszahlungsrhythmus', _frequency),
+                    _readOnlyValue(
+                      'Startmonat des Rhythmus',
+                      _investmentMonthNames[_startMonth - 1],
+                    ),
+                  ]),
+                ],
                 const SizedBox(height: 12),
                 _responsiveFields([
                   OutlinedButton.icon(
@@ -2524,6 +2809,21 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                 ]),
                 const SizedBox(height: 12),
                 _field(_notes, 'Notizen', lines: 3),
+                if (widget.investment == null) ...[
+                  const SizedBox(height: 12),
+                  Card(
+                    margin: EdgeInsets.zero,
+                    color: Theme.of(context).colorScheme.secondaryContainer,
+                    child: const ListTile(
+                      dense: true,
+                      leading: Icon(Icons.info_outline_rounded),
+                      title: Text('Speichern oder Kaufen?'),
+                      subtitle: Text(
+                        'Speichern fügt die Position nur hinzu. Kaufen zieht Kaufwert und Gebühren vom verfügbaren Geld des Portfolio-Kontos ab.',
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -2664,37 +2964,6 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     },
   );
 
-  Widget _masterField(
-    TextEditingController controller,
-    String label,
-    String kind, {
-    ValueChanged<String>? onSelected,
-  }) => TextFormField(
-    controller: controller,
-    decoration: InputDecoration(
-      labelText: label,
-      suffixIcon: PopupMenuButton<String>(
-        tooltip: 'Vorhandene Werte anzeigen',
-        icon: const Icon(Icons.arrow_drop_down_rounded),
-        onSelected: (value) {
-          controller
-            ..text = value
-            ..selection = TextSelection.collapsed(offset: value.length);
-          onSelected?.call(value);
-        },
-        itemBuilder: (context) => widget.masterData
-            .where((item) => item.kind == kind)
-            .map(
-              (item) => PopupMenuItem<String>(
-                value: item.value,
-                child: Text(item.value),
-              ),
-            )
-            .toList(),
-      ),
-    ),
-  );
-
   void _selectStock(String? id) {
     if (id == null) return;
     final stock = widget.stockMasters.firstWhere((item) => item.id == id);
@@ -2732,6 +3001,39 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
   double? _number(String? value) =>
       double.tryParse((value ?? '').replaceAll(',', '.'));
 
+  String get _normalizedType => _type == 'Hebelprodukt' ? 'Derivate' : _type;
+
+  bool get _isBond => _normalizedType == 'Anleihe';
+
+  bool get _isDerivative => _normalizedType == 'Derivate';
+
+  bool get _requiresStockMaster => !_isBond && !_isDerivative;
+
+  bool get _supportsDividends =>
+      const {'Aktie', 'ETF', 'Fonds'}.contains(_normalizedType);
+
+  Widget _currencyDropdown({
+    required TextEditingController controller,
+    required String label,
+  }) {
+    final values = <String>{
+      ...widget.currencies,
+      controller.text.trim().toUpperCase(),
+      'EUR',
+    }.where((value) => value.isNotEmpty).toList()..sort();
+    return DropdownButtonFormField<String>(
+      initialValue: values.contains(controller.text.trim().toUpperCase())
+          ? controller.text.trim().toUpperCase()
+          : values.first,
+      isExpanded: true,
+      decoration: InputDecoration(labelText: label),
+      items: values
+          .map((value) => DropdownMenuItem(value: value, child: Text(value)))
+          .toList(),
+      onChanged: (value) => controller.text = value ?? 'EUR',
+    );
+  }
+
   bool get _exchangeLocked => widget.hasExchangeApiKey;
 
   void _selectDividendCurrency(String value) {
@@ -2746,25 +3048,6 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     });
   }
 
-  void _countryChanged(String value) {
-    setState(() {
-      final countryRate = widget.countryTaxRates
-          .where(
-            (item) =>
-                item.country.trim().toLowerCase() == value.trim().toLowerCase(),
-          )
-          .firstOrNull;
-      _dividendWithholdingTax.text = _taxRateForCountry(
-        value,
-        fallback: _isUnitedStates(value) ? 15 : 0,
-      ).toStringAsFixed(2);
-      if (countryRate != null) {
-        _dividendCurrency.text = countryRate.currency;
-        _dividendExchangeRate.text = countryRate.exchangeRate.toString();
-      }
-    });
-  }
-
   Future<void> _pickDate() async {
     final selected = await showDatePicker(
       context: context,
@@ -2773,6 +3056,19 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       initialDate: _date,
     );
     if (selected != null) setState(() => _date = selected);
+  }
+
+  Future<void> _pickMaturityDate() async {
+    final now = DateTime.now();
+    final selected = await showDatePicker(
+      context: context,
+      firstDate: now,
+      lastDate: DateTime(now.year + 100),
+      initialDate: _maturityDate?.isAfter(now) == true
+          ? _maturityDate!
+          : DateTime(now.year + 1, now.month, now.day),
+    );
+    if (selected != null) setState(() => _maturityDate = selected);
   }
 
   void _save({required bool buy}) {
@@ -2793,7 +3089,39 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
         symbol: Value(_symbol.text.trim().toUpperCase()),
         isin: Value(_isin.text.trim().toUpperCase()),
         wkn: Value(_wkn.text.trim().toUpperCase()),
-        assetType: _type,
+        assetType: _normalizedType,
+        instrumentSubtype: Value(_isDerivative ? _instrumentSubtype : ''),
+        positionDirection: Value(_isDerivative ? _positionDirection : ''),
+        issuer: Value((_isBond || _isDerivative) ? _issuer.text.trim() : ''),
+        underlying: Value(_isDerivative ? _underlying.text.trim() : ''),
+        instrumentCurrency: Value(
+          (_isBond || _isDerivative)
+              ? _instrumentCurrency.text.trim().toUpperCase()
+              : _dividendCurrency.text.trim().toUpperCase(),
+        ),
+        nominalValue: Value(_isBond ? (_number(_nominalValue.text) ?? 0) : 0),
+        couponRate: Value(_isBond ? (_number(_couponRate.text) ?? 0) : 0),
+        maturityDate: Value(
+          (_isBond || _instrumentSubtype == 'Optionsschein')
+              ? _maturityDate
+              : null,
+        ),
+        strikePrice: Value(
+          _isDerivative && _instrumentSubtype == 'Optionsschein'
+              ? (_number(_strikePrice.text) ?? 0)
+              : 0,
+        ),
+        knockOutBarrier: Value(
+          _isDerivative && _instrumentSubtype == 'Knock-Out'
+              ? (_number(_knockOutBarrier.text) ?? 0)
+              : 0,
+        ),
+        leverage: Value(_isDerivative ? (_number(_leverage.text) ?? 0) : 0),
+        subscriptionRatio: Value(
+          _isDerivative && _instrumentSubtype != 'Faktor'
+              ? (_number(_subscriptionRatio.text) ?? 0)
+              : 0,
+        ),
         broker: Value(_broker.text.trim()),
         country: Value(_country.text.trim()),
         sector: Value(_sector.text.trim()),

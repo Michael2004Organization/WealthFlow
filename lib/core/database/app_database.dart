@@ -74,6 +74,22 @@ class Investments extends Table {
   TextColumn get isin => text().withDefault(const Constant(''))();
   TextColumn get wkn => text().withDefault(const Constant(''))();
   TextColumn get assetType => text()();
+  // Additional product metadata. Empty values keep existing stock/ETF rows
+  // backwards compatible while bonds and derivatives can share the portfolio
+  // and purchase ledger.
+  TextColumn get instrumentSubtype => text().withDefault(const Constant(''))();
+  TextColumn get positionDirection => text().withDefault(const Constant(''))();
+  TextColumn get issuer => text().withDefault(const Constant(''))();
+  TextColumn get underlying => text().withDefault(const Constant(''))();
+  TextColumn get instrumentCurrency =>
+      text().withDefault(const Constant('EUR'))();
+  RealColumn get nominalValue => real().withDefault(const Constant(0))();
+  RealColumn get couponRate => real().withDefault(const Constant(0))();
+  DateTimeColumn get maturityDate => dateTime().nullable()();
+  RealColumn get strikePrice => real().withDefault(const Constant(0))();
+  RealColumn get knockOutBarrier => real().withDefault(const Constant(0))();
+  RealColumn get leverage => real().withDefault(const Constant(0))();
+  RealColumn get subscriptionRatio => real().withDefault(const Constant(0))();
   TextColumn get broker => text().withDefault(const Constant(''))();
   TextColumn get country => text().withDefault(const Constant(''))();
   TextColumn get sector => text().withDefault(const Constant(''))();
@@ -533,7 +549,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -740,6 +756,20 @@ final class AppDatabase extends _$AppDatabase {
           investmentPurchases.cashApplied,
         );
       }
+      if (from < 17) {
+        await migrator.addColumn(investments, investments.instrumentSubtype);
+        await migrator.addColumn(investments, investments.positionDirection);
+        await migrator.addColumn(investments, investments.issuer);
+        await migrator.addColumn(investments, investments.underlying);
+        await migrator.addColumn(investments, investments.instrumentCurrency);
+        await migrator.addColumn(investments, investments.nominalValue);
+        await migrator.addColumn(investments, investments.couponRate);
+        await migrator.addColumn(investments, investments.maturityDate);
+        await migrator.addColumn(investments, investments.strikePrice);
+        await migrator.addColumn(investments, investments.knockOutBarrier);
+        await migrator.addColumn(investments, investments.leverage);
+        await migrator.addColumn(investments, investments.subscriptionRatio);
+      }
     },
   );
 
@@ -751,6 +781,7 @@ final class AppDatabase extends _$AppDatabase {
       'Anleihe',
       'Fonds',
       'Hebelprodukt',
+      'Derivate',
     ].indexed) {
       batch.insert(
         assetClasses,
@@ -824,12 +855,29 @@ final class AppDatabase extends _$AppDatabase {
       )..where((row) => row.id.equals(value.id.value))).getSingle();
       final rates = await select(countryTaxRates).get();
       final normalizedCountry = stock.country.trim().toLowerCase();
-      final configuredRate = rates
+      final countryConfiguration = rates
           .where(
             (rate) => rate.country.trim().toLowerCase() == normalizedCountry,
           )
-          .firstOrNull
-          ?.withholdingTaxRate;
+          .firstOrNull;
+      if (countryConfiguration != null &&
+          stock.dividendCurrency.toUpperCase() !=
+              countryConfiguration.currency.toUpperCase()) {
+        await (update(
+          stockMasters,
+        )..where((row) => row.id.equals(stock.id))).write(
+          StockMastersCompanion(
+            dividendCurrency: Value(
+              countryConfiguration.currency.toUpperCase(),
+            ),
+            updatedAt: Value(DateTime.now().toUtc()),
+          ),
+        );
+      }
+      final savedDividendCurrency =
+          countryConfiguration?.currency.toUpperCase() ??
+          stock.dividendCurrency.toUpperCase();
+      final configuredRate = countryConfiguration?.withholdingTaxRate;
       final fallbackRate =
           const {
             'usa',
@@ -851,7 +899,7 @@ final class AppDatabase extends _$AppDatabase {
               broker: Value(stock.broker),
               country: Value(stock.country),
               sector: Value(stock.sector),
-              dividendCurrency: Value(stock.dividendCurrency),
+              dividendCurrency: Value(savedDividendCurrency),
               dividendFrequency: Value(stock.dividendFrequency),
               dividendStartMonth: Value(stock.dividendStartMonth),
               dividendWithholdingTaxRate: Value(configuredRate ?? fallbackRate),
@@ -2211,24 +2259,34 @@ final class AppDatabase extends _$AppDatabase {
         await (select(investments)
               ..where((row) => row.id.equals(id) & row.userId.equals(userId)))
             .getSingleOrNull();
-    if (investment != null) {
+    if (investment == null || investment.deletedAt != null) return;
+    final refundable = await _cashAppliedPurchaseTotal(id, userId);
+    await transaction(() async {
+      if (refundable > 0) {
+        await _changePortfolioCash(
+          userId: userId,
+          accountId: investment.accountId,
+          delta: refundable,
+        );
+      }
       await _writePortfolioAudit(
         userId: userId,
         action: 'deleted',
         entityType: 'investment',
         entityId: id,
         entityName: investment.name,
-        details: '${investment.quantity} Stück',
+        details:
+            '${investment.quantity} Stück · ${refundable.toStringAsFixed(2)} Kontoguthaben freigegeben',
       );
-    }
-    await (update(
-      investments,
-    )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
-      InvestmentsCompanion(
-        deletedAt: Value(DateTime.now().toUtc()),
-        updatedAt: Value(DateTime.now().toUtc()),
-      ),
-    );
+      await (update(
+        investments,
+      )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+        InvestmentsCompanion(
+          deletedAt: Value(DateTime.now().toUtc()),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+    });
     await captureNetWorth(userId);
   }
 
@@ -2237,23 +2295,74 @@ final class AppDatabase extends _$AppDatabase {
         await (select(investments)
               ..where((row) => row.id.equals(id) & row.userId.equals(userId)))
             .getSingleOrNull();
-    if (investment == null) return;
-    await (update(
-      investments,
-    )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
-      InvestmentsCompanion(
-        deletedAt: const Value(null),
+    if (investment == null || investment.deletedAt == null) return;
+    final purchaseCash = await _cashAppliedPurchaseTotal(id, userId);
+    await transaction(() async {
+      if (purchaseCash > 0) {
+        await _changePortfolioCash(
+          userId: userId,
+          accountId: investment.accountId,
+          delta: -purchaseCash,
+        );
+      }
+      await (update(
+        investments,
+      )..where((row) => row.id.equals(id) & row.userId.equals(userId))).write(
+        InvestmentsCompanion(
+          deletedAt: const Value(null),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+      await _writePortfolioAudit(
+        userId: userId,
+        action: 'restored',
+        entityType: 'investment',
+        entityId: id,
+        entityName: investment.name,
+        details:
+            '${purchaseCash.toStringAsFixed(2)} Kontoguthaben wieder gebunden',
+      );
+    });
+    await captureNetWorth(userId);
+  }
+
+  Future<double> _cashAppliedPurchaseTotal(
+    String investmentId,
+    String userId,
+  ) async {
+    final rows =
+        await (select(investmentPurchases)..where(
+              (row) =>
+                  row.investmentId.equals(investmentId) &
+                  row.userId.equals(userId) &
+                  row.cashApplied.equals(true) &
+                  row.deletedAt.isNull(),
+            ))
+            .get();
+    return rows.fold<double>(
+      0,
+      (sum, row) => sum + row.purchasePrice * row.quantity + row.fees,
+    );
+  }
+
+  Future<void> _changePortfolioCash({
+    required String userId,
+    required String accountId,
+    required double delta,
+  }) async {
+    final account =
+        await (select(accounts)..where(
+              (row) => row.id.equals(accountId) & row.userId.equals(userId),
+            ))
+            .getSingleOrNull();
+    if (account == null) throw StateError('Das Portfolio-Konto fehlt.');
+    await (update(accounts)..where((row) => row.id.equals(accountId))).write(
+      AccountsCompanion(
+        balance: Value(account.balance + delta),
+        availableBalance: Value(account.availableBalance + delta),
         updatedAt: Value(DateTime.now().toUtc()),
       ),
     );
-    await _writePortfolioAudit(
-      userId: userId,
-      action: 'restored',
-      entityType: 'investment',
-      entityId: id,
-      entityName: investment.name,
-    );
-    await captureNetWorth(userId);
   }
 
   Future<void> updateInvestmentCurrentPrice({

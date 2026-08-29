@@ -806,7 +806,6 @@ Future<void> _editStock(
                     (isin, 'ISIN', false),
                     (wkn, 'WKN', false),
                     (currency, 'Kurswährung', true),
-                    (dividendCurrency, 'Dividendenwährung', true),
                     (exchange, 'Börse', false),
                     (broker, 'Broker', false),
                     (sector, 'Branche / Sektor', false),
@@ -826,40 +825,45 @@ Future<void> _editStock(
                     ),
                   SizedBox(
                     width: 285,
-                    child: TextFormField(
-                      controller: country,
-                      onChanged: (value) => setDialogState(() {
-                        final linkedCurrency = countryCurrency(value);
-                        if (linkedCurrency != null) {
-                          dividendCurrency.text = linkedCurrency;
-                        }
-                      }),
+                    child: DropdownButtonFormField<String>(
+                      initialValue: countries.contains(country.text)
+                          ? country.text
+                          : null,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: 'Land',
                         helperText:
                             'Quellensteuer: ${countryRate().toStringAsFixed(2)} %',
-                        suffixIcon: PopupMenuButton<String>(
-                          tooltip: 'Land auswählen',
-                          icon: const Icon(Icons.arrow_drop_down_rounded),
-                          onSelected: (value) => setDialogState(() {
-                            country.text = value;
-                            country.selection = TextSelection.collapsed(
-                              offset: value.length,
-                            );
-                            final linkedCurrency = countryCurrency(value);
-                            if (linkedCurrency != null) {
-                              dividendCurrency.text = linkedCurrency;
-                            }
-                          }),
-                          itemBuilder: (_) => countries
-                              .map(
-                                (value) => PopupMenuItem(
-                                  value: value,
-                                  child: Text(value),
-                                ),
-                              )
-                              .toList(),
-                        ),
+                      ),
+                      items: countries
+                          .map(
+                            (value) => DropdownMenuItem(
+                              value: value,
+                              child: Text(value),
+                            ),
+                          )
+                          .toList(),
+                      validator: (value) => value == null
+                          ? 'Bitte ein Land aus den Stammdaten wählen.'
+                          : null,
+                      onChanged: (value) => setDialogState(() {
+                        country.text = value ?? '';
+                        final linkedCurrency = countryCurrency(value ?? '');
+                        if (linkedCurrency != null) {
+                          dividendCurrency.text = linkedCurrency;
+                        }
+                      }),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 285,
+                    child: TextFormField(
+                      controller: dividendCurrency,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Dividendenwährung',
+                        helperText: 'Wird automatisch aus dem Land übernommen.',
+                        prefixIcon: Icon(Icons.lock_outline_rounded),
                       ),
                     ),
                   ),

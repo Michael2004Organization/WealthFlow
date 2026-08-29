@@ -173,7 +173,9 @@ void main() {
       ],
     );
 
-    await tester.tap(find.text('Position').first);
+    await tester.tap(find.text('Anlage hinzufügen').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Weiter'));
     await tester.pumpAndSettle();
 
     expect(find.text('Position anlegen'), findsOneWidget);

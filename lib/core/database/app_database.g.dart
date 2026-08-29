@@ -2141,6 +2141,150 @@ class $InvestmentsTable extends Investments
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _instrumentSubtypeMeta = const VerificationMeta(
+    'instrumentSubtype',
+  );
+  @override
+  late final GeneratedColumn<String> instrumentSubtype =
+      GeneratedColumn<String>(
+        'instrument_subtype',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
+  static const VerificationMeta _positionDirectionMeta = const VerificationMeta(
+    'positionDirection',
+  );
+  @override
+  late final GeneratedColumn<String> positionDirection =
+      GeneratedColumn<String>(
+        'position_direction',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
+  static const VerificationMeta _issuerMeta = const VerificationMeta('issuer');
+  @override
+  late final GeneratedColumn<String> issuer = GeneratedColumn<String>(
+    'issuer',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _underlyingMeta = const VerificationMeta(
+    'underlying',
+  );
+  @override
+  late final GeneratedColumn<String> underlying = GeneratedColumn<String>(
+    'underlying',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _instrumentCurrencyMeta =
+      const VerificationMeta('instrumentCurrency');
+  @override
+  late final GeneratedColumn<String> instrumentCurrency =
+      GeneratedColumn<String>(
+        'instrument_currency',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('EUR'),
+      );
+  static const VerificationMeta _nominalValueMeta = const VerificationMeta(
+    'nominalValue',
+  );
+  @override
+  late final GeneratedColumn<double> nominalValue = GeneratedColumn<double>(
+    'nominal_value',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _couponRateMeta = const VerificationMeta(
+    'couponRate',
+  );
+  @override
+  late final GeneratedColumn<double> couponRate = GeneratedColumn<double>(
+    'coupon_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _maturityDateMeta = const VerificationMeta(
+    'maturityDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> maturityDate = GeneratedColumn<DateTime>(
+    'maturity_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _strikePriceMeta = const VerificationMeta(
+    'strikePrice',
+  );
+  @override
+  late final GeneratedColumn<double> strikePrice = GeneratedColumn<double>(
+    'strike_price',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _knockOutBarrierMeta = const VerificationMeta(
+    'knockOutBarrier',
+  );
+  @override
+  late final GeneratedColumn<double> knockOutBarrier = GeneratedColumn<double>(
+    'knock_out_barrier',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _leverageMeta = const VerificationMeta(
+    'leverage',
+  );
+  @override
+  late final GeneratedColumn<double> leverage = GeneratedColumn<double>(
+    'leverage',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _subscriptionRatioMeta = const VerificationMeta(
+    'subscriptionRatio',
+  );
+  @override
+  late final GeneratedColumn<double> subscriptionRatio =
+      GeneratedColumn<double>(
+        'subscription_ratio',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
   static const VerificationMeta _brokerMeta = const VerificationMeta('broker');
   @override
   late final GeneratedColumn<String> broker = GeneratedColumn<String>(
@@ -2353,6 +2497,18 @@ class $InvestmentsTable extends Investments
     isin,
     wkn,
     assetType,
+    instrumentSubtype,
+    positionDirection,
+    issuer,
+    underlying,
+    instrumentCurrency,
+    nominalValue,
+    couponRate,
+    maturityDate,
+    strikePrice,
+    knockOutBarrier,
+    leverage,
+    subscriptionRatio,
     broker,
     country,
     sector,
@@ -2442,6 +2598,102 @@ class $InvestmentsTable extends Investments
       );
     } else if (isInserting) {
       context.missing(_assetTypeMeta);
+    }
+    if (data.containsKey('instrument_subtype')) {
+      context.handle(
+        _instrumentSubtypeMeta,
+        instrumentSubtype.isAcceptableOrUnknown(
+          data['instrument_subtype']!,
+          _instrumentSubtypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('position_direction')) {
+      context.handle(
+        _positionDirectionMeta,
+        positionDirection.isAcceptableOrUnknown(
+          data['position_direction']!,
+          _positionDirectionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('issuer')) {
+      context.handle(
+        _issuerMeta,
+        issuer.isAcceptableOrUnknown(data['issuer']!, _issuerMeta),
+      );
+    }
+    if (data.containsKey('underlying')) {
+      context.handle(
+        _underlyingMeta,
+        underlying.isAcceptableOrUnknown(data['underlying']!, _underlyingMeta),
+      );
+    }
+    if (data.containsKey('instrument_currency')) {
+      context.handle(
+        _instrumentCurrencyMeta,
+        instrumentCurrency.isAcceptableOrUnknown(
+          data['instrument_currency']!,
+          _instrumentCurrencyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('nominal_value')) {
+      context.handle(
+        _nominalValueMeta,
+        nominalValue.isAcceptableOrUnknown(
+          data['nominal_value']!,
+          _nominalValueMeta,
+        ),
+      );
+    }
+    if (data.containsKey('coupon_rate')) {
+      context.handle(
+        _couponRateMeta,
+        couponRate.isAcceptableOrUnknown(data['coupon_rate']!, _couponRateMeta),
+      );
+    }
+    if (data.containsKey('maturity_date')) {
+      context.handle(
+        _maturityDateMeta,
+        maturityDate.isAcceptableOrUnknown(
+          data['maturity_date']!,
+          _maturityDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('strike_price')) {
+      context.handle(
+        _strikePriceMeta,
+        strikePrice.isAcceptableOrUnknown(
+          data['strike_price']!,
+          _strikePriceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('knock_out_barrier')) {
+      context.handle(
+        _knockOutBarrierMeta,
+        knockOutBarrier.isAcceptableOrUnknown(
+          data['knock_out_barrier']!,
+          _knockOutBarrierMeta,
+        ),
+      );
+    }
+    if (data.containsKey('leverage')) {
+      context.handle(
+        _leverageMeta,
+        leverage.isAcceptableOrUnknown(data['leverage']!, _leverageMeta),
+      );
+    }
+    if (data.containsKey('subscription_ratio')) {
+      context.handle(
+        _subscriptionRatioMeta,
+        subscriptionRatio.isAcceptableOrUnknown(
+          data['subscription_ratio']!,
+          _subscriptionRatioMeta,
+        ),
+      );
     }
     if (data.containsKey('broker')) {
       context.handle(
@@ -2635,6 +2887,54 @@ class $InvestmentsTable extends Investments
         DriftSqlType.string,
         data['${effectivePrefix}asset_type'],
       )!,
+      instrumentSubtype: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}instrument_subtype'],
+      )!,
+      positionDirection: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}position_direction'],
+      )!,
+      issuer: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}issuer'],
+      )!,
+      underlying: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}underlying'],
+      )!,
+      instrumentCurrency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}instrument_currency'],
+      )!,
+      nominalValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}nominal_value'],
+      )!,
+      couponRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}coupon_rate'],
+      )!,
+      maturityDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}maturity_date'],
+      ),
+      strikePrice: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}strike_price'],
+      )!,
+      knockOutBarrier: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}knock_out_barrier'],
+      )!,
+      leverage: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}leverage'],
+      )!,
+      subscriptionRatio: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}subscription_ratio'],
+      )!,
       broker: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}broker'],
@@ -2726,6 +3026,18 @@ class Investment extends DataClass implements Insertable<Investment> {
   final String isin;
   final String wkn;
   final String assetType;
+  final String instrumentSubtype;
+  final String positionDirection;
+  final String issuer;
+  final String underlying;
+  final String instrumentCurrency;
+  final double nominalValue;
+  final double couponRate;
+  final DateTime? maturityDate;
+  final double strikePrice;
+  final double knockOutBarrier;
+  final double leverage;
+  final double subscriptionRatio;
   final String broker;
   final String country;
   final String sector;
@@ -2754,6 +3066,18 @@ class Investment extends DataClass implements Insertable<Investment> {
     required this.isin,
     required this.wkn,
     required this.assetType,
+    required this.instrumentSubtype,
+    required this.positionDirection,
+    required this.issuer,
+    required this.underlying,
+    required this.instrumentCurrency,
+    required this.nominalValue,
+    required this.couponRate,
+    this.maturityDate,
+    required this.strikePrice,
+    required this.knockOutBarrier,
+    required this.leverage,
+    required this.subscriptionRatio,
     required this.broker,
     required this.country,
     required this.sector,
@@ -2787,6 +3111,20 @@ class Investment extends DataClass implements Insertable<Investment> {
     map['isin'] = Variable<String>(isin);
     map['wkn'] = Variable<String>(wkn);
     map['asset_type'] = Variable<String>(assetType);
+    map['instrument_subtype'] = Variable<String>(instrumentSubtype);
+    map['position_direction'] = Variable<String>(positionDirection);
+    map['issuer'] = Variable<String>(issuer);
+    map['underlying'] = Variable<String>(underlying);
+    map['instrument_currency'] = Variable<String>(instrumentCurrency);
+    map['nominal_value'] = Variable<double>(nominalValue);
+    map['coupon_rate'] = Variable<double>(couponRate);
+    if (!nullToAbsent || maturityDate != null) {
+      map['maturity_date'] = Variable<DateTime>(maturityDate);
+    }
+    map['strike_price'] = Variable<double>(strikePrice);
+    map['knock_out_barrier'] = Variable<double>(knockOutBarrier);
+    map['leverage'] = Variable<double>(leverage);
+    map['subscription_ratio'] = Variable<double>(subscriptionRatio);
     map['broker'] = Variable<String>(broker);
     map['country'] = Variable<String>(country);
     map['sector'] = Variable<String>(sector);
@@ -2825,6 +3163,20 @@ class Investment extends DataClass implements Insertable<Investment> {
       isin: Value(isin),
       wkn: Value(wkn),
       assetType: Value(assetType),
+      instrumentSubtype: Value(instrumentSubtype),
+      positionDirection: Value(positionDirection),
+      issuer: Value(issuer),
+      underlying: Value(underlying),
+      instrumentCurrency: Value(instrumentCurrency),
+      nominalValue: Value(nominalValue),
+      couponRate: Value(couponRate),
+      maturityDate: maturityDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(maturityDate),
+      strikePrice: Value(strikePrice),
+      knockOutBarrier: Value(knockOutBarrier),
+      leverage: Value(leverage),
+      subscriptionRatio: Value(subscriptionRatio),
       broker: Value(broker),
       country: Value(country),
       sector: Value(sector),
@@ -2863,6 +3215,20 @@ class Investment extends DataClass implements Insertable<Investment> {
       isin: serializer.fromJson<String>(json['isin']),
       wkn: serializer.fromJson<String>(json['wkn']),
       assetType: serializer.fromJson<String>(json['assetType']),
+      instrumentSubtype: serializer.fromJson<String>(json['instrumentSubtype']),
+      positionDirection: serializer.fromJson<String>(json['positionDirection']),
+      issuer: serializer.fromJson<String>(json['issuer']),
+      underlying: serializer.fromJson<String>(json['underlying']),
+      instrumentCurrency: serializer.fromJson<String>(
+        json['instrumentCurrency'],
+      ),
+      nominalValue: serializer.fromJson<double>(json['nominalValue']),
+      couponRate: serializer.fromJson<double>(json['couponRate']),
+      maturityDate: serializer.fromJson<DateTime?>(json['maturityDate']),
+      strikePrice: serializer.fromJson<double>(json['strikePrice']),
+      knockOutBarrier: serializer.fromJson<double>(json['knockOutBarrier']),
+      leverage: serializer.fromJson<double>(json['leverage']),
+      subscriptionRatio: serializer.fromJson<double>(json['subscriptionRatio']),
       broker: serializer.fromJson<String>(json['broker']),
       country: serializer.fromJson<String>(json['country']),
       sector: serializer.fromJson<String>(json['sector']),
@@ -2900,6 +3266,18 @@ class Investment extends DataClass implements Insertable<Investment> {
       'isin': serializer.toJson<String>(isin),
       'wkn': serializer.toJson<String>(wkn),
       'assetType': serializer.toJson<String>(assetType),
+      'instrumentSubtype': serializer.toJson<String>(instrumentSubtype),
+      'positionDirection': serializer.toJson<String>(positionDirection),
+      'issuer': serializer.toJson<String>(issuer),
+      'underlying': serializer.toJson<String>(underlying),
+      'instrumentCurrency': serializer.toJson<String>(instrumentCurrency),
+      'nominalValue': serializer.toJson<double>(nominalValue),
+      'couponRate': serializer.toJson<double>(couponRate),
+      'maturityDate': serializer.toJson<DateTime?>(maturityDate),
+      'strikePrice': serializer.toJson<double>(strikePrice),
+      'knockOutBarrier': serializer.toJson<double>(knockOutBarrier),
+      'leverage': serializer.toJson<double>(leverage),
+      'subscriptionRatio': serializer.toJson<double>(subscriptionRatio),
       'broker': serializer.toJson<String>(broker),
       'country': serializer.toJson<String>(country),
       'sector': serializer.toJson<String>(sector),
@@ -2933,6 +3311,18 @@ class Investment extends DataClass implements Insertable<Investment> {
     String? isin,
     String? wkn,
     String? assetType,
+    String? instrumentSubtype,
+    String? positionDirection,
+    String? issuer,
+    String? underlying,
+    String? instrumentCurrency,
+    double? nominalValue,
+    double? couponRate,
+    Value<DateTime?> maturityDate = const Value.absent(),
+    double? strikePrice,
+    double? knockOutBarrier,
+    double? leverage,
+    double? subscriptionRatio,
     String? broker,
     String? country,
     String? sector,
@@ -2961,6 +3351,18 @@ class Investment extends DataClass implements Insertable<Investment> {
     isin: isin ?? this.isin,
     wkn: wkn ?? this.wkn,
     assetType: assetType ?? this.assetType,
+    instrumentSubtype: instrumentSubtype ?? this.instrumentSubtype,
+    positionDirection: positionDirection ?? this.positionDirection,
+    issuer: issuer ?? this.issuer,
+    underlying: underlying ?? this.underlying,
+    instrumentCurrency: instrumentCurrency ?? this.instrumentCurrency,
+    nominalValue: nominalValue ?? this.nominalValue,
+    couponRate: couponRate ?? this.couponRate,
+    maturityDate: maturityDate.present ? maturityDate.value : this.maturityDate,
+    strikePrice: strikePrice ?? this.strikePrice,
+    knockOutBarrier: knockOutBarrier ?? this.knockOutBarrier,
+    leverage: leverage ?? this.leverage,
+    subscriptionRatio: subscriptionRatio ?? this.subscriptionRatio,
     broker: broker ?? this.broker,
     country: country ?? this.country,
     sector: sector ?? this.sector,
@@ -2992,6 +3394,38 @@ class Investment extends DataClass implements Insertable<Investment> {
       isin: data.isin.present ? data.isin.value : this.isin,
       wkn: data.wkn.present ? data.wkn.value : this.wkn,
       assetType: data.assetType.present ? data.assetType.value : this.assetType,
+      instrumentSubtype: data.instrumentSubtype.present
+          ? data.instrumentSubtype.value
+          : this.instrumentSubtype,
+      positionDirection: data.positionDirection.present
+          ? data.positionDirection.value
+          : this.positionDirection,
+      issuer: data.issuer.present ? data.issuer.value : this.issuer,
+      underlying: data.underlying.present
+          ? data.underlying.value
+          : this.underlying,
+      instrumentCurrency: data.instrumentCurrency.present
+          ? data.instrumentCurrency.value
+          : this.instrumentCurrency,
+      nominalValue: data.nominalValue.present
+          ? data.nominalValue.value
+          : this.nominalValue,
+      couponRate: data.couponRate.present
+          ? data.couponRate.value
+          : this.couponRate,
+      maturityDate: data.maturityDate.present
+          ? data.maturityDate.value
+          : this.maturityDate,
+      strikePrice: data.strikePrice.present
+          ? data.strikePrice.value
+          : this.strikePrice,
+      knockOutBarrier: data.knockOutBarrier.present
+          ? data.knockOutBarrier.value
+          : this.knockOutBarrier,
+      leverage: data.leverage.present ? data.leverage.value : this.leverage,
+      subscriptionRatio: data.subscriptionRatio.present
+          ? data.subscriptionRatio.value
+          : this.subscriptionRatio,
       broker: data.broker.present ? data.broker.value : this.broker,
       country: data.country.present ? data.country.value : this.country,
       sector: data.sector.present ? data.sector.value : this.sector,
@@ -3043,6 +3477,18 @@ class Investment extends DataClass implements Insertable<Investment> {
           ..write('isin: $isin, ')
           ..write('wkn: $wkn, ')
           ..write('assetType: $assetType, ')
+          ..write('instrumentSubtype: $instrumentSubtype, ')
+          ..write('positionDirection: $positionDirection, ')
+          ..write('issuer: $issuer, ')
+          ..write('underlying: $underlying, ')
+          ..write('instrumentCurrency: $instrumentCurrency, ')
+          ..write('nominalValue: $nominalValue, ')
+          ..write('couponRate: $couponRate, ')
+          ..write('maturityDate: $maturityDate, ')
+          ..write('strikePrice: $strikePrice, ')
+          ..write('knockOutBarrier: $knockOutBarrier, ')
+          ..write('leverage: $leverage, ')
+          ..write('subscriptionRatio: $subscriptionRatio, ')
           ..write('broker: $broker, ')
           ..write('country: $country, ')
           ..write('sector: $sector, ')
@@ -3076,6 +3522,18 @@ class Investment extends DataClass implements Insertable<Investment> {
     isin,
     wkn,
     assetType,
+    instrumentSubtype,
+    positionDirection,
+    issuer,
+    underlying,
+    instrumentCurrency,
+    nominalValue,
+    couponRate,
+    maturityDate,
+    strikePrice,
+    knockOutBarrier,
+    leverage,
+    subscriptionRatio,
     broker,
     country,
     sector,
@@ -3108,6 +3566,18 @@ class Investment extends DataClass implements Insertable<Investment> {
           other.isin == this.isin &&
           other.wkn == this.wkn &&
           other.assetType == this.assetType &&
+          other.instrumentSubtype == this.instrumentSubtype &&
+          other.positionDirection == this.positionDirection &&
+          other.issuer == this.issuer &&
+          other.underlying == this.underlying &&
+          other.instrumentCurrency == this.instrumentCurrency &&
+          other.nominalValue == this.nominalValue &&
+          other.couponRate == this.couponRate &&
+          other.maturityDate == this.maturityDate &&
+          other.strikePrice == this.strikePrice &&
+          other.knockOutBarrier == this.knockOutBarrier &&
+          other.leverage == this.leverage &&
+          other.subscriptionRatio == this.subscriptionRatio &&
           other.broker == this.broker &&
           other.country == this.country &&
           other.sector == this.sector &&
@@ -3138,6 +3608,18 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
   final Value<String> isin;
   final Value<String> wkn;
   final Value<String> assetType;
+  final Value<String> instrumentSubtype;
+  final Value<String> positionDirection;
+  final Value<String> issuer;
+  final Value<String> underlying;
+  final Value<String> instrumentCurrency;
+  final Value<double> nominalValue;
+  final Value<double> couponRate;
+  final Value<DateTime?> maturityDate;
+  final Value<double> strikePrice;
+  final Value<double> knockOutBarrier;
+  final Value<double> leverage;
+  final Value<double> subscriptionRatio;
   final Value<String> broker;
   final Value<String> country;
   final Value<String> sector;
@@ -3167,6 +3649,18 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     this.isin = const Value.absent(),
     this.wkn = const Value.absent(),
     this.assetType = const Value.absent(),
+    this.instrumentSubtype = const Value.absent(),
+    this.positionDirection = const Value.absent(),
+    this.issuer = const Value.absent(),
+    this.underlying = const Value.absent(),
+    this.instrumentCurrency = const Value.absent(),
+    this.nominalValue = const Value.absent(),
+    this.couponRate = const Value.absent(),
+    this.maturityDate = const Value.absent(),
+    this.strikePrice = const Value.absent(),
+    this.knockOutBarrier = const Value.absent(),
+    this.leverage = const Value.absent(),
+    this.subscriptionRatio = const Value.absent(),
     this.broker = const Value.absent(),
     this.country = const Value.absent(),
     this.sector = const Value.absent(),
@@ -3197,6 +3691,18 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     this.isin = const Value.absent(),
     this.wkn = const Value.absent(),
     required String assetType,
+    this.instrumentSubtype = const Value.absent(),
+    this.positionDirection = const Value.absent(),
+    this.issuer = const Value.absent(),
+    this.underlying = const Value.absent(),
+    this.instrumentCurrency = const Value.absent(),
+    this.nominalValue = const Value.absent(),
+    this.couponRate = const Value.absent(),
+    this.maturityDate = const Value.absent(),
+    this.strikePrice = const Value.absent(),
+    this.knockOutBarrier = const Value.absent(),
+    this.leverage = const Value.absent(),
+    this.subscriptionRatio = const Value.absent(),
     this.broker = const Value.absent(),
     this.country = const Value.absent(),
     this.sector = const Value.absent(),
@@ -3236,6 +3742,18 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     Expression<String>? isin,
     Expression<String>? wkn,
     Expression<String>? assetType,
+    Expression<String>? instrumentSubtype,
+    Expression<String>? positionDirection,
+    Expression<String>? issuer,
+    Expression<String>? underlying,
+    Expression<String>? instrumentCurrency,
+    Expression<double>? nominalValue,
+    Expression<double>? couponRate,
+    Expression<DateTime>? maturityDate,
+    Expression<double>? strikePrice,
+    Expression<double>? knockOutBarrier,
+    Expression<double>? leverage,
+    Expression<double>? subscriptionRatio,
     Expression<String>? broker,
     Expression<String>? country,
     Expression<String>? sector,
@@ -3266,6 +3784,18 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
       if (isin != null) 'isin': isin,
       if (wkn != null) 'wkn': wkn,
       if (assetType != null) 'asset_type': assetType,
+      if (instrumentSubtype != null) 'instrument_subtype': instrumentSubtype,
+      if (positionDirection != null) 'position_direction': positionDirection,
+      if (issuer != null) 'issuer': issuer,
+      if (underlying != null) 'underlying': underlying,
+      if (instrumentCurrency != null) 'instrument_currency': instrumentCurrency,
+      if (nominalValue != null) 'nominal_value': nominalValue,
+      if (couponRate != null) 'coupon_rate': couponRate,
+      if (maturityDate != null) 'maturity_date': maturityDate,
+      if (strikePrice != null) 'strike_price': strikePrice,
+      if (knockOutBarrier != null) 'knock_out_barrier': knockOutBarrier,
+      if (leverage != null) 'leverage': leverage,
+      if (subscriptionRatio != null) 'subscription_ratio': subscriptionRatio,
       if (broker != null) 'broker': broker,
       if (country != null) 'country': country,
       if (sector != null) 'sector': sector,
@@ -3301,6 +3831,18 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     Value<String>? isin,
     Value<String>? wkn,
     Value<String>? assetType,
+    Value<String>? instrumentSubtype,
+    Value<String>? positionDirection,
+    Value<String>? issuer,
+    Value<String>? underlying,
+    Value<String>? instrumentCurrency,
+    Value<double>? nominalValue,
+    Value<double>? couponRate,
+    Value<DateTime?>? maturityDate,
+    Value<double>? strikePrice,
+    Value<double>? knockOutBarrier,
+    Value<double>? leverage,
+    Value<double>? subscriptionRatio,
     Value<String>? broker,
     Value<String>? country,
     Value<String>? sector,
@@ -3331,6 +3873,18 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
       isin: isin ?? this.isin,
       wkn: wkn ?? this.wkn,
       assetType: assetType ?? this.assetType,
+      instrumentSubtype: instrumentSubtype ?? this.instrumentSubtype,
+      positionDirection: positionDirection ?? this.positionDirection,
+      issuer: issuer ?? this.issuer,
+      underlying: underlying ?? this.underlying,
+      instrumentCurrency: instrumentCurrency ?? this.instrumentCurrency,
+      nominalValue: nominalValue ?? this.nominalValue,
+      couponRate: couponRate ?? this.couponRate,
+      maturityDate: maturityDate ?? this.maturityDate,
+      strikePrice: strikePrice ?? this.strikePrice,
+      knockOutBarrier: knockOutBarrier ?? this.knockOutBarrier,
+      leverage: leverage ?? this.leverage,
+      subscriptionRatio: subscriptionRatio ?? this.subscriptionRatio,
       broker: broker ?? this.broker,
       country: country ?? this.country,
       sector: sector ?? this.sector,
@@ -3383,6 +3937,42 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
     }
     if (assetType.present) {
       map['asset_type'] = Variable<String>(assetType.value);
+    }
+    if (instrumentSubtype.present) {
+      map['instrument_subtype'] = Variable<String>(instrumentSubtype.value);
+    }
+    if (positionDirection.present) {
+      map['position_direction'] = Variable<String>(positionDirection.value);
+    }
+    if (issuer.present) {
+      map['issuer'] = Variable<String>(issuer.value);
+    }
+    if (underlying.present) {
+      map['underlying'] = Variable<String>(underlying.value);
+    }
+    if (instrumentCurrency.present) {
+      map['instrument_currency'] = Variable<String>(instrumentCurrency.value);
+    }
+    if (nominalValue.present) {
+      map['nominal_value'] = Variable<double>(nominalValue.value);
+    }
+    if (couponRate.present) {
+      map['coupon_rate'] = Variable<double>(couponRate.value);
+    }
+    if (maturityDate.present) {
+      map['maturity_date'] = Variable<DateTime>(maturityDate.value);
+    }
+    if (strikePrice.present) {
+      map['strike_price'] = Variable<double>(strikePrice.value);
+    }
+    if (knockOutBarrier.present) {
+      map['knock_out_barrier'] = Variable<double>(knockOutBarrier.value);
+    }
+    if (leverage.present) {
+      map['leverage'] = Variable<double>(leverage.value);
+    }
+    if (subscriptionRatio.present) {
+      map['subscription_ratio'] = Variable<double>(subscriptionRatio.value);
     }
     if (broker.present) {
       map['broker'] = Variable<String>(broker.value);
@@ -3460,6 +4050,18 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
           ..write('isin: $isin, ')
           ..write('wkn: $wkn, ')
           ..write('assetType: $assetType, ')
+          ..write('instrumentSubtype: $instrumentSubtype, ')
+          ..write('positionDirection: $positionDirection, ')
+          ..write('issuer: $issuer, ')
+          ..write('underlying: $underlying, ')
+          ..write('instrumentCurrency: $instrumentCurrency, ')
+          ..write('nominalValue: $nominalValue, ')
+          ..write('couponRate: $couponRate, ')
+          ..write('maturityDate: $maturityDate, ')
+          ..write('strikePrice: $strikePrice, ')
+          ..write('knockOutBarrier: $knockOutBarrier, ')
+          ..write('leverage: $leverage, ')
+          ..write('subscriptionRatio: $subscriptionRatio, ')
           ..write('broker: $broker, ')
           ..write('country: $country, ')
           ..write('sector: $sector, ')
@@ -19646,6 +20248,18 @@ typedef $$InvestmentsTableCreateCompanionBuilder =
       Value<String> isin,
       Value<String> wkn,
       required String assetType,
+      Value<String> instrumentSubtype,
+      Value<String> positionDirection,
+      Value<String> issuer,
+      Value<String> underlying,
+      Value<String> instrumentCurrency,
+      Value<double> nominalValue,
+      Value<double> couponRate,
+      Value<DateTime?> maturityDate,
+      Value<double> strikePrice,
+      Value<double> knockOutBarrier,
+      Value<double> leverage,
+      Value<double> subscriptionRatio,
       Value<String> broker,
       Value<String> country,
       Value<String> sector,
@@ -19677,6 +20291,18 @@ typedef $$InvestmentsTableUpdateCompanionBuilder =
       Value<String> isin,
       Value<String> wkn,
       Value<String> assetType,
+      Value<String> instrumentSubtype,
+      Value<String> positionDirection,
+      Value<String> issuer,
+      Value<String> underlying,
+      Value<String> instrumentCurrency,
+      Value<double> nominalValue,
+      Value<double> couponRate,
+      Value<DateTime?> maturityDate,
+      Value<double> strikePrice,
+      Value<double> knockOutBarrier,
+      Value<double> leverage,
+      Value<double> subscriptionRatio,
       Value<String> broker,
       Value<String> country,
       Value<String> sector,
@@ -19811,6 +20437,66 @@ class $$InvestmentsTableFilterComposer
 
   ColumnFilters<String> get assetType => $composableBuilder(
     column: $table.assetType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get instrumentSubtype => $composableBuilder(
+    column: $table.instrumentSubtype,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get positionDirection => $composableBuilder(
+    column: $table.positionDirection,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get issuer => $composableBuilder(
+    column: $table.issuer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get underlying => $composableBuilder(
+    column: $table.underlying,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get instrumentCurrency => $composableBuilder(
+    column: $table.instrumentCurrency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get nominalValue => $composableBuilder(
+    column: $table.nominalValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get couponRate => $composableBuilder(
+    column: $table.couponRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get maturityDate => $composableBuilder(
+    column: $table.maturityDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get strikePrice => $composableBuilder(
+    column: $table.strikePrice,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get knockOutBarrier => $composableBuilder(
+    column: $table.knockOutBarrier,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get leverage => $composableBuilder(
+    column: $table.leverage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get subscriptionRatio => $composableBuilder(
+    column: $table.subscriptionRatio,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20027,6 +20713,66 @@ class $$InvestmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get instrumentSubtype => $composableBuilder(
+    column: $table.instrumentSubtype,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get positionDirection => $composableBuilder(
+    column: $table.positionDirection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get issuer => $composableBuilder(
+    column: $table.issuer,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get underlying => $composableBuilder(
+    column: $table.underlying,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get instrumentCurrency => $composableBuilder(
+    column: $table.instrumentCurrency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get nominalValue => $composableBuilder(
+    column: $table.nominalValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get couponRate => $composableBuilder(
+    column: $table.couponRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get maturityDate => $composableBuilder(
+    column: $table.maturityDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get strikePrice => $composableBuilder(
+    column: $table.strikePrice,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get knockOutBarrier => $composableBuilder(
+    column: $table.knockOutBarrier,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get leverage => $composableBuilder(
+    column: $table.leverage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get subscriptionRatio => $composableBuilder(
+    column: $table.subscriptionRatio,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get broker => $composableBuilder(
     column: $table.broker,
     builder: (column) => ColumnOrderings(column),
@@ -20173,6 +20919,62 @@ class $$InvestmentsTableAnnotationComposer
 
   GeneratedColumn<String> get assetType =>
       $composableBuilder(column: $table.assetType, builder: (column) => column);
+
+  GeneratedColumn<String> get instrumentSubtype => $composableBuilder(
+    column: $table.instrumentSubtype,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get positionDirection => $composableBuilder(
+    column: $table.positionDirection,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get issuer =>
+      $composableBuilder(column: $table.issuer, builder: (column) => column);
+
+  GeneratedColumn<String> get underlying => $composableBuilder(
+    column: $table.underlying,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get instrumentCurrency => $composableBuilder(
+    column: $table.instrumentCurrency,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get nominalValue => $composableBuilder(
+    column: $table.nominalValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get couponRate => $composableBuilder(
+    column: $table.couponRate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get maturityDate => $composableBuilder(
+    column: $table.maturityDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get strikePrice => $composableBuilder(
+    column: $table.strikePrice,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get knockOutBarrier => $composableBuilder(
+    column: $table.knockOutBarrier,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get leverage =>
+      $composableBuilder(column: $table.leverage, builder: (column) => column);
+
+  GeneratedColumn<double> get subscriptionRatio => $composableBuilder(
+    column: $table.subscriptionRatio,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get broker =>
       $composableBuilder(column: $table.broker, builder: (column) => column);
@@ -20363,6 +21165,18 @@ class $$InvestmentsTableTableManager
                 Value<String> isin = const Value.absent(),
                 Value<String> wkn = const Value.absent(),
                 Value<String> assetType = const Value.absent(),
+                Value<String> instrumentSubtype = const Value.absent(),
+                Value<String> positionDirection = const Value.absent(),
+                Value<String> issuer = const Value.absent(),
+                Value<String> underlying = const Value.absent(),
+                Value<String> instrumentCurrency = const Value.absent(),
+                Value<double> nominalValue = const Value.absent(),
+                Value<double> couponRate = const Value.absent(),
+                Value<DateTime?> maturityDate = const Value.absent(),
+                Value<double> strikePrice = const Value.absent(),
+                Value<double> knockOutBarrier = const Value.absent(),
+                Value<double> leverage = const Value.absent(),
+                Value<double> subscriptionRatio = const Value.absent(),
                 Value<String> broker = const Value.absent(),
                 Value<String> country = const Value.absent(),
                 Value<String> sector = const Value.absent(),
@@ -20392,6 +21206,18 @@ class $$InvestmentsTableTableManager
                 isin: isin,
                 wkn: wkn,
                 assetType: assetType,
+                instrumentSubtype: instrumentSubtype,
+                positionDirection: positionDirection,
+                issuer: issuer,
+                underlying: underlying,
+                instrumentCurrency: instrumentCurrency,
+                nominalValue: nominalValue,
+                couponRate: couponRate,
+                maturityDate: maturityDate,
+                strikePrice: strikePrice,
+                knockOutBarrier: knockOutBarrier,
+                leverage: leverage,
+                subscriptionRatio: subscriptionRatio,
                 broker: broker,
                 country: country,
                 sector: sector,
@@ -20423,6 +21249,18 @@ class $$InvestmentsTableTableManager
                 Value<String> isin = const Value.absent(),
                 Value<String> wkn = const Value.absent(),
                 required String assetType,
+                Value<String> instrumentSubtype = const Value.absent(),
+                Value<String> positionDirection = const Value.absent(),
+                Value<String> issuer = const Value.absent(),
+                Value<String> underlying = const Value.absent(),
+                Value<String> instrumentCurrency = const Value.absent(),
+                Value<double> nominalValue = const Value.absent(),
+                Value<double> couponRate = const Value.absent(),
+                Value<DateTime?> maturityDate = const Value.absent(),
+                Value<double> strikePrice = const Value.absent(),
+                Value<double> knockOutBarrier = const Value.absent(),
+                Value<double> leverage = const Value.absent(),
+                Value<double> subscriptionRatio = const Value.absent(),
                 Value<String> broker = const Value.absent(),
                 Value<String> country = const Value.absent(),
                 Value<String> sector = const Value.absent(),
@@ -20452,6 +21290,18 @@ class $$InvestmentsTableTableManager
                 isin: isin,
                 wkn: wkn,
                 assetType: assetType,
+                instrumentSubtype: instrumentSubtype,
+                positionDirection: positionDirection,
+                issuer: issuer,
+                underlying: underlying,
+                instrumentCurrency: instrumentCurrency,
+                nominalValue: nominalValue,
+                couponRate: couponRate,
+                maturityDate: maturityDate,
+                strikePrice: strikePrice,
+                knockOutBarrier: knockOutBarrier,
+                leverage: leverage,
+                subscriptionRatio: subscriptionRatio,
                 broker: broker,
                 country: country,
                 sector: sector,

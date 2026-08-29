@@ -581,4 +581,81 @@ void main() {
       expect(account.availableBalance, 725);
     },
   );
+
+  test(
+    'deleting a bought position releases and restores portfolio cash',
+    () async {
+      final now = DateTime(2026, 8, 20);
+      await database.createUser(
+        UsersCompanion.insert(
+          id: 'delete-investor',
+          email: 'delete-investor@example.test',
+          displayName: 'Delete Investor',
+          passwordHash: 'hash',
+          passwordSalt: 'salt',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await database.saveAccount(
+        AccountsCompanion.insert(
+          id: 'portfolio-cash',
+          userId: 'delete-investor',
+          bankName: 'Broker',
+          label: 'Portfolio',
+          balance: const Value(1000),
+          availableBalance: const Value(1000),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await database.saveInvestment(
+        InvestmentsCompanion.insert(
+          id: 'bought-share',
+          userId: 'delete-investor',
+          accountId: const Value('portfolio-cash'),
+          name: 'Test Aktie',
+          assetType: 'Aktie',
+          purchaseDate: now,
+          purchasePrice: 100,
+          quantity: 2,
+          fees: const Value(5),
+          currentPrice: 100,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await database.saveInvestmentPurchase(
+        InvestmentPurchasesCompanion.insert(
+          id: 'bought-lot',
+          userId: 'delete-investor',
+          investmentId: 'bought-share',
+          purchaseDate: now,
+          purchasePrice: 100,
+          quantity: 2,
+          fees: const Value(5),
+          cashApplied: const Value(true),
+          createdAt: now,
+        ),
+      );
+      await database.applyPortfolioPurchaseToCash(
+        userId: 'delete-investor',
+        accountId: 'portfolio-cash',
+        amount: 205,
+        purchasedAt: now,
+      );
+
+      await database.deleteInvestment('bought-share', 'delete-investor');
+      var account =
+          (await database.watchAccounts('delete-investor').first).single;
+      expect(account.balance, 1000);
+      expect(account.availableBalance, 1000);
+      expect(await database.watchInvestments('delete-investor').first, isEmpty);
+
+      await database.restoreInvestment('bought-share', 'delete-investor');
+      account = (await database.watchAccounts('delete-investor').first).single;
+      expect(account.balance, 795);
+      expect(account.availableBalance, 795);
+    },
+  );
 }

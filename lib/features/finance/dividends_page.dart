@@ -14,6 +14,7 @@ import 'investments_page.dart';
 
 final _dividendInvestmentFilterProvider = StateProvider<String?>((_) => null);
 const _allDividendInvestments = '__all__';
+const _allDividendAccounts = '__all_accounts__';
 
 class DividendsPage extends ConsumerStatefulWidget {
   const DividendsPage({super.key});
@@ -25,18 +26,44 @@ class DividendsPage extends ConsumerStatefulWidget {
 class _DividendsPageState extends ConsumerState<DividendsPage> {
   int _selectedYear = DateTime.now().year;
   bool _projectTaxToYearEnd = false;
+  String _selectedAccountId = _allDividendAccounts;
 
   @override
   Widget build(BuildContext context) {
-    final investments = ref.watch(allInvestmentsProvider);
+    final investments = ref.watch(investmentsProvider);
     return investments.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Center(
         child: Text('Dividenden konnten nicht geladen werden: $error'),
       ),
       data: (items) {
+        final accounts =
+            ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
+        final portfolioAccounts = accounts
+            .where(
+              (account) =>
+                  account.usageType == 'portfolio' &&
+                  items.any((item) => item.accountId == account.id),
+            )
+            .toList();
+        final selectedAccountId =
+            _selectedAccountId == _allDividendAccounts ||
+                portfolioAccounts.any(
+                  (account) => account.id == _selectedAccountId,
+                )
+            ? _selectedAccountId
+            : _allDividendAccounts;
+        final accountItems = selectedAccountId == _allDividendAccounts
+            ? items
+            : items
+                  .where((item) => item.accountId == selectedAccountId)
+                  .toList();
         final preference = ref.watch(preferencesProvider).valueOrNull;
-        final baseCurrency = preference?.currency ?? 'EUR';
+        final selectedAccount = portfolioAccounts
+            .where((account) => account.id == selectedAccountId)
+            .firstOrNull;
+        final baseCurrency =
+            selectedAccount?.currency ?? preference?.currency ?? 'EUR';
         final taxAllowance = preference?.taxAllowance ?? 1000;
         final schedules =
             ref.watch(dividendSchedulesProvider).valueOrNull ??
@@ -55,7 +82,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
         final taxYear = calculatePortfolioTaxYear(
           year: _selectedYear,
           allowance: taxAllowance,
-          investments: items,
+          investments: accountItems,
           schedules: schedules,
           sales: sales,
           purchases: purchases,
@@ -63,7 +90,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
               preference?.includePhysicalAssetsInTaxAllowance ?? false,
           through: taxThrough,
         );
-        var dividendItems = items
+        var dividendItems = accountItems
             .where(
               (item) =>
                   _wasHeldDuringYear(item, purchases, sales, _selectedYear) &&
@@ -79,6 +106,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
           _selectedYear,
           purchases,
           sales,
+          {for (final account in accounts) account.id: account.currency},
         );
         dividendItems.sort(
           (a, b) => _netForInvestment(
@@ -169,6 +197,44 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                                   icon: const Icon(Icons.today_rounded),
                                 ),
                             ],
+                          ),
+                        ),
+                        SizedBox(
+                          width: 290,
+                          child: DropdownButtonFormField<String>(
+                            key: ValueKey(selectedAccountId),
+                            initialValue: selectedAccountId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Portfolio-Konto',
+                              prefixIcon: Icon(Icons.account_balance_rounded),
+                            ),
+                            items: [
+                              const DropdownMenuItem(
+                                value: _allDividendAccounts,
+                                child: Text('Alle Portfolio-Konten'),
+                              ),
+                              ...portfolioAccounts.map(
+                                (account) => DropdownMenuItem(
+                                  value: account.id,
+                                  child: Text(
+                                    '${account.label} · ${account.currency}',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            onChanged: (value) => setState(() {
+                              _selectedAccountId =
+                                  value ?? _allDividendAccounts;
+                              ref
+                                      .read(
+                                        _dividendInvestmentFilterProvider
+                                            .notifier,
+                                      )
+                                      .state =
+                                  _allDividendInvestments;
+                            }),
                           ),
                         ),
                         if (dividendItems.isNotEmpty)
@@ -795,6 +861,7 @@ final class _ProjectedDividend {
     required this.sourceCurrency,
     required this.exchangeRate,
     required this.grossSource,
+    required this.accountCurrency,
   });
 
   final Investment investment;
@@ -806,6 +873,7 @@ final class _ProjectedDividend {
   final String sourceCurrency;
   final double exchangeRate;
   final double grossSource;
+  final String accountCurrency;
 }
 
 List<_ProjectedDividend> _buildDividendProjection(
@@ -815,6 +883,7 @@ List<_ProjectedDividend> _buildDividendProjection(
   int year,
   List<InvestmentPurchase> purchases,
   List<PortfolioSale> sales,
+  Map<String, String> accountCurrencies,
 ) {
   var remainingAllowance = allowance.clamp(0, double.infinity).toDouble();
   final events =
@@ -846,9 +915,9 @@ List<_ProjectedDividend> _buildDividendProjection(
             investment: investment,
             month: month,
             amount: row.amountPerShare,
-            exchangeRate: row.exchangeRate,
-            withholdingTaxRate: row.withholdingTaxRate,
-            currency: row.currency,
+            exchangeRate: investment.dividendExchangeRate,
+            withholdingTaxRate: investment.dividendWithholdingTaxRate,
+            currency: investment.dividendCurrency,
             date: row.paymentDate ?? row.exDate ?? DateTime(year, month, 1),
           ));
         }
@@ -908,6 +977,7 @@ List<_ProjectedDividend> _buildDividendProjection(
         sourceCurrency: event.currency,
         exchangeRate: event.exchangeRate,
         grossSource: event.amount * shares,
+        accountCurrency: accountCurrencies[event.investment.accountId] ?? 'EUR',
       ),
     );
   }
@@ -2014,13 +2084,15 @@ Future<void> _showDividendPayments(
                           '${DateFormat('dd.MM.yyyy').format(payment.date)} · $status',
                         ),
                         trailing: Text(
-                          money(payment.tax.net, currency: baseCurrency),
+                          money(
+                            payment.tax.net,
+                            currency: payment.accountCurrency,
+                          ),
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                         onTap: () => _showDividendPaymentDetail(
                           context,
                           payment: payment,
-                          baseCurrency: baseCurrency,
                         ),
                       );
                     },
@@ -2041,12 +2113,12 @@ Future<void> _showDividendPayments(
 Future<void> _showDividendPaymentDetail(
   BuildContext context, {
   required _ProjectedDividend payment,
-  required String baseCurrency,
 }) => showDialog<void>(
   context: context,
   builder: (dialogContext) {
     final tax = payment.tax;
     final rate = payment.exchangeRate <= 0 ? 1.0 : payment.exchangeRate;
+    final accountCurrency = payment.accountCurrency;
     return AlertDialog(
       title: Text('${payment.investment.name} · Brutto bis Netto'),
       content: SizedBox(
@@ -2056,14 +2128,14 @@ Future<void> _showDividendPaymentDetail(
           children: [
             _DividendCurrencyHeader(
               sourceCurrency: payment.sourceCurrency,
-              baseCurrency: baseCurrency,
+              baseCurrency: accountCurrency,
             ),
             const Divider(height: 18),
             _DividendTaxRow(
               label: 'Brutto',
               baseValue: tax.gross,
               sourceValue: payment.grossSource,
-              baseCurrency: baseCurrency,
+              baseCurrency: accountCurrency,
               sourceCurrency: payment.sourceCurrency,
               emphasized: true,
             ),
@@ -2072,7 +2144,7 @@ Future<void> _showDividendPaymentDetail(
                   'Quellensteuer (${payment.withholdingTaxRate.toStringAsFixed(2)} % · ${payment.investment.country})',
               baseValue: -tax.withholdingTax,
               sourceValue: -tax.withholdingTax / rate,
-              baseCurrency: baseCurrency,
+              baseCurrency: accountCurrency,
               sourceCurrency: payment.sourceCurrency,
             ),
             if (tax.creditableWithholdingTax > 0)
@@ -2080,7 +2152,7 @@ Future<void> _showDividendPaymentDetail(
                 label: 'Davon anrechenbare Quellensteuer',
                 baseValue: tax.creditableWithholdingTax,
                 sourceValue: tax.creditableWithholdingTax / rate,
-                baseCurrency: baseCurrency,
+                baseCurrency: accountCurrency,
                 sourceCurrency: payment.sourceCurrency,
                 informational: true,
               ),
@@ -2088,7 +2160,7 @@ Future<void> _showDividendPaymentDetail(
               label: 'Kapitalertragsteuer ($germanCapitalGainsTaxRate %)',
               baseValue: -tax.germanCapitalTax,
               sourceValue: -tax.germanCapitalTax / rate,
-              baseCurrency: baseCurrency,
+              baseCurrency: accountCurrency,
               sourceCurrency: payment.sourceCurrency,
             ),
             _DividendTaxRow(
@@ -2096,7 +2168,7 @@ Future<void> _showDividendPaymentDetail(
                   'Solidaritätszuschlag ($solidaritySurchargeRate % auf Kapitalertragsteuer)',
               baseValue: -tax.solidaritySurcharge,
               sourceValue: -tax.solidaritySurcharge / rate,
-              baseCurrency: baseCurrency,
+              baseCurrency: accountCurrency,
               sourceCurrency: payment.sourceCurrency,
             ),
             if (tax.churchTax > 0)
@@ -2104,7 +2176,7 @@ Future<void> _showDividendPaymentDetail(
                 label: 'Kirchensteuer',
                 baseValue: -tax.churchTax,
                 sourceValue: -tax.churchTax / rate,
-                baseCurrency: baseCurrency,
+                baseCurrency: accountCurrency,
                 sourceCurrency: payment.sourceCurrency,
               ),
             if (tax.allowanceUsed > 0)
@@ -2112,7 +2184,7 @@ Future<void> _showDividendPaymentDetail(
                 label: 'Genutzter Freistellungsauftrag',
                 baseValue: tax.allowanceUsed,
                 sourceValue: tax.allowanceUsed / rate,
-                baseCurrency: baseCurrency,
+                baseCurrency: accountCurrency,
                 sourceCurrency: payment.sourceCurrency,
                 informational: true,
               ),
@@ -2121,7 +2193,7 @@ Future<void> _showDividendPaymentDetail(
               label: 'Zwischensumme nach Abzug Steuern',
               baseValue: tax.net,
               sourceValue: tax.net / rate,
-              baseCurrency: baseCurrency,
+              baseCurrency: accountCurrency,
               sourceCurrency: payment.sourceCurrency,
               emphasized: true,
             ),
@@ -2130,7 +2202,7 @@ Future<void> _showDividendPaymentDetail(
               child: Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  '${payment.sourceCurrency.toUpperCase()} → ${baseCurrency.toUpperCase()} · Kurs ${rate.toStringAsFixed(6)}',
+                  '${payment.sourceCurrency.toUpperCase()} → ${accountCurrency.toUpperCase()} · Kurs ${rate.toStringAsFixed(6)}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
@@ -2140,7 +2212,7 @@ Future<void> _showDividendPaymentDetail(
               label: 'Netto',
               baseValue: tax.net,
               sourceValue: tax.net / rate,
-              baseCurrency: baseCurrency,
+              baseCurrency: accountCurrency,
               sourceCurrency: payment.sourceCurrency,
               emphasized: true,
             ),
