@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/finance/currencies.dart';
 import '../../core/providers.dart';
 import '../../core/storage/data_export.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -84,11 +85,9 @@ class SettingsPage extends ConsumerWidget {
                     icon: Icons.euro_rounded,
                     title: 'Standardwährung',
                     value: preference.currency,
-                    values: const {
-                      'EUR': 'EUR',
-                      'USD': 'USD',
-                      'CHF': 'CHF',
-                      'GBP': 'GBP',
+                    values: {
+                      for (final currency in supportedIsoCurrencies)
+                        currency: currency,
                     },
                     onChanged: (value) =>
                         _savePreference(ref, preference, currency: value),

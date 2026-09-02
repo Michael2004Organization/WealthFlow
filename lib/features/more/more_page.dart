@@ -63,7 +63,7 @@ class _MorePageState extends ConsumerState<MorePage> {
     _MoreDestination(
       'administration',
       'Administration',
-      'Benutzerrollen und Aktien-Stammdaten',
+      'Benutzerrollen und Portfolio-Stammdaten',
       Icons.admin_panel_settings_rounded,
       Colors.redAccent,
       AdministrationPage(),

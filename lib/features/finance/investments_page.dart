@@ -7,6 +7,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/finance/account_balance_math.dart';
+import '../../core/finance/currencies.dart';
+import '../../core/finance/portfolio_master_data.dart';
 import '../../core/finance/portfolio_tax_summary.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -2096,14 +2098,22 @@ Future<void> showInvestmentEditor(
       ref.read(stockMastersProvider).valueOrNull ?? const <StockMaster>[];
   final countryTaxRates =
       ref.read(countryTaxRatesProvider).valueOrNull ?? const <CountryTaxRate>[];
-  final assetTypes =
-      ref.read(assetClassesProvider).valueOrNull ?? const <AssetClassesData>[];
+  final countries = await ref.read(databaseProvider).availableCountries();
+  final accountCurrency =
+      (ref.read(accountsProvider).valueOrNull ?? const <Account>[])
+          .where((item) => item.id == resolvedAccountId)
+          .firstOrNull
+          ?.currency
+          .toUpperCase() ??
+      ref.read(preferencesProvider).valueOrNull?.currency.toUpperCase() ??
+      'EUR';
   final defaultFee =
       ref.read(preferencesProvider).valueOrNull?.defaultInvestmentFee ?? 0;
   final currencies = <String>{
+    ...supportedIsoCurrencies,
     ...countryTaxRates.map((item) => item.currency.toUpperCase()),
+    accountCurrency,
     if (investment != null) investment.dividendCurrency.toUpperCase(),
-    if (countryTaxRates.isEmpty) 'EUR',
   }.where((value) => value.trim().isNotEmpty).toList()..sort();
   final userIdForApi = ref.read(currentUserIdProvider);
   final marketApiKey = investment == null || userIdForApi == null
@@ -2123,28 +2133,85 @@ Future<void> showInvestmentEditor(
       investment: investment,
       stockMasters: stockMasters,
       countryTaxRates: countryTaxRates,
+      countries: countries,
       currencies: currencies,
-      assetTypes: assetTypes.map((item) => item.name).toList(),
+      assetTypes: supportedPortfolioAssetClasses,
       accountId: resolvedAccountId,
+      accountCurrency: accountCurrency,
       defaultFee: defaultFee,
       hasMarketApiKey: marketApiKey?.trim().isNotEmpty ?? false,
       hasExchangeApiKey: exchangeApiKey?.trim().isNotEmpty ?? false,
     ),
   );
   if (saved != null) {
-    final result = saved.investment;
+    var result = saved.investment;
     final database = ref.read(databaseProvider);
     final userId = ref.read(currentUserIdProvider);
     if (userId != null) {
+      if (!result.stockId.present || result.stockId.value == null) {
+        final now = DateTime.now().toUtc();
+        final master = await database.ensurePortfolioMaster(
+          userId,
+          StockMastersCompanion.insert(
+            id: const Uuid().v4(),
+            name: result.name.value,
+            assetType: Value(result.assetType.value),
+            symbol: result.symbol.value,
+            isin: Value(result.isin.value),
+            wkn: Value(result.wkn.value),
+            instrumentSubtype: Value(result.instrumentSubtype.value),
+            positionDirection: Value(result.positionDirection.value),
+            issuer: Value(result.issuer.value),
+            underlying: Value(result.underlying.value),
+            instrumentCurrency: Value(result.instrumentCurrency.value),
+            nominalValue: Value(result.nominalValue.value),
+            couponRate: Value(result.couponRate.value),
+            maturityDate: Value(result.maturityDate.value),
+            strikePrice: Value(result.strikePrice.value),
+            knockOutBarrier: Value(result.knockOutBarrier.value),
+            leverage: Value(result.leverage.value),
+            subscriptionRatio: Value(result.subscriptionRatio.value),
+            currency: Value(result.instrumentCurrency.value),
+            dividendCurrency: Value(result.dividendCurrency.value),
+            country: Value(result.country.value),
+            broker: Value(result.broker.value),
+            sector: Value(result.sector.value),
+            dividendFrequency: Value(result.dividendFrequency.value),
+            dividendStartMonth: Value(result.dividendStartMonth.value),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        result = result.copyWith(stockId: Value(master.id));
+      }
       Investment? duplicate;
       if (investment == null) {
-        final newName = result.name.value.trim().toLowerCase();
-        final newIsin = result.isin.value.trim().toUpperCase();
+        final newIdentity = portfolioMasterIdentity(
+          assetType: result.assetType.value,
+          name: result.name.value,
+          symbol: result.symbol.value,
+          isin: result.isin.value,
+          wkn: result.wkn.value,
+          instrumentSubtype: result.instrumentSubtype.value,
+          issuer: result.issuer.value,
+          underlying: result.underlying.value,
+          maturityDate: result.maturityDate.value,
+        );
         duplicate = existingItems
             .where(
               (item) =>
-                  (newIsin.isNotEmpty && item.isin.toUpperCase() == newIsin) ||
-                  item.name.trim().toLowerCase() == newName,
+                  portfolioMasterIdentity(
+                    assetType: item.assetType,
+                    name: item.name,
+                    symbol: item.symbol,
+                    isin: item.isin,
+                    wkn: item.wkn,
+                    instrumentSubtype: item.instrumentSubtype,
+                    issuer: item.issuer,
+                    underlying: item.underlying,
+                    maturityDate: item.maturityDate,
+                  ) ==
+                  newIdentity,
             )
             .firstOrNull;
       }
@@ -2313,9 +2380,11 @@ class _InvestmentEditor extends StatefulWidget {
   const _InvestmentEditor({
     required this.stockMasters,
     required this.countryTaxRates,
+    required this.countries,
     required this.currencies,
     required this.assetTypes,
     required this.accountId,
+    required this.accountCurrency,
     required this.defaultFee,
     required this.hasMarketApiKey,
     required this.hasExchangeApiKey,
@@ -2324,9 +2393,11 @@ class _InvestmentEditor extends StatefulWidget {
   final Investment? investment;
   final List<StockMaster> stockMasters;
   final List<CountryTaxRate> countryTaxRates;
+  final List<String> countries;
   final List<String> currencies;
   final List<String> assetTypes;
   final String accountId;
+  final String accountCurrency;
   final double defaultFee;
   final bool hasMarketApiKey;
   final bool hasExchangeApiKey;
@@ -2359,7 +2430,18 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     text: widget.investment?.annualDividend.toString() ?? '0',
   );
   late final _dividendCurrency = TextEditingController(
-    text: widget.investment?.dividendCurrency ?? 'EUR',
+    text:
+        widget.investment?.dividendCurrency ??
+        widget.countryTaxRates
+            .where(
+              (item) =>
+                  normalizeCountry(item.country) ==
+                  normalizeCountry(widget.investment?.country ?? ''),
+            )
+            .firstOrNull
+            ?.currency
+            .toUpperCase() ??
+        widget.accountCurrency,
   );
   late final _dividendExchangeRate = TextEditingController(
     text: widget.investment?.dividendExchangeRate.toString() ?? '1',
@@ -2373,7 +2455,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     text: widget.investment?.underlying,
   );
   late final _instrumentCurrency = TextEditingController(
-    text: widget.investment?.instrumentCurrency ?? 'EUR',
+    text: widget.investment?.instrumentCurrency ?? widget.accountCurrency,
   );
   late final _nominalValue = TextEditingController(
     text: widget.investment?.nominalValue.toString() ?? '0',
@@ -2459,242 +2541,298 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: _normalizedType,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Instrumenttyp',
-                    prefixIcon: Icon(Icons.category_outlined),
-                  ),
-                  items:
-                      ({
-                            ...widget.assetTypes,
-                            'Aktie',
-                            'Anleihe',
-                            'Derivate',
-                            _normalizedType,
-                          }.toList()..sort())
-                          .map(
-                            (value) => DropdownMenuItem(
-                              value: value,
-                              child: Text(value),
-                            ),
-                          )
-                          .toList(),
-                  onChanged: widget.investment != null
-                      ? null
-                      : (value) => setState(() {
-                          _type = value ?? 'Aktie';
-                          if (!_requiresStockMaster) {
-                            _selectedStockId = null;
-                            for (final controller in [
-                              _name,
-                              _symbol,
-                              _isin,
-                              _wkn,
-                              _broker,
-                              _country,
-                              _sector,
-                            ]) {
-                              controller.clear();
-                            }
-                          }
-                        }),
-                ),
-                const SizedBox(height: 12),
-                if (widget.investment == null && _requiresStockMaster) ...[
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedStockId,
+                Tooltip(
+                  message: 'Anlageklasse auswählen',
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _normalizedType,
                     isExpanded: true,
                     decoration: const InputDecoration(
-                      labelText: 'Aktie aus Stammdaten',
-                      prefixIcon: Icon(Icons.search_rounded),
-                      helperText:
-                          'Suche über den Namen – keine Ticker-Eingabe nötig.',
+                      labelText: 'Anlageklasse',
+                      prefixIcon: Icon(Icons.category_outlined),
                     ),
-                    items: widget.stockMasters
+                    items: widget.assetTypes
                         .map(
-                          (stock) => DropdownMenuItem(
-                            value: stock.id,
-                            child: Text(
-                              '${stock.name} · ${stock.symbol}',
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value),
                           ),
                         )
                         .toList(),
-                    validator: (value) => _requiresStockMaster && value == null
-                        ? 'Bitte eine Aktie aus den Stammdaten wählen.'
-                        : null,
-                    onChanged: _selectStock,
+                    onChanged: widget.investment != null
+                        ? null
+                        : (value) => setState(() {
+                            _type = value ?? 'Aktie';
+                            _selectedStockId = null;
+                            _clearMasterFields();
+                          }),
                   ),
-                  if (widget.stockMasters.isEmpty)
+                ),
+                const SizedBox(height: 12),
+                if (widget.investment == null && _offersMasterSelection) ...[
+                  DropdownButtonFormField<String>(
+                    key: ValueKey('master-$_normalizedType-$_selectedStockId'),
+                    initialValue: _selectedStockId ?? _newMasterValue,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Portfolio-Stammdaten (optional)',
+                      prefixIcon: Icon(Icons.search_rounded),
+                      helperText:
+                          'Vorhandenes Instrument wählen oder neu erfassen.',
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: _newMasterValue,
+                        child: Text('Neues Instrument erfassen'),
+                      ),
+                      ..._matchingStockMasters.map(
+                        (stock) => DropdownMenuItem(
+                          value: stock.id,
+                          child: Text(
+                            [
+                              stock.name,
+                              stock.symbol,
+                            ].where((value) => value.isNotEmpty).join(' · '),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value == _newMasterValue) {
+                        setState(() {
+                          _selectedStockId = null;
+                          _clearMasterFields();
+                        });
+                      } else {
+                        _selectStock(value);
+                      }
+                    },
+                  ),
+                  if (_matchingStockMasters.isEmpty)
                     const Padding(
                       padding: EdgeInsets.only(top: 8),
                       child: Text(
-                        'Ein Administrator muss zuerst eine Aktie im zentralen Katalog anlegen.',
+                        'Für diese Anlageklasse gibt es noch keine passenden Stammdaten. Beim Speichern wird ein neuer Datensatz angelegt.',
                       ),
                     ),
                   const SizedBox(height: 12),
                 ],
-                _responsiveFields([
-                  _field(
-                    _name,
-                    'Name',
-                    required: true,
-                    readOnly: _requiresStockMaster,
-                  ),
-                  _field(_symbol, 'Symbol', readOnly: _requiresStockMaster),
-                ]),
-                const SizedBox(height: 12),
-                _responsiveFields([
-                  _field(_isin, 'ISIN', readOnly: _requiresStockMaster),
-                  _field(_wkn, 'WKN', readOnly: _requiresStockMaster),
-                ]),
-                const SizedBox(height: 12),
-                _responsiveFields([
-                  _readOnlyValue('Anlageklasse', _normalizedType),
-                  _field(_broker, 'Broker', readOnly: _requiresStockMaster),
-                ]),
-                const SizedBox(height: 12),
-                _responsiveFields([
-                  _field(_country, 'Land', readOnly: true),
-                  _field(_sector, 'Branche', readOnly: _requiresStockMaster),
-                ]),
-                if (_isBond) ...[
-                  const SizedBox(height: 12),
-                  _responsiveFields([
-                    _field(_issuer, 'Emittent', required: true),
-                    _currencyDropdown(
-                      controller: _instrumentCurrency,
-                      label: 'Anleihewährung',
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: ExpansionTile(
+                    key: ValueKey(
+                      'master-details-$_normalizedType-$_selectedStockId',
                     ),
-                  ]),
-                  const SizedBox(height: 12),
-                  _responsiveFields([
-                    _field(
-                      _nominalValue,
-                      'Nennwert',
-                      number: true,
-                      required: true,
-                      minimum: .000001,
+                    initiallyExpanded: !_usesSelectedMaster,
+                    leading: const Icon(Icons.badge_outlined),
+                    title: const Text('Instrument-Stammdaten'),
+                    subtitle: Text(
+                      _usesSelectedMaster
+                          ? 'Aus dem Portfolio-Katalog übernommen'
+                          : 'Werden beim Speichern dedupliziert angelegt',
                     ),
-                    _field(
-                      _couponRate,
-                      'Kupon',
-                      number: true,
-                      required: true,
-                      suffixText: '%',
-                      maximum: 100,
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _pickMaturityDate,
-                      icon: const Icon(Icons.event_rounded),
-                      label: Text(
-                        _maturityDate == null
-                            ? 'Fälligkeit wählen'
-                            : 'Fällig: ${DateFormat('dd.MM.yyyy').format(_maturityDate!)}',
-                      ),
-                    ),
-                  ]),
-                ],
-                if (_isDerivative) ...[
-                  const SizedBox(height: 12),
-                  _responsiveFields([
-                    DropdownButtonFormField<String>(
-                      initialValue: _instrumentSubtype,
-                      decoration: const InputDecoration(labelText: 'Derivat'),
-                      items: const ['Knock-Out', 'Optionsschein', 'Faktor']
-                          .map(
-                            (value) => DropdownMenuItem(
-                              value: value,
-                              child: Text(value),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) => setState(() {
-                        _instrumentSubtype = value ?? 'Knock-Out';
-                        _positionDirection =
-                            _instrumentSubtype == 'Optionsschein'
-                            ? 'Call'
-                            : 'Long';
-                      }),
-                    ),
-                    DropdownButtonFormField<String>(
-                      key: ValueKey(_instrumentSubtype),
-                      initialValue: _positionDirection,
-                      decoration: InputDecoration(
-                        labelText: _instrumentSubtype == 'Optionsschein'
-                            ? 'Optionsart'
-                            : 'Richtung',
-                      ),
-                      items:
-                          (_instrumentSubtype == 'Optionsschein'
-                                  ? const ['Call', 'Put']
-                                  : const ['Long', 'Short'])
-                              .map(
-                                (value) => DropdownMenuItem(
-                                  value: value,
-                                  child: Text(value),
-                                ),
-                              )
-                              .toList(),
-                      onChanged: (value) =>
-                          _positionDirection = value ?? _positionDirection,
-                    ),
-                  ]),
-                  const SizedBox(height: 12),
-                  _responsiveFields([
-                    _field(_issuer, 'Emittent', required: true),
-                    _field(_underlying, 'Basiswert', required: true),
-                    _currencyDropdown(
-                      controller: _instrumentCurrency,
-                      label: 'Produktwährung',
-                    ),
-                  ]),
-                  const SizedBox(height: 12),
-                  _responsiveFields([
-                    if (_instrumentSubtype == 'Optionsschein')
-                      _field(
-                        _strikePrice,
-                        'Basispreis',
-                        number: true,
-                        required: true,
-                      ),
-                    if (_instrumentSubtype == 'Knock-Out')
-                      _field(
-                        _knockOutBarrier,
-                        'Knock-Out-Schwelle',
-                        number: true,
-                        required: true,
-                      ),
-                    _field(
-                      _leverage,
-                      _instrumentSubtype == 'Faktor' ? 'Faktor' : 'Hebel',
-                      number: true,
-                      required: true,
-                      minimum: .000001,
-                    ),
-                    if (_instrumentSubtype != 'Faktor')
-                      _field(
-                        _subscriptionRatio,
-                        'Bezugsverhältnis',
-                        number: true,
-                        required: true,
-                        minimum: .000001,
-                      ),
-                    if (_instrumentSubtype == 'Optionsschein')
-                      OutlinedButton.icon(
-                        onPressed: _pickMaturityDate,
-                        icon: const Icon(Icons.event_rounded),
-                        label: Text(
-                          _maturityDate == null
-                              ? 'Laufzeitende wählen'
-                              : 'Bis ${DateFormat('dd.MM.yyyy').format(_maturityDate!)}',
+                    childrenPadding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+                    children: [
+                      _responsiveFields([
+                        _field(
+                          _name,
+                          'Name',
+                          required: true,
+                          readOnly: _usesSelectedMaster,
                         ),
-                      ),
-                  ]),
-                ],
+                        _field(
+                          _symbol,
+                          'Symbol',
+                          required: _isCrypto,
+                          readOnly: _usesSelectedMaster,
+                        ),
+                      ]),
+                      if (!_isCrypto) ...[
+                        const SizedBox(height: 12),
+                        _responsiveFields([
+                          _field(_isin, 'ISIN', readOnly: _usesSelectedMaster),
+                          _field(_wkn, 'WKN', readOnly: _usesSelectedMaster),
+                        ]),
+                      ],
+                      const SizedBox(height: 12),
+                      _responsiveFields([
+                        _readOnlyValue('Anlageklasse', _normalizedType),
+                        _field(
+                          _broker,
+                          'Broker',
+                          readOnly: _usesSelectedMaster,
+                        ),
+                      ]),
+                      if (!_isCrypto) ...[
+                        const SizedBox(height: 12),
+                        _responsiveFields([
+                          _countryDropdown(),
+                          _field(
+                            _sector,
+                            'Branche',
+                            readOnly: _usesSelectedMaster,
+                          ),
+                        ]),
+                      ],
+                      if (_isCrypto) ...[
+                        const SizedBox(height: 12),
+                        _currencyDropdown(
+                          controller: _instrumentCurrency,
+                          label: 'Handelswährung',
+                        ),
+                      ],
+                      if (_isBond) ...[
+                        const SizedBox(height: 12),
+                        _responsiveFields([
+                          _field(
+                            _issuer,
+                            'Emittent',
+                            readOnly: _usesSelectedMaster,
+                          ),
+                          _currencyDropdown(
+                            controller: _instrumentCurrency,
+                            label: 'Anleihewährung',
+                          ),
+                        ]),
+                        const SizedBox(height: 12),
+                        _responsiveFields([
+                          _field(_nominalValue, 'Nennwert', number: true),
+                          _field(
+                            _couponRate,
+                            'Kupon',
+                            number: true,
+                            suffixText: '%',
+                            maximum: 100,
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: _usesSelectedMaster
+                                ? null
+                                : _pickMaturityDate,
+                            icon: const Icon(Icons.event_rounded),
+                            label: Text(
+                              _maturityDate == null
+                                  ? 'Fälligkeit wählen'
+                                  : 'Fällig: ${DateFormat('dd.MM.yyyy').format(_maturityDate!)}',
+                            ),
+                          ),
+                        ]),
+                      ],
+                      if (_isDerivative) ...[
+                        const SizedBox(height: 12),
+                        _responsiveFields([
+                          DropdownButtonFormField<String>(
+                            initialValue: _instrumentSubtype,
+                            decoration: const InputDecoration(
+                              labelText: 'Derivat',
+                            ),
+                            items:
+                                const ['Knock-Out', 'Optionsschein', 'Faktor']
+                                    .map(
+                                      (value) => DropdownMenuItem(
+                                        value: value,
+                                        child: Text(value),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged: _usesSelectedMaster
+                                ? null
+                                : (value) => setState(() {
+                                    _instrumentSubtype = value ?? 'Knock-Out';
+                                    _positionDirection =
+                                        _instrumentSubtype == 'Optionsschein'
+                                        ? 'Call'
+                                        : 'Long';
+                                  }),
+                          ),
+                          DropdownButtonFormField<String>(
+                            key: ValueKey(_instrumentSubtype),
+                            initialValue: _positionDirection,
+                            decoration: InputDecoration(
+                              labelText: _instrumentSubtype == 'Optionsschein'
+                                  ? 'Optionsart'
+                                  : 'Richtung',
+                            ),
+                            items:
+                                (_instrumentSubtype == 'Optionsschein'
+                                        ? const ['Call', 'Put']
+                                        : const ['Long', 'Short'])
+                                    .map(
+                                      (value) => DropdownMenuItem(
+                                        value: value,
+                                        child: Text(value),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged: _usesSelectedMaster
+                                ? null
+                                : (value) => _positionDirection =
+                                      value ?? _positionDirection,
+                          ),
+                        ]),
+                        const SizedBox(height: 12),
+                        _responsiveFields([
+                          _field(
+                            _issuer,
+                            'Emittent',
+                            readOnly: _usesSelectedMaster,
+                          ),
+                          _field(
+                            _underlying,
+                            'Basiswert',
+                            required: true,
+                            readOnly: _usesSelectedMaster,
+                          ),
+                          _currencyDropdown(
+                            controller: _instrumentCurrency,
+                            label: 'Produktwährung',
+                          ),
+                        ]),
+                        const SizedBox(height: 12),
+                        _responsiveFields([
+                          if (_instrumentSubtype == 'Optionsschein')
+                            _field(
+                              _strikePrice,
+                              'Basispreis',
+                              number: true,
+                              readOnly: _usesSelectedMaster,
+                            ),
+                          if (_instrumentSubtype == 'Knock-Out')
+                            _field(
+                              _knockOutBarrier,
+                              'Knock-Out-Schwelle',
+                              number: true,
+                              readOnly: _usesSelectedMaster,
+                            ),
+                          _field(
+                            _leverage,
+                            _instrumentSubtype == 'Faktor' ? 'Faktor' : 'Hebel',
+                            number: true,
+                            readOnly: _usesSelectedMaster,
+                          ),
+                          if (_instrumentSubtype != 'Faktor')
+                            _field(
+                              _subscriptionRatio,
+                              'Bezugsverhältnis',
+                              number: true,
+                              readOnly: _usesSelectedMaster,
+                            ),
+                          if (_instrumentSubtype == 'Optionsschein')
+                            OutlinedButton.icon(
+                              onPressed: _usesSelectedMaster
+                                  ? null
+                                  : _pickMaturityDate,
+                              icon: const Icon(Icons.event_rounded),
+                              label: Text(
+                                _maturityDate == null
+                                    ? 'Laufzeitende wählen'
+                                    : 'Bis ${DateFormat('dd.MM.yyyy').format(_maturityDate!)}',
+                              ),
+                            ),
+                        ]),
+                      ],
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 12),
                 _responsiveFields([
                   _field(
@@ -2719,7 +2857,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                     'Aktueller Kurs',
                     number: true,
                     required: true,
-                    readOnly: widget.hasMarketApiKey && _requiresStockMaster,
+                    readOnly: widget.hasMarketApiKey && _usesSelectedMaster,
                   ),
                   if (_supportsDividends)
                     TextFormField(
@@ -2983,6 +3121,22 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       _sector.text = stock.sector;
       _wkn.text = stock.wkn;
       _broker.text = stock.broker;
+      _issuer.text = stock.issuer;
+      _underlying.text = stock.underlying;
+      _instrumentCurrency.text = stock.instrumentCurrency;
+      _nominalValue.text = stock.nominalValue.toString();
+      _couponRate.text = stock.couponRate.toString();
+      _maturityDate = stock.maturityDate;
+      _strikePrice.text = stock.strikePrice.toString();
+      _knockOutBarrier.text = stock.knockOutBarrier.toString();
+      _leverage.text = stock.leverage.toString();
+      _subscriptionRatio.text = stock.subscriptionRatio.toString();
+      if (stock.instrumentSubtype.isNotEmpty) {
+        _instrumentSubtype = stock.instrumentSubtype;
+      }
+      if (stock.positionDirection.isNotEmpty) {
+        _positionDirection = stock.positionDirection;
+      }
       _dividendCurrency.text =
           countryRate?.currency.toUpperCase() ??
           stock.dividendCurrency.toUpperCase();
@@ -3001,16 +3155,107 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
   double? _number(String? value) =>
       double.tryParse((value ?? '').replaceAll(',', '.'));
 
-  String get _normalizedType => _type == 'Hebelprodukt' ? 'Derivate' : _type;
+  static const _newMasterValue = '__new_portfolio_master__';
+
+  String get _normalizedType => _type;
 
   bool get _isBond => _normalizedType == 'Anleihe';
 
-  bool get _isDerivative => _normalizedType == 'Derivate';
+  bool get _isDerivative =>
+      const {'Derivate', 'Hebelprodukt'}.contains(_normalizedType);
 
-  bool get _requiresStockMaster => !_isBond && !_isDerivative;
+  bool get _isCrypto => _normalizedType == 'Kryptowährung';
+
+  bool get _offersMasterSelection =>
+      const {'Aktie', 'ETF', 'Fonds'}.contains(_normalizedType);
+
+  bool get _usesSelectedMaster => _selectedStockId != null;
+
+  List<StockMaster> get _matchingStockMasters => widget.stockMasters
+      .where((item) => item.assetType == _normalizedType)
+      .toList();
 
   bool get _supportsDividends =>
       const {'Aktie', 'ETF', 'Fonds'}.contains(_normalizedType);
+
+  void _clearMasterFields() {
+    for (final controller in [
+      _name,
+      _symbol,
+      _isin,
+      _wkn,
+      _broker,
+      _country,
+      _sector,
+      _issuer,
+      _underlying,
+    ]) {
+      controller.clear();
+    }
+    _instrumentCurrency.text = widget.accountCurrency;
+    _dividendCurrency.text = widget.accountCurrency;
+    _dividendExchangeRate.text = '1';
+    _dividendWithholdingTax.text = '0';
+    for (final controller in [
+      _nominalValue,
+      _couponRate,
+      _strikePrice,
+      _knockOutBarrier,
+      _leverage,
+      _subscriptionRatio,
+    ]) {
+      controller.text = '0';
+    }
+    _maturityDate = null;
+  }
+
+  Widget _countryDropdown() {
+    final values = <String>{
+      '',
+      ...widget.countries,
+      _country.text.trim(),
+    }.toList()..sort();
+    final selected = values.contains(_country.text.trim())
+        ? _country.text.trim()
+        : '';
+    return DropdownButtonFormField<String>(
+      key: ValueKey('country-$selected-$_selectedStockId'),
+      initialValue: selected,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Land',
+        prefixIcon: Icon(Icons.public_rounded),
+      ),
+      items: values
+          .map(
+            (value) => DropdownMenuItem(
+              value: value,
+              child: Text(value.isEmpty ? 'Kein Land' : value),
+            ),
+          )
+          .toList(),
+      onChanged: _usesSelectedMaster ? null : _applyCountry,
+    );
+  }
+
+  void _applyCountry(String? value) {
+    final selected = value?.trim() ?? '';
+    final configuration = widget.countryTaxRates
+        .where(
+          (item) =>
+              normalizeCountry(item.country) == normalizeCountry(selected),
+        )
+        .firstOrNull;
+    setState(() {
+      _country.text = selected;
+      _dividendCurrency.text =
+          configuration?.currency.toUpperCase() ?? widget.accountCurrency;
+      _dividendExchangeRate.text = (configuration?.exchangeRate ?? 1)
+          .toString();
+      _dividendWithholdingTax.text = (configuration?.withholdingTaxRate ?? 0)
+          .toString();
+    });
+  }
 
   Widget _currencyDropdown({
     required TextEditingController controller,
@@ -3019,7 +3264,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     final values = <String>{
       ...widget.currencies,
       controller.text.trim().toUpperCase(),
-      'EUR',
+      widget.accountCurrency,
     }.where((value) => value.isNotEmpty).toList()..sort();
     return DropdownButtonFormField<String>(
       initialValue: values.contains(controller.text.trim().toUpperCase())
@@ -3030,7 +3275,9 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       items: values
           .map((value) => DropdownMenuItem(value: value, child: Text(value)))
           .toList(),
-      onChanged: (value) => controller.text = value ?? 'EUR',
+      onChanged: _usesSelectedMaster && controller == _instrumentCurrency
+          ? null
+          : (value) => controller.text = value ?? widget.accountCurrency,
     );
   }
 
@@ -3073,6 +3320,22 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
 
   void _save({required bool buy}) {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    final masterError = portfolioMasterValidationError(
+      assetType: _normalizedType,
+      name: _name.text,
+      symbol: _symbol.text,
+      isin: _isin.text,
+      wkn: _wkn.text,
+      instrumentSubtype: _instrumentSubtype,
+      issuer: _issuer.text,
+      underlying: _underlying.text,
+    );
+    if (masterError != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(masterError)));
+      return;
+    }
     final userId = ProviderScope.containerOf(
       context,
       listen: false,
@@ -3095,14 +3358,14 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
         issuer: Value((_isBond || _isDerivative) ? _issuer.text.trim() : ''),
         underlying: Value(_isDerivative ? _underlying.text.trim() : ''),
         instrumentCurrency: Value(
-          (_isBond || _isDerivative)
+          (_isBond || _isDerivative || _isCrypto)
               ? _instrumentCurrency.text.trim().toUpperCase()
               : _dividendCurrency.text.trim().toUpperCase(),
         ),
         nominalValue: Value(_isBond ? (_number(_nominalValue.text) ?? 0) : 0),
         couponRate: Value(_isBond ? (_number(_couponRate.text) ?? 0) : 0),
         maturityDate: Value(
-          (_isBond || _instrumentSubtype == 'Optionsschein')
+          (_isBond || (_isDerivative && _instrumentSubtype == 'Optionsschein'))
               ? _maturityDate
               : null,
         ),

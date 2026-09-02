@@ -658,4 +658,124 @@ void main() {
       expect(account.availableBalance, 795);
     },
   );
+
+  test('country tax rules are admin-only and normalized by country', () async {
+    final now = DateTime.utc(2026, 9, 2);
+    await database.createUser(
+      UsersCompanion.insert(
+        id: 'tax-admin',
+        email: 'tax-admin@example.test',
+        displayName: 'Tax Admin',
+        passwordHash: 'hash',
+        passwordSalt: 'salt',
+        role: const Value('admin'),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await database.createUser(
+      UsersCompanion.insert(
+        id: 'tax-member',
+        email: 'tax-member@example.test',
+        displayName: 'Tax Member',
+        passwordHash: 'hash',
+        passwordSalt: 'salt',
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    await database.saveCountryTaxRate(
+      actorUserId: 'tax-admin',
+      country: 'USA',
+      rate: 15,
+      currency: 'USD',
+    );
+    await database.saveCountryTaxRate(
+      actorUserId: 'tax-admin',
+      country: ' usa ',
+      rate: 20,
+      currency: 'USD',
+    );
+
+    final rates = await database.watchCountryTaxRates().first;
+    expect(rates, hasLength(1));
+    expect(rates.single.withholdingTaxRate, 20);
+    expect(rates.single.currency, 'USD');
+    await expectLater(
+      database.saveCountryTaxRate(
+        actorUserId: 'tax-member',
+        country: 'Schweiz',
+        rate: 35,
+        currency: 'CHF',
+      ),
+      throwsStateError,
+    );
+  });
+
+  test(
+    'position-created crypto masters are deduplicated without ISIN',
+    () async {
+      final now = DateTime.utc(2026, 9, 2);
+      await database.createUser(
+        UsersCompanion.insert(
+          id: 'crypto-owner',
+          email: 'crypto@example.test',
+          displayName: 'Crypto Owner',
+          passwordHash: 'hash',
+          passwordSalt: 'salt',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+
+      StockMastersCompanion crypto(String id, String name) =>
+          StockMastersCompanion.insert(
+            id: id,
+            name: name,
+            assetType: const Value('Kryptowährung'),
+            symbol: 'BTC',
+            createdAt: now,
+            updatedAt: now,
+          );
+
+      final first = await database.ensurePortfolioMaster(
+        'crypto-owner',
+        crypto('bitcoin-1', 'Bitcoin'),
+      );
+      final second = await database.ensurePortfolioMaster(
+        'crypto-owner',
+        crypto('bitcoin-2', 'Bitcoin Duplicate'),
+      );
+
+      expect(second.id, first.id);
+      expect(first.isin, isEmpty);
+      expect(await database.stockPool(), hasLength(1));
+    },
+  );
+
+  test('asset class catalogue cannot be extended or reduced', () async {
+    final now = DateTime.utc(2026, 9, 2);
+    await database.createUser(
+      UsersCompanion.insert(
+        id: 'class-admin',
+        email: 'class-admin@example.test',
+        displayName: 'Class Admin',
+        passwordHash: 'hash',
+        passwordSalt: 'salt',
+        role: const Value('admin'),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    await expectLater(
+      database.saveAssetClass(actorUserId: 'class-admin', name: 'Sammlerstück'),
+      throwsStateError,
+    );
+    await expectLater(
+      database.deleteAssetClass(actorUserId: 'class-admin', name: 'Aktie'),
+      throwsStateError,
+    );
+  });
 }

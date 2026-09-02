@@ -24,7 +24,6 @@ class MasterDataPage extends ConsumerWidget {
     final assetClasses =
         ref.watch(assetClassesProvider).valueOrNull ??
         const <AssetClassesData>[];
-    final isAdmin = ref.watch(isAdminProvider);
     return Padding(
       padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 600 ? 16 : 24),
       child: Center(
@@ -57,19 +56,9 @@ class MasterDataPage extends ConsumerWidget {
                             initiallyExpanded: false,
                             leading: const Icon(Icons.category_outlined),
                             title: const Text('Portfolio-Anlageklassen'),
-                            subtitle: Text(
-                              isAdmin
-                                  ? 'Globale Auswahlmöglichkeiten für alle Portfolios'
-                                  : 'Von der Administration festgelegte Auswahlmöglichkeiten',
+                            subtitle: const Text(
+                              'Feste Auswahlmöglichkeiten für alle Portfolios',
                             ),
-                            trailing: isAdmin
-                                ? IconButton(
-                                    tooltip: 'Anlageklasse hinzufügen',
-                                    onPressed: () =>
-                                        _addAssetClass(context, ref),
-                                    icon: const Icon(Icons.add_rounded),
-                                  )
-                                : const Icon(Icons.expand_more_rounded),
                             children: [
                               if (sortedAssetClasses.isEmpty)
                                 const ListTile(
@@ -79,19 +68,10 @@ class MasterDataPage extends ConsumerWidget {
                                 ListTile(
                                   dense: true,
                                   title: Text(assetClass.name),
-                                  trailing: isAdmin
-                                      ? IconButton(
-                                          tooltip: 'Anlageklasse löschen',
-                                          onPressed: () => _deleteAssetClass(
-                                            context,
-                                            ref,
-                                            assetClass,
-                                          ),
-                                          icon: const Icon(
-                                            Icons.delete_outline_rounded,
-                                          ),
-                                        )
-                                      : null,
+                                  trailing: const Icon(
+                                    Icons.lock_outline_rounded,
+                                    size: 18,
+                                  ),
                                 ),
                             ],
                           ),
@@ -154,69 +134,6 @@ class MasterDataPage extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  Future<void> _addAssetClass(BuildContext context, WidgetRef ref) async {
-    final controller = TextEditingController();
-    final value = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Anlageklasse hinzufügen'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Bezeichnung'),
-          onSubmitted: (text) => Navigator.pop(dialogContext, text.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('Hinzufügen'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    final actor = ref.read(currentUserIdProvider);
-    if (actor != null && value != null && value.isNotEmpty) {
-      await ref
-          .read(databaseProvider)
-          .saveAssetClass(actorUserId: actor, name: value);
-    }
-  }
-
-  Future<void> _deleteAssetClass(
-    BuildContext context,
-    WidgetRef ref,
-    AssetClassesData assetClass,
-  ) async {
-    if (!await confirmDelete(
-      context,
-      title: 'Anlageklasse löschen?',
-      message: '„${assetClass.name}“ wird aus der Portfolio-Auswahl entfernt.',
-    )) {
-      return;
-    }
-    final actor = ref.read(currentUserIdProvider);
-    if (actor == null) return;
-    try {
-      await ref
-          .read(databaseProvider)
-          .deleteAssetClass(actorUserId: actor, name: assetClass.name);
-    } catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error.toString().replaceFirst('Bad state: ', '')),
-          ),
-        );
-      }
-    }
   }
 
   Future<void> _add(

@@ -143,7 +143,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Erstes Konto als Administrator'),
                         subtitle: const Text(
-                          'Verwaltet später Benutzerrollen und globale Aktien-Stammdaten.',
+                          'Verwaltet später Benutzerrollen und globale Portfolio-Stammdaten.',
                         ),
                         value: _createInitialAdmin,
                         onChanged: (value) => setState(

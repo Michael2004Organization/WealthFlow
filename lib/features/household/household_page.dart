@@ -857,94 +857,105 @@ class _EntryEditorState extends State<_EntryEditor> {
                 onSelectionChanged: (value) =>
                     setState(() => _income = value.first),
               ),
-              const SizedBox(height: 16),
-              if (widget.entry == null) ...[
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _description,
+                decoration: const InputDecoration(
+                  labelText: 'Beschreibung',
+                  prefixIcon: Icon(Icons.notes_rounded),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              _responsiveFields([
+                if (widget.entry == null)
+                  DropdownButtonFormField<String>(
+                    initialValue: _bookingKind,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Buchungsart',
+                      prefixIcon: Icon(Icons.swap_horiz_rounded),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'standard',
+                        child: Text('Einnahme oder Ausgabe'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'transfer',
+                        child: Text('Auf eigenes Konto verschieben'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'saving',
+                        child: Text('Sparen / Investieren'),
+                      ),
+                    ],
+                    onChanged: (value) => setState(() {
+                      _bookingKind = value ?? 'standard';
+                      if (_bookingKind != 'standard') _income = false;
+                    }),
+                  ),
+                TextFormField(
+                  controller: _amount,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Betrag',
+                    prefixText: '${_selectedAccount?.currency ?? 'EUR'} ',
+                    prefixIcon: const Icon(Icons.payments_outlined),
+                  ),
+                  validator: (value) => (_parse(value) ?? 0) <= 0
+                      ? 'Bitte einen positiven Betrag eingeben.'
+                      : null,
+                ),
+              ]),
+              const SizedBox(height: 12),
+              _responsiveFields([
+                _EditableSuggestionField(
+                  controller: _category,
+                  label: 'Kategorie',
+                  suggestions: {
+                    ..._categories.skip(1),
+                    ...widget.masterData
+                        .where((item) => item.kind == 'category')
+                        .map((item) => item.value),
+                  }.toList(),
+                ),
                 DropdownButtonFormField<String>(
-                  initialValue: _bookingKind,
+                  initialValue: _vehicleId,
                   isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'Buchungsart',
-                    prefixIcon: Icon(Icons.swap_horiz_rounded),
+                    labelText: 'Fahrzeug (optional)',
+                    prefixIcon: Icon(Icons.directions_car_rounded),
                   ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'standard',
-                      child: Text('Einnahme oder Ausgabe'),
+                  items: [
+                    const DropdownMenuItem(
+                      value: '',
+                      child: Text('Kein Fahrzeug'),
                     ),
-                    DropdownMenuItem(
-                      value: 'transfer',
-                      child: Text('Auf eigenes Konto verschieben'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'saving',
-                      child: Text('Sparen / Investieren'),
-                    ),
+                    for (final vehicle in widget.vehicles)
+                      DropdownMenuItem(
+                        value: vehicle.id,
+                        child: Text('${vehicle.make} ${vehicle.model}'),
+                      ),
                   ],
-                  onChanged: (value) => setState(() {
-                    _bookingKind = value ?? 'standard';
-                    if (_bookingKind != 'standard') _income = false;
-                  }),
+                  onChanged: (value) => _vehicleId = value ?? '',
                 ),
-                const SizedBox(height: 12),
-              ],
-              TextFormField(
-                controller: _amount,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Betrag',
-                  prefixText: '€ ',
-                ),
-                validator: (value) => (_parse(value) ?? 0) <= 0
-                    ? 'Bitte einen positiven Betrag eingeben.'
-                    : null,
-              ),
+              ]),
               const SizedBox(height: 12),
-              _EditableSuggestionField(
-                controller: _category,
-                label: 'Kategorie',
-                suggestions: {
-                  ..._categories.skip(1),
-                  ...widget.masterData
-                      .where((item) => item.kind == 'category')
-                      .map((item) => item.value),
-                }.toList(),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _vehicleId,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Fahrzeug (optional)',
-                  prefixIcon: Icon(Icons.directions_car_rounded),
-                ),
-                items: [
-                  const DropdownMenuItem(
-                    value: '',
-                    child: Text('Kein Fahrzeug'),
+              Card(
+                margin: EdgeInsets.zero,
+                child: ListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  leading: const Icon(Icons.account_balance_rounded),
+                  title: Text(_selectedAccount?.label ?? 'Kein Haushaltskonto'),
+                  subtitle: Text(
+                    _selectedAccount == null
+                        ? 'Bitte zuerst ein Haushaltskonto auswählen.'
+                        : 'Kontostand: ${money(_selectedAccount!.balance, currency: _selectedAccount!.currency)}',
                   ),
-                  for (final vehicle in widget.vehicles)
-                    DropdownMenuItem(
-                      value: vehicle.id,
-                      child: Text('${vehicle.make} ${vehicle.model}'),
-                    ),
-                ],
-                onChanged: (value) => _vehicleId = value ?? '',
-              ),
-              const SizedBox(height: 12),
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                leading: const Icon(Icons.account_balance_rounded),
-                title: Text(_selectedAccount?.label ?? 'Kein Haushaltskonto'),
-                subtitle: Text(
-                  _selectedAccount == null
-                      ? 'Bitte zuerst ein Haushaltskonto auswählen.'
-                      : 'Aktueller Kontostand: ' +
-                            money(
-                              _selectedAccount!.balance,
-                              currency: _selectedAccount!.currency,
-                            ),
                 ),
               ),
               if (widget.entry == null && _bookingKind != 'standard') ...[
@@ -998,12 +1009,6 @@ class _EntryEditorState extends State<_EntryEditor> {
                   suggestions: _masterEntries('paymentMethod'),
                 ),
               ]),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _description,
-                decoration: const InputDecoration(labelText: 'Beschreibung'),
-                maxLines: 2,
-              ),
               const SizedBox(height: 8),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,

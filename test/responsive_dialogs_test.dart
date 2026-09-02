@@ -179,6 +179,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Position anlegen'), findsOneWidget);
+    expect(find.byTooltip('Anlageklasse auswählen'), findsOneWidget);
+    final assetTypeDropdown = find
+        .descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(DropdownButtonFormField<String>),
+        )
+        .first;
+    await tester.ensureVisible(assetTypeDropdown);
+    await tester.tap(assetTypeDropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kryptowährung').last);
+    await tester.pumpAndSettle();
+    expect(find.text('ISIN'), findsNothing);
+    expect(find.text('Symbol'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 

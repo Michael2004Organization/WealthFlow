@@ -106,10 +106,16 @@ POST /v1/sync/batch
 
 Änderungen tragen `entityId`, `entityType`, `revision`, `changedAt`, `deletedAt` und eine idempotente `operationId`. Zugriffstoken sind kurzlebig; Refresh-Tokens rotieren und werden ausschließlich sicher gespeichert. Serveradresse und Port werden validiert, HTTP ist außerhalb lokaler Entwicklung unzulässig.
 
-### Marktdaten
+### Marktdaten und Portfolio-Stammdaten
 
-Aktien werden global in `StockMasters` gepflegt und von Benutzer-Portfolios nur
-referenziert. Dadurch entstehen Kursabfragen nicht pro Benutzer. Der
+Aktien, ETFs, Fonds, Anleihen, Kryptowährungen, Derivate und Hebelprodukte
+werden global im technisch kompatibel benannten `StockMasters`-Katalog
+gepflegt und von Benutzer-Portfolios nur referenziert. Die fachliche Identität
+wird je Anlageklasse aus ISIN, WKN, Symbol oder einer normalisierten
+Typ-/Name-/Basiswert-Kombination gebildet. Neue Instrumente werden beim
+Speichern einer Position dedupliziert in den Katalog übernommen; Kaufpreis,
+Stückzahl, Gebühren und Kaufdatum bleiben ausschließlich positionsbezogen.
+Dadurch entstehen Kursabfragen nicht pro Benutzer. Der
 providerneutrale `MarketDataCoordinator` plant höchstens eine Batch-Abfrage je
 Zeitfenster (10:00, 15:00 und 19:00 Uhr), prüft vorher den lokalen Cache und
 führt ein hartes Tagesbudget von 250 Requests. Kurse, Abrufzeitpunkte sowie
@@ -120,6 +126,15 @@ HTTP-Adapter werden keine Requests ausgelöst.
 ## 10. Lokale Datenbank
 
 Drift erzeugt parametrisierte SQL-Abfragen und verhindert Stringverkettung. Indizes liegen auf Besitzer, Datum, Typ und Änderungszeit. Listen werden reaktiv gestreamt; große Tabellen erhalten Cursor-Pagination. Schemaänderungen laufen ausschließlich über versionierte Migrationen.
+
+Schema 18 erweitert den Portfolio-Katalog um nullable beziehungsweise sicher
+vorbelegte anlageklassenspezifische Felder und entfernt die frühere globale
+Eindeutigkeit des Symbols. `CountryTaxRates.currency` ist die autoritative
+Landeswährung. Die Migration befüllt bekannte Bestandsländer (beispielsweise
+USA → USD und Schweiz → CHF) und lässt unbekannte Länder kompatibel auf EUR.
+Historische Dividendenschedules behalten ihre gespeicherte Währung und ihren
+Wechselkurs; Investment- und Katalogwerte dienen nur als Fallback für neue
+Projektionen.
 
 ## 11. Synchronisationskonzept
 
@@ -134,6 +149,6 @@ Ein Outbox-Verfahren überträgt nur geänderte Zeilen. Nach erfolgreichem Batch
 - Eingaben: Längen-, Typ- und Bereichsvalidierung; parametrisierte SQL-Abfragen
 - Web: CSP, HSTS, SameSite/HttpOnly-Cookies falls Cookie-Auth, CSRF-Token; keine Tokens in Logs oder URLs
 - Backups: authentifizierte Verschlüsselung, Integritätsprüfung und benutzerinitiierte Wiederherstellung
-- Rollen: Mitglieder verwalten ihre eigenen Finanzdaten; nur Administratoren verwalten Benutzerrollen und den globalen Aktienkatalog. Das erste lokale Konto kann bei der Registrierung ausdrücklich als Admin angelegt werden.
+- Rollen: Mitglieder verwalten ihre eigenen Finanzdaten und dürfen beim Speichern einer Position fehlende, deduplizierte Portfolio-Stammdaten ergänzen. Nur Administratoren bearbeiten oder löschen globale Katalogdatensätze und verwalten Benutzerrollen. Die Anlageklassen selbst sind fest vorgegeben. Das erste lokale Konto kann bei der Registrierung ausdrücklich als Admin angelegt werden.
 
 Der lokale Modus schützt Anmeldedaten und Sitzungsschlüssel. Eine vollständige Datenbankverschlüsselung benötigt pro Plattform einen geprüften SQLCipher-Build und Schlüsselrotation; sie darf nicht durch einen fest einkompilierten Schlüssel vorgetäuscht werden.

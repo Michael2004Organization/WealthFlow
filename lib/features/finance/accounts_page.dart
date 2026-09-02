@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/finance/account_balance_math.dart';
+import '../../core/finance/currencies.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -914,7 +915,7 @@ class _AccountEditorState extends State<_AccountEditor> {
                   _field(_available, 'Verfügbar', number: true, required: true),
                   DropdownButtonFormField<String>(
                     initialValue: _currency,
-                    items: const ['EUR', 'USD', 'CHF', 'GBP']
+                    items: supportedIsoCurrencies
                         .map(
                           (value) => DropdownMenuItem(
                             value: value,

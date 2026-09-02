@@ -69,9 +69,15 @@ final class MarketDataCoordinator {
     }
     final stocks = await _database.stockPool();
     return MarketDataRequestPlan(
-      symbols: stocks.map((stock) => stock.symbol).toSet().toList()..sort(),
+      symbols:
+          stocks
+              .map((stock) => stock.symbol.trim().toUpperCase())
+              .where((symbol) => symbol.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort(),
       slot: slot,
-      reason: 'Eine gemeinsame Batch-Abfrage für den gesamten Aktienpool',
+      reason: 'Eine gemeinsame Batch-Abfrage für den Portfolio-Katalog',
     );
   }
 
