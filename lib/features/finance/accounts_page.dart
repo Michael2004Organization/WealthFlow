@@ -126,7 +126,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                           alignment: Alignment.centerRight,
                           child: SizedBox(
                             width: 260,
-                            child: DropdownButtonFormField<String>(
+                            child: SearchableDropdownButtonFormField<String>(
                               initialValue: _sortMode,
                               decoration: const InputDecoration(
                                 labelText: 'Konten sortieren',
@@ -877,7 +877,7 @@ class _AccountEditorState extends State<_AccountEditor> {
                   _field(_label, 'Kontobezeichnung', required: true),
                 ]),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
+                SearchableDropdownButtonFormField<String>(
                   initialValue: _usageType,
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Verwendung'),
@@ -913,7 +913,7 @@ class _AccountEditorState extends State<_AccountEditor> {
                 _responsiveFields([
                   _field(_balance, 'Kontostand', number: true, required: true),
                   _field(_available, 'Verfügbar', number: true, required: true),
-                  DropdownButtonFormField<String>(
+                  SearchableDropdownButtonFormField<String>(
                     initialValue: _currency,
                     items: supportedIsoCurrencies
                         .map(

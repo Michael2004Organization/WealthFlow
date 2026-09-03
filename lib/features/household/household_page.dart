@@ -80,7 +80,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                   children: [
                     SizedBox(
                       width: 270,
-                      child: DropdownButtonFormField<String>(
+                      child: SearchableDropdownButtonFormField<String>(
                         key: ValueKey(selectedAccountId),
                         initialValue: selectedAccountId,
                         isExpanded: true,
@@ -158,7 +158,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                   ),
                   SizedBox(
                     width: 210,
-                    child: DropdownButtonFormField<String>(
+                    child: SearchableDropdownButtonFormField<String>(
                       initialValue: _category,
                       isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Kategorie'),
@@ -869,11 +869,11 @@ class _EntryEditorState extends State<_EntryEditor> {
               const SizedBox(height: 12),
               _responsiveFields([
                 if (widget.entry == null)
-                  DropdownButtonFormField<String>(
+                  SearchableDropdownButtonFormField<String>(
                     initialValue: _bookingKind,
                     isExpanded: true,
                     decoration: const InputDecoration(
-                      labelText: 'Buchungsart',
+                      labelText: 'Buchungsart *',
                       prefixIcon: Icon(Icons.swap_horiz_rounded),
                     ),
                     items: const [
@@ -901,7 +901,7 @@ class _EntryEditorState extends State<_EntryEditor> {
                     decimal: true,
                   ),
                   decoration: InputDecoration(
-                    labelText: 'Betrag',
+                    labelText: 'Betrag *',
                     prefixText: '${_selectedAccount?.currency ?? 'EUR'} ',
                     prefixIcon: const Icon(Icons.payments_outlined),
                   ),
@@ -922,7 +922,7 @@ class _EntryEditorState extends State<_EntryEditor> {
                         .map((item) => item.value),
                   }.toList(),
                 ),
-                DropdownButtonFormField<String>(
+                SearchableDropdownButtonFormField<String>(
                   initialValue: _vehicleId,
                   isExpanded: true,
                   decoration: const InputDecoration(
@@ -960,15 +960,15 @@ class _EntryEditorState extends State<_EntryEditor> {
               ),
               if (widget.entry == null && _bookingKind != 'standard') ...[
                 const SizedBox(height: 4),
-                DropdownButtonFormField<String>(
+                SearchableDropdownButtonFormField<String>(
                   initialValue: _targetAccountId.isEmpty
                       ? null
                       : _targetAccountId,
                   isExpanded: true,
                   decoration: InputDecoration(
                     labelText: _bookingKind == 'saving'
-                        ? 'Zielkonto / Investkonto'
-                        : 'Zielkonto',
+                        ? 'Zielkonto / Investkonto *'
+                        : 'Zielkonto *',
                     prefixIcon: const Icon(Icons.redo_rounded),
                   ),
                   items: widget.accounts
@@ -1009,57 +1009,87 @@ class _EntryEditorState extends State<_EntryEditor> {
                   suggestions: _masterEntries('paymentMethod'),
                 ),
               ]),
-              const SizedBox(height: 8),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Erinnerung zu dieser Buchung'),
-                subtitle: const Text(
-                  'Plant optional eine Systembenachrichtigung.',
+              const SizedBox(height: 12),
+              Card(
+                margin: EdgeInsets.zero,
+                clipBehavior: Clip.antiAlias,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                  child: Column(
+                    children: [
+                      SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        secondary: const Icon(Icons.notifications_outlined),
+                        title: const Text('Erinnerung'),
+                        subtitle: const Text(
+                          'Optional eine Benachrichtigung planen',
+                        ),
+                        value: _addReminder,
+                        onChanged: (value) =>
+                            setState(() => _addReminder = value),
+                      ),
+                      if (_addReminder) ...[
+                        TextFormField(
+                          controller: _reminderTitle,
+                          decoration: const InputDecoration(
+                            labelText: 'Erinnerung *',
+                            hintText: 'z. B. Abo kündigen',
+                          ),
+                          validator: (value) =>
+                              _addReminder && (value?.trim().isEmpty ?? true)
+                              ? 'Bitte einen Erinnerungstext eingeben.'
+                              : null,
+                        ),
+                        const SizedBox(height: 10),
+                        _responsiveFields([
+                          OutlinedButton.icon(
+                            onPressed: _pickReminderDate,
+                            icon: const Icon(Icons.event_rounded),
+                            label: Text(
+                              DateFormat('dd.MM.yyyy').format(_reminderAt),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: _pickReminderTime,
+                            icon: const Icon(Icons.schedule_rounded),
+                            label: Text(
+                              '${DateFormat('HH:mm').format(_reminderAt)} Uhr',
+                            ),
+                          ),
+                        ]),
+                      ],
+                    ],
+                  ),
                 ),
-                value: _addReminder,
-                onChanged: (value) => setState(() => _addReminder = value),
               ),
-              if (_addReminder) ...[
-                TextFormField(
-                  controller: _reminderTitle,
-                  decoration: const InputDecoration(
-                    labelText: 'Erinnerung',
-                    hintText: 'z. B. Abo kündigen',
-                    prefixIcon: Icon(Icons.notifications_outlined),
-                  ),
-                  validator: (value) =>
-                      _addReminder && (value?.trim().isEmpty ?? true)
-                      ? 'Bitte einen Erinnerungstext eingeben.'
-                      : null,
-                ),
-                const SizedBox(height: 10),
-                _responsiveFields([
-                  OutlinedButton.icon(
-                    onPressed: _pickReminderDate,
-                    icon: const Icon(Icons.event_rounded),
-                    label: Text(DateFormat('dd.MM.yyyy').format(_reminderAt)),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _pickReminderTime,
-                    icon: const Icon(Icons.schedule_rounded),
-                    label: Text(
-                      '${DateFormat('HH:mm').format(_reminderAt)} Uhr',
-                    ),
-                  ),
-                ]),
-              ],
               const SizedBox(height: 12),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  'Buchungsmonat und Automatik',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                child: Row(
+                  children: [
+                    const Icon(Icons.auto_awesome_rounded, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Buchungsmonat und Automatik',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          Text(
+                            'Datum, Auswertungsmonat und Wiederholung kompakt festlegen',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
+              SearchableDropdownButtonFormField<String>(
                 key: ValueKey(_timing),
                 initialValue: _timing,
                 isExpanded: true,
@@ -1103,7 +1133,7 @@ class _EntryEditorState extends State<_EntryEditor> {
                 ),
               ),
               const SizedBox(height: 8),
-              DropdownButtonFormField<int>(
+              SearchableDropdownButtonFormField<int>(
                 key: ValueKey('budget-$_budgetOffset-$_timing'),
                 initialValue: _budgetOffset,
                 isExpanded: true,
@@ -1194,7 +1224,7 @@ class _EntryEditorState extends State<_EntryEditor> {
 
   Widget _responsiveFields(List<Widget> fields) => LayoutBuilder(
     builder: (context, constraints) {
-      if (constraints.maxWidth < 560) {
+      if (constraints.maxWidth < 440) {
         return Column(
           children: [
             for (var index = 0; index < fields.length; index++) ...[

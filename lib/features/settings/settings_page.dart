@@ -708,18 +708,24 @@ class _DropdownTile extends StatelessWidget {
   Widget build(BuildContext context) => ListTile(
     leading: Icon(icon),
     title: Text(title),
-    trailing: DropdownButton<String>(
-      value: value,
-      underline: const SizedBox.shrink(),
-      items: values.entries
-          .map(
-            (entry) =>
-                DropdownMenuItem(value: entry.key, child: Text(entry.value)),
-          )
-          .toList(),
-      onChanged: (newValue) {
-        if (newValue != null) onChanged(newValue);
-      },
+    trailing: SizedBox(
+      width: 180,
+      child: SearchableDropdownButtonFormField<String>(
+        initialValue: value,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+        items: values.entries
+            .map(
+              (entry) =>
+                  DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+            )
+            .toList(),
+        onChanged: (newValue) {
+          if (newValue != null) onChanged(newValue);
+        },
+      ),
     ),
   );
 }

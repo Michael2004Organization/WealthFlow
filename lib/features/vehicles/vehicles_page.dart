@@ -409,7 +409,7 @@ class _VehicleEditorState extends State<_VehicleEditor> {
                         : null;
                   },
                 ),
-                DropdownButtonFormField<String>(
+                SearchableDropdownButtonFormField<String>(
                   initialValue: _fuel,
                   decoration: const InputDecoration(labelText: 'Kraftstoff'),
                   items:
@@ -610,7 +610,7 @@ class _CostEditorState extends State<_CostEditor> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField<String>(
+              SearchableDropdownButtonFormField<String>(
                 initialValue: _accountId,
                 isExpanded: true,
                 decoration: const InputDecoration(
@@ -634,7 +634,7 @@ class _CostEditorState extends State<_CostEditor> {
                 onChanged: (value) => _accountId = value,
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
+              SearchableDropdownButtonFormField<String>(
                 initialValue: _category,
                 decoration: const InputDecoration(labelText: 'Kostenart'),
                 items:

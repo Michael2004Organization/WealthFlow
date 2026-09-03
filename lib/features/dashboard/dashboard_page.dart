@@ -192,7 +192,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   children: [
                     SizedBox(
                       width: 210,
-                      child: DropdownButtonFormField<String>(
+                      child: SearchableDropdownButtonFormField<String>(
                         key: ValueKey(_sortMode),
                         initialValue: _sortMode,
                         isExpanded: true,
@@ -753,7 +753,7 @@ class _MonthlyChartState extends State<_MonthlyChart> {
                 Expanded(child: Text('Die vergangenen $_months Monate')),
                 SizedBox(
                   width: 132,
-                  child: DropdownButtonFormField<int>(
+                  child: SearchableDropdownButtonFormField<int>(
                     initialValue: _months,
                     isDense: true,
                     decoration: const InputDecoration(labelText: 'Monate'),
@@ -886,25 +886,35 @@ class _MonthlyChartState extends State<_MonthlyChart> {
   }
 }
 
-class _NetWorthChart extends StatelessWidget {
+class _NetWorthChart extends StatefulWidget {
   const _NetWorthChart({required this.snapshots});
 
   final List<NetWorthSnapshot> snapshots;
 
   @override
+  State<_NetWorthChart> createState() => _NetWorthChartState();
+}
+
+class _NetWorthChartState extends State<_NetWorthChart> {
+  bool _includeVehicles = false;
+
+  @override
   Widget build(BuildContext context) {
+    final snapshots = widget.snapshots;
     final visible = snapshots.length > 60
         ? snapshots.sublist(snapshots.length - 60)
         : snapshots;
+    double totalValue(NetWorthSnapshot snapshot) =>
+        snapshot.totalNetWorth + (_includeVehicles ? snapshot.vehicleValue : 0);
     final totalSpots = visible.indexed
-        .map((item) => FlSpot(item.$1.toDouble(), item.$2.totalNetWorth))
+        .map((item) => FlSpot(item.$1.toDouble(), totalValue(item.$2)))
         .toList();
     final accountSpots = visible.indexed
         .map((item) => FlSpot(item.$1.toDouble(), item.$2.accountBalance))
         .toList();
     final maximum = visible.fold<double>(
       0,
-      (value, item) => item.totalNetWorth > value ? item.totalNetWorth : value,
+      (value, item) => totalValue(item) > value ? totalValue(item) : value,
     );
     final leftInterval = maximum <= 0 ? 1.0 : maximum / 4;
     final bottomInterval = visible.length <= 4
@@ -918,14 +928,34 @@ class _NetWorthChart extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Vermögensverlauf',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Vermögensverlauf',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Tooltip(
+                  message: _includeVehicles
+                      ? 'Fahrzeugwert ausblenden'
+                      : 'Fahrzeugwert einblenden',
+                  child: Switch.adaptive(
+                    value: _includeVehicles,
+                    onChanged: (value) =>
+                        setState(() => _includeVehicles = value),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 4),
-            const Text('Gesamtvermögen und Kontostand bei jeder Wertänderung'),
+            Text(
+              _includeVehicles
+                  ? 'Gesamtvermögen mit Fahrzeugen und Kontostand'
+                  : 'Gesamtvermögen ohne Fahrzeuge und Kontostand',
+            ),
             if (visible.isNotEmpty) ...[
               const SizedBox(height: 12),
               Wrap(
@@ -933,7 +963,7 @@ class _NetWorthChart extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   Text(
-                    'Gesamt  ${money(visible.last.totalNetWorth)}',
+                    'Gesamt  ${money(totalValue(visible.last))}',
                     style: TextStyle(
                       color: totalColor,
                       fontWeight: FontWeight.w800,

@@ -4,17 +4,150 @@ import 'package:intl/intl.dart';
 String money(num value, {String currency = 'EUR'}) =>
     NumberFormat.simpleCurrency(locale: 'de_DE', name: currency).format(value);
 
+/// A form-compatible dropdown whose options are filtered while the user types.
+///
+/// This deliberately mirrors the small subset of [DropdownButtonFormField]
+/// used throughout WealthFlow, so every selector behaves consistently with a
+/// keyboard, mouse, or software keyboard.
+class SearchableDropdownButtonFormField<T> extends StatelessWidget {
+  const SearchableDropdownButtonFormField({
+    required this.items,
+    this.initialValue,
+    this.onChanged,
+    this.onSaved,
+    this.validator,
+    this.decoration = const InputDecoration(),
+    this.isExpanded = false,
+    this.isDense = true,
+    this.menuMaxHeight,
+    this.autovalidateMode,
+    this.focusNode,
+    this.autofocus = false,
+    super.key,
+  });
+
+  final List<DropdownMenuItem<T>>? items;
+  final T? initialValue;
+  final ValueChanged<T?>? onChanged;
+  final FormFieldSetter<T>? onSaved;
+  final FormFieldValidator<T>? validator;
+  final InputDecoration decoration;
+  final bool isExpanded;
+  final bool isDense;
+  final double? menuMaxHeight;
+  final AutovalidateMode? autovalidateMode;
+  final FocusNode? focusNode;
+  final bool autofocus;
+
+  @override
+  Widget build(BuildContext context) {
+    final options = items ?? <DropdownMenuItem<T>>[];
+    final enabled = onChanged != null && options.isNotEmpty;
+    return FormField<T>(
+      initialValue: initialValue,
+      onSaved: onSaved,
+      validator: validator,
+      autovalidateMode: autovalidateMode,
+      enabled: enabled,
+      builder: (state) => LayoutBuilder(
+        builder: (context, constraints) {
+          final width = isExpanded && constraints.hasBoundedWidth
+              ? constraints.maxWidth
+              : null;
+          return DropdownMenu<T>(
+            enabled: enabled,
+            width: width,
+            menuHeight: menuMaxHeight,
+            initialSelection: state.value,
+            focusNode: focusNode,
+            requestFocusOnTap: true,
+            enableFilter: true,
+            enableSearch: true,
+            expandedInsets: isExpanded ? EdgeInsets.zero : null,
+            dropdownMenuEntries: [
+              for (final item in options)
+                DropdownMenuEntry<T>(
+                  value: item.value as T,
+                  label: _dropdownSearchLabel(item),
+                  labelWidget: item.child,
+                  enabled: item.enabled,
+                ),
+            ],
+            filterCallback: (entries, query) {
+              final normalized = query.trim().toLowerCase();
+              if (normalized.isEmpty) return entries;
+              final startsWith = <DropdownMenuEntry<T>>[];
+              final contains = <DropdownMenuEntry<T>>[];
+              for (final entry in entries) {
+                final label = entry.label.toLowerCase();
+                if (label.startsWith(normalized)) {
+                  startsWith.add(entry);
+                } else if (label.contains(normalized)) {
+                  contains.add(entry);
+                }
+              }
+              return [...startsWith, ...contains];
+            },
+            decorationBuilder: (context, menuController) => decoration.copyWith(
+              isDense: isDense,
+              errorText: state.errorText,
+              suffixIcon: IconButton(
+                tooltip: menuController.isOpen
+                    ? 'Auswahl schließen'
+                    : 'Auswahl öffnen oder Suchtext eingeben',
+                onPressed: enabled
+                    ? () {
+                        if (menuController.isOpen) {
+                          menuController.close();
+                        } else {
+                          menuController.open();
+                        }
+                      }
+                    : null,
+                icon: Icon(
+                  menuController.isOpen
+                      ? Icons.arrow_drop_up_rounded
+                      : Icons.arrow_drop_down_rounded,
+                ),
+              ),
+            ),
+            onSelected: enabled
+                ? (value) {
+                    if (value == null) return;
+                    state.didChange(value);
+                    onChanged?.call(value);
+                  }
+                : null,
+          );
+        },
+      ),
+    );
+  }
+}
+
+String _dropdownSearchLabel<T>(DropdownMenuItem<T> item) {
+  final child = item.child;
+  if (child is Text && child.data?.trim().isNotEmpty == true) {
+    return child.data!.trim();
+  }
+  return item.value?.toString() ?? '';
+}
+
 class PageHeader extends StatelessWidget {
   const PageHeader({
     required this.title,
     required this.subtitle,
     this.action,
+    this.actionBelow = false,
+    this.titleSingleLine = false,
     super.key,
   });
 
   final String title;
   final String subtitle;
   final Widget? action;
+  final bool actionBelow;
+  final bool titleSingleLine;
 
   @override
   Widget build(BuildContext context) {
@@ -22,19 +155,35 @@ class PageHeader extends StatelessWidget {
     final text = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 4),
-        Text(subtitle, style: Theme.of(context).textTheme.bodyLarge),
+        if (titleSingleLine)
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              title,
+              maxLines: 1,
+              softWrap: false,
+              style: Theme.of(
+                context,
+              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          )
+        else
+          Text(
+            title,
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+        if (subtitle.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(subtitle, style: Theme.of(context).textTheme.bodyLarge),
+        ],
       ],
     );
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 24),
-      child: compact
+      child: compact || actionBelow
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

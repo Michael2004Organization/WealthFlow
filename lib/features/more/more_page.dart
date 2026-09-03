@@ -140,7 +140,7 @@ class _MorePageState extends ConsumerState<MorePage> {
                 alignment: Alignment.centerRight,
                 child: SizedBox(
                   width: 250,
-                  child: DropdownButtonFormField<String>(
+                  child: SearchableDropdownButtonFormField<String>(
                     initialValue: _sortMode,
                     decoration: const InputDecoration(
                       labelText: 'Sortierung',

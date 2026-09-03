@@ -40,6 +40,7 @@ void main() {
       portfolioMasterValidationError(
         assetType: 'Kryptowährung',
         name: 'Bitcoin',
+        country: 'USA',
         symbol: 'BTC',
       ),
       isNull,
@@ -48,6 +49,7 @@ void main() {
       portfolioMasterValidationError(
         assetType: 'Kryptowährung',
         name: 'Bitcoin',
+        country: 'USA',
       ),
       contains('Symbol'),
     );

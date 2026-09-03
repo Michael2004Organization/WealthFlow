@@ -49,7 +49,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   ),
                   SizedBox(
                     width: 180,
-                    child: DropdownButtonFormField<String>(
+                    child: SearchableDropdownButtonFormField<String>(
                       initialValue: _type,
                       decoration: const InputDecoration(labelText: 'Datentyp'),
                       items:

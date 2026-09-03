@@ -10419,6 +10419,18 @@ class $NetWorthSnapshotsTable extends NetWorthSnapshots
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _vehicleValueMeta = const VerificationMeta(
+    'vehicleValue',
+  );
+  @override
+  late final GeneratedColumn<double> vehicleValue = GeneratedColumn<double>(
+    'vehicle_value',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -10427,6 +10439,7 @@ class $NetWorthSnapshotsTable extends NetWorthSnapshots
     accountBalance,
     portfolioValue,
     totalNetWorth,
+    vehicleValue,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -10494,6 +10507,15 @@ class $NetWorthSnapshotsTable extends NetWorthSnapshots
     } else if (isInserting) {
       context.missing(_totalNetWorthMeta);
     }
+    if (data.containsKey('vehicle_value')) {
+      context.handle(
+        _vehicleValueMeta,
+        vehicleValue.isAcceptableOrUnknown(
+          data['vehicle_value']!,
+          _vehicleValueMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -10527,6 +10549,10 @@ class $NetWorthSnapshotsTable extends NetWorthSnapshots
         DriftSqlType.double,
         data['${effectivePrefix}total_net_worth'],
       )!,
+      vehicleValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}vehicle_value'],
+      )!,
     );
   }
 
@@ -10544,6 +10570,7 @@ class NetWorthSnapshot extends DataClass
   final double accountBalance;
   final double portfolioValue;
   final double totalNetWorth;
+  final double vehicleValue;
   const NetWorthSnapshot({
     required this.id,
     required this.userId,
@@ -10551,6 +10578,7 @@ class NetWorthSnapshot extends DataClass
     required this.accountBalance,
     required this.portfolioValue,
     required this.totalNetWorth,
+    required this.vehicleValue,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -10561,6 +10589,7 @@ class NetWorthSnapshot extends DataClass
     map['account_balance'] = Variable<double>(accountBalance);
     map['portfolio_value'] = Variable<double>(portfolioValue);
     map['total_net_worth'] = Variable<double>(totalNetWorth);
+    map['vehicle_value'] = Variable<double>(vehicleValue);
     return map;
   }
 
@@ -10572,6 +10601,7 @@ class NetWorthSnapshot extends DataClass
       accountBalance: Value(accountBalance),
       portfolioValue: Value(portfolioValue),
       totalNetWorth: Value(totalNetWorth),
+      vehicleValue: Value(vehicleValue),
     );
   }
 
@@ -10587,6 +10617,7 @@ class NetWorthSnapshot extends DataClass
       accountBalance: serializer.fromJson<double>(json['accountBalance']),
       portfolioValue: serializer.fromJson<double>(json['portfolioValue']),
       totalNetWorth: serializer.fromJson<double>(json['totalNetWorth']),
+      vehicleValue: serializer.fromJson<double>(json['vehicleValue']),
     );
   }
   @override
@@ -10599,6 +10630,7 @@ class NetWorthSnapshot extends DataClass
       'accountBalance': serializer.toJson<double>(accountBalance),
       'portfolioValue': serializer.toJson<double>(portfolioValue),
       'totalNetWorth': serializer.toJson<double>(totalNetWorth),
+      'vehicleValue': serializer.toJson<double>(vehicleValue),
     };
   }
 
@@ -10609,6 +10641,7 @@ class NetWorthSnapshot extends DataClass
     double? accountBalance,
     double? portfolioValue,
     double? totalNetWorth,
+    double? vehicleValue,
   }) => NetWorthSnapshot(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -10616,6 +10649,7 @@ class NetWorthSnapshot extends DataClass
     accountBalance: accountBalance ?? this.accountBalance,
     portfolioValue: portfolioValue ?? this.portfolioValue,
     totalNetWorth: totalNetWorth ?? this.totalNetWorth,
+    vehicleValue: vehicleValue ?? this.vehicleValue,
   );
   NetWorthSnapshot copyWithCompanion(NetWorthSnapshotsCompanion data) {
     return NetWorthSnapshot(
@@ -10633,6 +10667,9 @@ class NetWorthSnapshot extends DataClass
       totalNetWorth: data.totalNetWorth.present
           ? data.totalNetWorth.value
           : this.totalNetWorth,
+      vehicleValue: data.vehicleValue.present
+          ? data.vehicleValue.value
+          : this.vehicleValue,
     );
   }
 
@@ -10644,7 +10681,8 @@ class NetWorthSnapshot extends DataClass
           ..write('capturedAt: $capturedAt, ')
           ..write('accountBalance: $accountBalance, ')
           ..write('portfolioValue: $portfolioValue, ')
-          ..write('totalNetWorth: $totalNetWorth')
+          ..write('totalNetWorth: $totalNetWorth, ')
+          ..write('vehicleValue: $vehicleValue')
           ..write(')'))
         .toString();
   }
@@ -10657,6 +10695,7 @@ class NetWorthSnapshot extends DataClass
     accountBalance,
     portfolioValue,
     totalNetWorth,
+    vehicleValue,
   );
   @override
   bool operator ==(Object other) =>
@@ -10667,7 +10706,8 @@ class NetWorthSnapshot extends DataClass
           other.capturedAt == this.capturedAt &&
           other.accountBalance == this.accountBalance &&
           other.portfolioValue == this.portfolioValue &&
-          other.totalNetWorth == this.totalNetWorth);
+          other.totalNetWorth == this.totalNetWorth &&
+          other.vehicleValue == this.vehicleValue);
 }
 
 class NetWorthSnapshotsCompanion extends UpdateCompanion<NetWorthSnapshot> {
@@ -10677,6 +10717,7 @@ class NetWorthSnapshotsCompanion extends UpdateCompanion<NetWorthSnapshot> {
   final Value<double> accountBalance;
   final Value<double> portfolioValue;
   final Value<double> totalNetWorth;
+  final Value<double> vehicleValue;
   final Value<int> rowid;
   const NetWorthSnapshotsCompanion({
     this.id = const Value.absent(),
@@ -10685,6 +10726,7 @@ class NetWorthSnapshotsCompanion extends UpdateCompanion<NetWorthSnapshot> {
     this.accountBalance = const Value.absent(),
     this.portfolioValue = const Value.absent(),
     this.totalNetWorth = const Value.absent(),
+    this.vehicleValue = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   NetWorthSnapshotsCompanion.insert({
@@ -10694,6 +10736,7 @@ class NetWorthSnapshotsCompanion extends UpdateCompanion<NetWorthSnapshot> {
     required double accountBalance,
     required double portfolioValue,
     required double totalNetWorth,
+    this.vehicleValue = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -10708,6 +10751,7 @@ class NetWorthSnapshotsCompanion extends UpdateCompanion<NetWorthSnapshot> {
     Expression<double>? accountBalance,
     Expression<double>? portfolioValue,
     Expression<double>? totalNetWorth,
+    Expression<double>? vehicleValue,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -10717,6 +10761,7 @@ class NetWorthSnapshotsCompanion extends UpdateCompanion<NetWorthSnapshot> {
       if (accountBalance != null) 'account_balance': accountBalance,
       if (portfolioValue != null) 'portfolio_value': portfolioValue,
       if (totalNetWorth != null) 'total_net_worth': totalNetWorth,
+      if (vehicleValue != null) 'vehicle_value': vehicleValue,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -10728,6 +10773,7 @@ class NetWorthSnapshotsCompanion extends UpdateCompanion<NetWorthSnapshot> {
     Value<double>? accountBalance,
     Value<double>? portfolioValue,
     Value<double>? totalNetWorth,
+    Value<double>? vehicleValue,
     Value<int>? rowid,
   }) {
     return NetWorthSnapshotsCompanion(
@@ -10737,6 +10783,7 @@ class NetWorthSnapshotsCompanion extends UpdateCompanion<NetWorthSnapshot> {
       accountBalance: accountBalance ?? this.accountBalance,
       portfolioValue: portfolioValue ?? this.portfolioValue,
       totalNetWorth: totalNetWorth ?? this.totalNetWorth,
+      vehicleValue: vehicleValue ?? this.vehicleValue,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -10762,6 +10809,9 @@ class NetWorthSnapshotsCompanion extends UpdateCompanion<NetWorthSnapshot> {
     if (totalNetWorth.present) {
       map['total_net_worth'] = Variable<double>(totalNetWorth.value);
     }
+    if (vehicleValue.present) {
+      map['vehicle_value'] = Variable<double>(vehicleValue.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -10777,6 +10827,7 @@ class NetWorthSnapshotsCompanion extends UpdateCompanion<NetWorthSnapshot> {
           ..write('accountBalance: $accountBalance, ')
           ..write('portfolioValue: $portfolioValue, ')
           ..write('totalNetWorth: $totalNetWorth, ')
+          ..write('vehicleValue: $vehicleValue, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -11084,6 +11135,18 @@ class $StockMastersTable extends StockMasters
     requiredDuringInsert: false,
     defaultValue: const Constant(1),
   );
+  static const VerificationMeta _dividendPerShareMeta = const VerificationMeta(
+    'dividendPerShare',
+  );
+  @override
+  late final GeneratedColumn<double> dividendPerShare = GeneratedColumn<double>(
+    'dividend_per_share',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _companyDataMeta = const VerificationMeta(
     'companyData',
   );
@@ -11157,6 +11220,7 @@ class $StockMastersTable extends StockMasters
     sector,
     dividendFrequency,
     dividendStartMonth,
+    dividendPerShare,
     companyData,
     createdAt,
     updatedAt,
@@ -11366,6 +11430,15 @@ class $StockMastersTable extends StockMasters
         ),
       );
     }
+    if (data.containsKey('dividend_per_share')) {
+      context.handle(
+        _dividendPerShareMeta,
+        dividendPerShare.isAcceptableOrUnknown(
+          data['dividend_per_share']!,
+          _dividendPerShareMeta,
+        ),
+      );
+    }
     if (data.containsKey('company_data')) {
       context.handle(
         _companyDataMeta,
@@ -11510,6 +11583,10 @@ class $StockMastersTable extends StockMasters
         DriftSqlType.int,
         data['${effectivePrefix}dividend_start_month'],
       )!,
+      dividendPerShare: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}dividend_per_share'],
+      )!,
       companyData: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}company_data'],
@@ -11562,6 +11639,7 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
   final String sector;
   final String dividendFrequency;
   final int dividendStartMonth;
+  final double dividendPerShare;
   final String companyData;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -11593,6 +11671,7 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
     required this.sector,
     required this.dividendFrequency,
     required this.dividendStartMonth,
+    required this.dividendPerShare,
     required this.companyData,
     required this.createdAt,
     required this.updatedAt,
@@ -11629,6 +11708,7 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
     map['sector'] = Variable<String>(sector);
     map['dividend_frequency'] = Variable<String>(dividendFrequency);
     map['dividend_start_month'] = Variable<int>(dividendStartMonth);
+    map['dividend_per_share'] = Variable<double>(dividendPerShare);
     map['company_data'] = Variable<String>(companyData);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -11668,6 +11748,7 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
       sector: Value(sector),
       dividendFrequency: Value(dividendFrequency),
       dividendStartMonth: Value(dividendStartMonth),
+      dividendPerShare: Value(dividendPerShare),
       companyData: Value(companyData),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -11711,6 +11792,7 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
       sector: serializer.fromJson<String>(json['sector']),
       dividendFrequency: serializer.fromJson<String>(json['dividendFrequency']),
       dividendStartMonth: serializer.fromJson<int>(json['dividendStartMonth']),
+      dividendPerShare: serializer.fromJson<double>(json['dividendPerShare']),
       companyData: serializer.fromJson<String>(json['companyData']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -11747,6 +11829,7 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
       'sector': serializer.toJson<String>(sector),
       'dividendFrequency': serializer.toJson<String>(dividendFrequency),
       'dividendStartMonth': serializer.toJson<int>(dividendStartMonth),
+      'dividendPerShare': serializer.toJson<double>(dividendPerShare),
       'companyData': serializer.toJson<String>(companyData),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -11781,6 +11864,7 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
     String? sector,
     String? dividendFrequency,
     int? dividendStartMonth,
+    double? dividendPerShare,
     String? companyData,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -11812,6 +11896,7 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
     sector: sector ?? this.sector,
     dividendFrequency: dividendFrequency ?? this.dividendFrequency,
     dividendStartMonth: dividendStartMonth ?? this.dividendStartMonth,
+    dividendPerShare: dividendPerShare ?? this.dividendPerShare,
     companyData: companyData ?? this.companyData,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -11871,6 +11956,9 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
       dividendStartMonth: data.dividendStartMonth.present
           ? data.dividendStartMonth.value
           : this.dividendStartMonth,
+      dividendPerShare: data.dividendPerShare.present
+          ? data.dividendPerShare.value
+          : this.dividendPerShare,
       companyData: data.companyData.present
           ? data.companyData.value
           : this.companyData,
@@ -11909,6 +11997,7 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
           ..write('sector: $sector, ')
           ..write('dividendFrequency: $dividendFrequency, ')
           ..write('dividendStartMonth: $dividendStartMonth, ')
+          ..write('dividendPerShare: $dividendPerShare, ')
           ..write('companyData: $companyData, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -11945,6 +12034,7 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
     sector,
     dividendFrequency,
     dividendStartMonth,
+    dividendPerShare,
     companyData,
     createdAt,
     updatedAt,
@@ -11980,6 +12070,7 @@ class StockMaster extends DataClass implements Insertable<StockMaster> {
           other.sector == this.sector &&
           other.dividendFrequency == this.dividendFrequency &&
           other.dividendStartMonth == this.dividendStartMonth &&
+          other.dividendPerShare == this.dividendPerShare &&
           other.companyData == this.companyData &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -12013,6 +12104,7 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
   final Value<String> sector;
   final Value<String> dividendFrequency;
   final Value<int> dividendStartMonth;
+  final Value<double> dividendPerShare;
   final Value<String> companyData;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -12045,6 +12137,7 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
     this.sector = const Value.absent(),
     this.dividendFrequency = const Value.absent(),
     this.dividendStartMonth = const Value.absent(),
+    this.dividendPerShare = const Value.absent(),
     this.companyData = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -12078,6 +12171,7 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
     this.sector = const Value.absent(),
     this.dividendFrequency = const Value.absent(),
     this.dividendStartMonth = const Value.absent(),
+    this.dividendPerShare = const Value.absent(),
     this.companyData = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -12115,6 +12209,7 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
     Expression<String>? sector,
     Expression<String>? dividendFrequency,
     Expression<int>? dividendStartMonth,
+    Expression<double>? dividendPerShare,
     Expression<String>? companyData,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -12149,6 +12244,7 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
       if (dividendFrequency != null) 'dividend_frequency': dividendFrequency,
       if (dividendStartMonth != null)
         'dividend_start_month': dividendStartMonth,
+      if (dividendPerShare != null) 'dividend_per_share': dividendPerShare,
       if (companyData != null) 'company_data': companyData,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -12184,6 +12280,7 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
     Value<String>? sector,
     Value<String>? dividendFrequency,
     Value<int>? dividendStartMonth,
+    Value<double>? dividendPerShare,
     Value<String>? companyData,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -12217,6 +12314,7 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
       sector: sector ?? this.sector,
       dividendFrequency: dividendFrequency ?? this.dividendFrequency,
       dividendStartMonth: dividendStartMonth ?? this.dividendStartMonth,
+      dividendPerShare: dividendPerShare ?? this.dividendPerShare,
       companyData: companyData ?? this.companyData,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -12306,6 +12404,9 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
     if (dividendStartMonth.present) {
       map['dividend_start_month'] = Variable<int>(dividendStartMonth.value);
     }
+    if (dividendPerShare.present) {
+      map['dividend_per_share'] = Variable<double>(dividendPerShare.value);
+    }
     if (companyData.present) {
       map['company_data'] = Variable<String>(companyData.value);
     }
@@ -12353,6 +12454,7 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
           ..write('sector: $sector, ')
           ..write('dividendFrequency: $dividendFrequency, ')
           ..write('dividendStartMonth: $dividendStartMonth, ')
+          ..write('dividendPerShare: $dividendPerShare, ')
           ..write('companyData: $companyData, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -26356,6 +26458,7 @@ typedef $$NetWorthSnapshotsTableCreateCompanionBuilder =
       required double accountBalance,
       required double portfolioValue,
       required double totalNetWorth,
+      Value<double> vehicleValue,
       Value<int> rowid,
     });
 typedef $$NetWorthSnapshotsTableUpdateCompanionBuilder =
@@ -26366,6 +26469,7 @@ typedef $$NetWorthSnapshotsTableUpdateCompanionBuilder =
       Value<double> accountBalance,
       Value<double> portfolioValue,
       Value<double> totalNetWorth,
+      Value<double> vehicleValue,
       Value<int> rowid,
     });
 
@@ -26434,6 +26538,11 @@ class $$NetWorthSnapshotsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<double> get vehicleValue => $composableBuilder(
+    column: $table.vehicleValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$UsersTableFilterComposer get userId {
     final $$UsersTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -26492,6 +26601,11 @@ class $$NetWorthSnapshotsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get vehicleValue => $composableBuilder(
+    column: $table.vehicleValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$UsersTableOrderingComposer get userId {
     final $$UsersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -26545,6 +26659,11 @@ class $$NetWorthSnapshotsTableAnnotationComposer
 
   GeneratedColumn<double> get totalNetWorth => $composableBuilder(
     column: $table.totalNetWorth,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get vehicleValue => $composableBuilder(
+    column: $table.vehicleValue,
     builder: (column) => column,
   );
 
@@ -26611,6 +26730,7 @@ class $$NetWorthSnapshotsTableTableManager
                 Value<double> accountBalance = const Value.absent(),
                 Value<double> portfolioValue = const Value.absent(),
                 Value<double> totalNetWorth = const Value.absent(),
+                Value<double> vehicleValue = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NetWorthSnapshotsCompanion(
                 id: id,
@@ -26619,6 +26739,7 @@ class $$NetWorthSnapshotsTableTableManager
                 accountBalance: accountBalance,
                 portfolioValue: portfolioValue,
                 totalNetWorth: totalNetWorth,
+                vehicleValue: vehicleValue,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -26629,6 +26750,7 @@ class $$NetWorthSnapshotsTableTableManager
                 required double accountBalance,
                 required double portfolioValue,
                 required double totalNetWorth,
+                Value<double> vehicleValue = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NetWorthSnapshotsCompanion.insert(
                 id: id,
@@ -26637,6 +26759,7 @@ class $$NetWorthSnapshotsTableTableManager
                 accountBalance: accountBalance,
                 portfolioValue: portfolioValue,
                 totalNetWorth: totalNetWorth,
+                vehicleValue: vehicleValue,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -26736,6 +26859,7 @@ typedef $$StockMastersTableCreateCompanionBuilder =
       Value<String> sector,
       Value<String> dividendFrequency,
       Value<int> dividendStartMonth,
+      Value<double> dividendPerShare,
       Value<String> companyData,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -26770,6 +26894,7 @@ typedef $$StockMastersTableUpdateCompanionBuilder =
       Value<String> sector,
       Value<String> dividendFrequency,
       Value<int> dividendStartMonth,
+      Value<double> dividendPerShare,
       Value<String> companyData,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -26954,6 +27079,11 @@ class $$StockMastersTableFilterComposer
 
   ColumnFilters<int> get dividendStartMonth => $composableBuilder(
     column: $table.dividendStartMonth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get dividendPerShare => $composableBuilder(
+    column: $table.dividendPerShare,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -27167,6 +27297,11 @@ class $$StockMastersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get dividendPerShare => $composableBuilder(
+    column: $table.dividendPerShare,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get companyData => $composableBuilder(
     column: $table.companyData,
     builder: (column) => ColumnOrderings(column),
@@ -27301,6 +27436,11 @@ class $$StockMastersTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<double> get dividendPerShare => $composableBuilder(
+    column: $table.dividendPerShare,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get companyData => $composableBuilder(
     column: $table.companyData,
     builder: (column) => column,
@@ -27423,6 +27563,7 @@ class $$StockMastersTableTableManager
                 Value<String> sector = const Value.absent(),
                 Value<String> dividendFrequency = const Value.absent(),
                 Value<int> dividendStartMonth = const Value.absent(),
+                Value<double> dividendPerShare = const Value.absent(),
                 Value<String> companyData = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -27455,6 +27596,7 @@ class $$StockMastersTableTableManager
                 sector: sector,
                 dividendFrequency: dividendFrequency,
                 dividendStartMonth: dividendStartMonth,
+                dividendPerShare: dividendPerShare,
                 companyData: companyData,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -27489,6 +27631,7 @@ class $$StockMastersTableTableManager
                 Value<String> sector = const Value.absent(),
                 Value<String> dividendFrequency = const Value.absent(),
                 Value<int> dividendStartMonth = const Value.absent(),
+                Value<double> dividendPerShare = const Value.absent(),
                 Value<String> companyData = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -27521,6 +27664,7 @@ class $$StockMastersTableTableManager
                 sector: sector,
                 dividendFrequency: dividendFrequency,
                 dividendStartMonth: dividendStartMonth,
+                dividendPerShare: dividendPerShare,
                 companyData: companyData,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

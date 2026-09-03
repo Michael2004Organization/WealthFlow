@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -90,7 +91,7 @@ class _UsersAdmin extends ConsumerWidget {
                 ),
                 trailing: SizedBox(
                   width: 150,
-                  child: DropdownButtonFormField<String>(
+                  child: SearchableDropdownButtonFormField<String>(
                     initialValue: user.role,
                     decoration: const InputDecoration(labelText: 'Rolle'),
                     items: const [
@@ -131,7 +132,7 @@ class _StocksAdmin extends ConsumerStatefulWidget {
 }
 
 class _StocksAdminState extends ConsumerState<_StocksAdmin> {
-  String _assetType = supportedPortfolioAssetClasses.first;
+  String _assetType = 'Alle';
   String _query = '';
 
   @override
@@ -149,7 +150,7 @@ class _StocksAdminState extends ConsumerState<_StocksAdmin> {
             action: FilledButton.icon(
               onPressed: () => _editStock(context, ref),
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Stammdatum'),
+              label: const Text('Stammdaten'),
             ),
           ),
           const SizedBox(height: 12),
@@ -159,14 +160,14 @@ class _StocksAdminState extends ConsumerState<_StocksAdmin> {
             children: [
               SizedBox(
                 width: 240,
-                child: DropdownButtonFormField<String>(
+                child: SearchableDropdownButtonFormField<String>(
                   initialValue: _assetType,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Anlageklasse',
                     prefixIcon: Icon(Icons.category_outlined),
                   ),
-                  items: supportedPortfolioAssetClasses
+                  items: ['Alle', ...supportedPortfolioAssetClasses]
                       .map(
                         (value) =>
                             DropdownMenuItem(value: value, child: Text(value)),
@@ -204,7 +205,8 @@ class _StocksAdminState extends ConsumerState<_StocksAdmin> {
                     item.issuer,
                     item.underlying,
                   ].join(' ').toLowerCase();
-                  return item.assetType == _assetType &&
+                  return (_assetType == 'Alle' ||
+                          item.assetType == _assetType) &&
                       haystack.contains(_query);
                 }).toList();
                 return filtered.isEmpty
@@ -216,7 +218,7 @@ class _StocksAdminState extends ConsumerState<_StocksAdmin> {
                         action: FilledButton.icon(
                           onPressed: () => _editStock(context, ref),
                           icon: const Icon(Icons.add_rounded),
-                          label: const Text('Stammdatum anlegen'),
+                          label: const Text('Stammdaten anlegen'),
                         ),
                       )
                     : ListView.builder(
@@ -263,7 +265,7 @@ class _StocksAdminState extends ConsumerState<_StocksAdmin> {
                                       if (await confirmDelete(
                                         context,
                                         title:
-                                            'Portfolio-Stammdatum entfernen?',
+                                            'Portfolio-Stammdaten entfernen?',
                                         message:
                                             '${stock.name} wird nicht mehr zur Auswahl angeboten.',
                                       )) {
@@ -308,6 +310,9 @@ class _TaxAdmin extends ConsumerWidget {
         ref.watch(countryTaxRatesProvider).valueOrNull ??
         const <CountryTaxRate>[];
     final configuration = ref.watch(appConfigurationProvider).valueOrNull;
+    final accountCurrency =
+        ref.watch(preferencesProvider).valueOrNull?.currency.toUpperCase() ??
+        'EUR';
     return FutureBuilder<List<String>>(
       future: ref.read(databaseProvider).availableCountries(),
       builder: (context, snapshot) {
@@ -346,47 +351,80 @@ class _TaxAdmin extends ConsumerWidget {
             ),
             for (final country in countries)
               Card(
-                child: ListTile(
-                  leading: const CircleAvatar(
-                    child: Icon(Icons.public_rounded),
-                  ),
-                  title: Text(country),
-                  subtitle: Text(
-                    'Quellensteuer und Wechselkurs · '
-                    '${rates.where((item) => item.country == country).firstOrNull?.currency ?? 'EUR'}',
-                  ),
-                  trailing: Wrap(
-                    spacing: 8,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      TextButton(
-                        onPressed: () => _editCountryTax(
-                          context,
-                          ref,
-                          country,
-                          _countryRate(country, rates),
-                          rates
-                              .where(
-                                (item) =>
-                                    normalizeCountry(item.country) ==
-                                    normalizeCountry(country),
-                              )
-                              .firstOrNull,
-                        ),
-                        child: Text(
-                          '${_countryRate(country, rates).toStringAsFixed(2)} %',
-                        ),
+                      Row(
+                        children: [
+                          const CircleAvatar(child: Icon(Icons.public_rounded)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              country,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Quellensteuer bearbeiten',
+                            onPressed: () => _editCountryTax(
+                              context,
+                              ref,
+                              country,
+                              _countryRate(country, rates),
+                              rates
+                                  .where(
+                                    (item) =>
+                                        normalizeCountry(item.country) ==
+                                        normalizeCountry(country),
+                                  )
+                                  .firstOrNull,
+                            ),
+                            icon: const Icon(Icons.percent_rounded),
+                          ),
+                          IconButton(
+                            tooltip: 'Wechselkurs bearbeiten',
+                            onPressed: () => _editAdminCountryExchange(
+                              context,
+                              ref,
+                              country,
+                              accountCurrency,
+                              rates
+                                  .where(
+                                    (item) =>
+                                        normalizeCountry(item.country) ==
+                                        normalizeCountry(country),
+                                  )
+                                  .firstOrNull,
+                            ),
+                            icon: const Icon(Icons.currency_exchange_rounded),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        tooltip: 'Wechselkurs bearbeiten',
-                        onPressed: () => _editAdminCountryExchange(
-                          context,
-                          ref,
-                          country,
-                          rates
-                              .where((item) => item.country == country)
-                              .firstOrNull,
-                        ),
-                        icon: const Icon(Icons.currency_exchange_rounded),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _TaxFact(
+                            label: 'Länderwährung',
+                            value: _countryCurrency(country, rates),
+                          ),
+                          _TaxFact(
+                            label: 'Quellensteuer',
+                            value:
+                                '${_countryRate(country, rates).toStringAsFixed(2)} %',
+                          ),
+                          _TaxFact(
+                            label:
+                                'Wechselkurs · $accountCurrency (Kontowährung)',
+                            value:
+                                '1 ${_countryCurrency(country, rates)} = '
+                                '${_countryExchangeRate(country, rates).toStringAsFixed(6)} $accountCurrency',
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -414,15 +452,69 @@ class _TaxAdmin extends ConsumerWidget {
         ? 15
         : 0;
   }
+
+  String _countryCurrency(String country, List<CountryTaxRate> rates) =>
+      rates
+          .where(
+            (rate) =>
+                normalizeCountry(rate.country) == normalizeCountry(country),
+          )
+          .firstOrNull
+          ?.currency
+          .toUpperCase() ??
+      defaultCurrencyForCountry(country);
+
+  double _countryExchangeRate(String country, List<CountryTaxRate> rates) =>
+      rates
+          .where(
+            (rate) =>
+                normalizeCountry(rate.country) == normalizeCountry(country),
+          )
+          .firstOrNull
+          ?.exchangeRate ??
+      1;
+}
+
+class _TaxFact extends StatelessWidget {
+  const _TaxFact({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Text.rich(
+      TextSpan(
+        text: '$label\n',
+        style: Theme.of(context).textTheme.labelSmall,
+        children: [
+          TextSpan(
+            text: value,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 Future<void> _editAdminCountryExchange(
   BuildContext context,
   WidgetRef ref,
   String country,
+  String accountCurrency,
   CountryTaxRate? current,
 ) async {
-  final currency = TextEditingController(text: current?.currency ?? 'EUR');
+  final currency = TextEditingController(
+    text: current?.currency ?? defaultCurrencyForCountry(country),
+  );
   final rate = TextEditingController(
     text: (current?.exchangeRate ?? 1).toStringAsFixed(6),
   );
@@ -440,46 +532,64 @@ Future<void> _editAdminCountryExchange(
       builder: (context, setState) => AlertDialog(
         title: Text('Wechselkurs · $country'),
         content: SizedBox(
-          width: 460,
+          width: 560,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: 120,
-                    child: DropdownButtonFormField<String>(
-                      initialValue: currency.text.toUpperCase(),
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Währung'),
-                      items: supportedIsoCurrencies
-                          .map(
-                            (value) => DropdownMenuItem(
-                              value: value,
-                              child: Text(value),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: hasApiKey && !allowManual
-                          ? null
-                          : (value) => currency.text = value ?? currency.text,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final fields = [
+                    TextFormField(
+                      controller: currency,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Länderwährung',
+                        prefixIcon: Icon(Icons.lock_outline_rounded),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
+                    TextFormField(
+                      initialValue: accountCurrency,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Zielwährung (Kontowährung)',
+                        prefixIcon: Icon(Icons.lock_outline_rounded),
+                      ),
+                    ),
+                    TextFormField(
                       controller: rate,
                       readOnly: hasApiKey && !allowManual,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
                       decoration: const InputDecoration(
-                        labelText: 'Kurs zur Standardwährung',
+                        labelText: 'Kurs zur Kontowährung',
+                        prefixIcon: Icon(Icons.currency_exchange_rounded),
                       ),
                     ),
-                  ),
-                ],
+                  ];
+                  if (constraints.maxWidth < 520) {
+                    return Column(
+                      children: [
+                        for (var index = 0; index < fields.length; index++) ...[
+                          fields[index],
+                          if (index < fields.length - 1)
+                            const SizedBox(height: 12),
+                        ],
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      for (var index = 0; index < fields.length; index++) ...[
+                        Expanded(child: fields[index]),
+                        if (index < fields.length - 1)
+                          const SizedBox(width: 12),
+                      ],
+                    ],
+                  );
+                },
               ),
+              const SizedBox(height: 8),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Manuelle Eingabe erlauben'),
@@ -578,7 +688,7 @@ Future<void> _editCountryTax(
                 },
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
+              SearchableDropdownButtonFormField<String>(
                 initialValue: currency,
                 isExpanded: true,
                 decoration: const InputDecoration(
@@ -656,7 +766,7 @@ Future<void> _addCountryTax(BuildContext context, WidgetRef ref) async {
                     : null,
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
+              SearchableDropdownButtonFormField<String>(
                 key: ValueKey(currency),
                 initialValue: currency,
                 isExpanded: true,
@@ -826,12 +936,13 @@ class _ErrorLogsAdmin extends ConsumerWidget {
                           child: ExpansionTile(
                             leading: const Icon(Icons.error_outline_rounded),
                             title: Text(
-                              log.message,
+                              _errorUserSummary(log),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                             subtitle: Text(
-                              '${log.source} · ${DateFormat('dd.MM.yyyy HH:mm:ss').format(log.occurredAt.toLocal())}',
+                              '${_errorArea(log)} · ${log.source} · '
+                              '${DateFormat('dd.MM.yyyy HH:mm:ss').format(log.occurredAt.toLocal())}',
                             ),
                             childrenPadding: const EdgeInsets.fromLTRB(
                               16,
@@ -842,8 +953,17 @@ class _ErrorLogsAdmin extends ConsumerWidget {
                             expandedCrossAxisAlignment:
                                 CrossAxisAlignment.stretch,
                             children: [
+                              Text(
+                                'Technische Meldung',
+                                style: Theme.of(context).textTheme.labelLarge,
+                              ),
+                              const SizedBox(height: 4),
+                              SelectableText(log.message),
                               if (log.details.isNotEmpty)
-                                SelectableText(log.details),
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: SelectableText(log.details),
+                                ),
                               if (log.stackTrace.isNotEmpty) ...[
                                 const SizedBox(height: 8),
                                 SelectableText(
@@ -851,6 +971,30 @@ class _ErrorLogsAdmin extends ConsumerWidget {
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ],
+                              const SizedBox(height: 12),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    await Clipboard.setData(
+                                      ClipboardData(text: _copyableError(log)),
+                                    );
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Fehler wurde kopiert.',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  icon: const Icon(Icons.copy_rounded),
+                                  label: const Text('Fehler kopieren'),
+                                ),
+                              ),
                             ],
                           ),
                         );
@@ -863,6 +1007,56 @@ class _ErrorLogsAdmin extends ConsumerWidget {
     );
   }
 }
+
+String _errorArea(AppErrorLog log) {
+  final technical = '${log.details}\n${log.stackTrace}'.toLowerCase();
+  const areas = <String, String>{
+    'statistics_page.dart': 'Statistik',
+    'dashboard_page.dart': 'Übersicht',
+    'household_page.dart': 'Haushaltsbuch',
+    'investments_page.dart': 'Portfolio',
+    'dividends_page.dart': 'Dividenden',
+    'administration_page.dart': 'Administration',
+    'vehicles_page.dart': 'Fahrzeuge',
+    'accounts_page.dart': 'Konten',
+  };
+  for (final entry in areas.entries) {
+    if (technical.contains(entry.key)) return entry.value;
+  }
+  return 'Anwendung';
+}
+
+String _errorUserSummary(AppErrorLog log) {
+  final technical = '${log.message}\n${log.details}\n${log.stackTrace}'
+      .toLowerCase();
+  final area = _errorArea(log);
+  if (technical.contains('date_format') ||
+      technical.contains('localeexists') ||
+      technical.contains('intl')) {
+    return '$area: Ein Datum konnte nicht angezeigt werden.';
+  }
+  if (technical.contains('database') || technical.contains('drift')) {
+    return '$area: Daten konnten nicht gelesen oder gespeichert werden.';
+  }
+  if (technical.contains('overflow')) {
+    return '$area: Ein Inhalt passte nicht in den verfügbaren Platz.';
+  }
+  if (technical.contains('network') ||
+      technical.contains('socket') ||
+      technical.contains('http')) {
+    return '$area: Eine Netzwerkabfrage ist fehlgeschlagen.';
+  }
+  return '$area: Ein unerwarteter Fehler ist aufgetreten.';
+}
+
+String _copyableError(AppErrorLog log) =>
+    'Kurzbeschreibung: ${_errorUserSummary(log)}\n'
+    'Bereich: ${_errorArea(log)}\n'
+    'Quelle: ${log.source}\n'
+    'Zeitpunkt: ${DateFormat('dd.MM.yyyy HH:mm:ss').format(log.occurredAt.toLocal())}\n'
+    'Meldung: ${log.message}\n'
+    '${log.details.isEmpty ? '' : 'Details: ${log.details}\n'}'
+    '${log.stackTrace.isEmpty ? '' : 'Stacktrace:\n${log.stackTrace}'}';
 
 Future<void> _editStock(
   BuildContext context,
@@ -904,6 +1098,9 @@ Future<void> _editStock(
   );
   final subscriptionRatio = TextEditingController(
     text: stock == null ? '' : stock.subscriptionRatio.toString(),
+  );
+  final dividendPerShare = TextEditingController(
+    text: stock == null ? '0' : stock.dividendPerShare.toString(),
   );
   var assetType = stock?.assetType ?? supportedPortfolioAssetClasses.first;
   var instrumentSubtype = stock?.instrumentSubtype.isNotEmpty == true
@@ -956,6 +1153,12 @@ Future<void> _editStock(
         .toUpperCase();
   }
 
+  if (country.text.trim().isNotEmpty) {
+    dividendCurrency.text =
+        countryCurrency(country.text) ??
+        defaultCurrencyForCountry(country.text);
+  }
+
   final key = GlobalKey<FormState>();
   final saved = await showDialog<bool>(
     context: context,
@@ -977,14 +1180,21 @@ Future<void> _editStock(
           String label, {
           bool required = false,
           bool number = false,
+          bool readOnly = false,
         }) => SizedBox(
           width: 285,
           child: TextFormField(
             controller: controller,
+            readOnly: readOnly,
             keyboardType: number
                 ? const TextInputType.numberWithOptions(decimal: true)
                 : null,
-            decoration: InputDecoration(labelText: label),
+            decoration: InputDecoration(
+              labelText: required ? '$label *' : label,
+              prefixIcon: readOnly
+                  ? const Icon(Icons.lock_outline_rounded, size: 18)
+                  : null,
+            ),
             validator: (value) {
               if (required && (value?.trim().isEmpty ?? true)) {
                 return 'Pflichtfeld';
@@ -1002,11 +1212,11 @@ Future<void> _editStock(
         Widget currencyField(TextEditingController controller, String label) =>
             SizedBox(
               width: 285,
-              child: DropdownButtonFormField<String>(
+              child: SearchableDropdownButtonFormField<String>(
                 key: ValueKey('$label-${controller.text}'),
                 initialValue: controller.text.toUpperCase(),
                 isExpanded: true,
-                decoration: InputDecoration(labelText: label),
+                decoration: InputDecoration(labelText: '$label *'),
                 items: supportedIsoCurrencies
                     .map(
                       (value) =>
@@ -1024,8 +1234,8 @@ Future<void> _editStock(
           ),
           title: Text(
             stock == null
-                ? 'Portfolio-Stammdatum anlegen'
-                : 'Portfolio-Stammdatum bearbeiten',
+                ? 'Portfolio-Stammdaten anlegen'
+                : 'Portfolio-Stammdaten bearbeiten',
           ),
           content: SizedBox(
             width: 650,
@@ -1038,11 +1248,11 @@ Future<void> _editStock(
                   children: [
                     SizedBox(
                       width: 285,
-                      child: DropdownButtonFormField<String>(
+                      child: SearchableDropdownButtonFormField<String>(
                         initialValue: assetType,
                         isExpanded: true,
                         decoration: const InputDecoration(
-                          labelText: 'Anlageklasse',
+                          labelText: 'Anlageklasse *',
                         ),
                         items: supportedPortfolioAssetClasses
                             .map(
@@ -1072,43 +1282,44 @@ Future<void> _editStock(
                     textField(exchange, 'Börse / Handelsplatz'),
                     textField(broker, 'Broker'),
                     if (!isCrypto) textField(sector, 'Branche / Sektor'),
-                    if (!isCrypto)
-                      SizedBox(
-                        width: 285,
-                        child: DropdownButtonFormField<String>(
-                          key: ValueKey('country-${country.text}'),
-                          initialValue: countries.contains(country.text)
-                              ? country.text
-                              : null,
-                          isExpanded: true,
-                          decoration: InputDecoration(
-                            labelText: 'Land (optional)',
-                            helperText:
-                                'Quellensteuer: ${countryRate().toStringAsFixed(2)} %',
-                          ),
-                          items: countries
-                              .map(
-                                (value) => DropdownMenuItem(
-                                  value: value,
-                                  child: Text(value),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) => setDialogState(() {
-                            country.text = value ?? '';
-                            final linkedCurrency = countryCurrency(value ?? '');
-                            if (linkedCurrency != null) {
-                              dividendCurrency.text = linkedCurrency;
-                            }
-                          }),
+                    SizedBox(
+                      width: 285,
+                      child: SearchableDropdownButtonFormField<String>(
+                        key: ValueKey('country-${country.text}'),
+                        initialValue: countries.contains(country.text)
+                            ? country.text
+                            : null,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: 'Land *',
+                          helperText:
+                              'Quellensteuer: ${countryRate().toStringAsFixed(2)} %',
                         ),
+                        items: countries
+                            .map(
+                              (value) => DropdownMenuItem(
+                                value: value,
+                                child: Text(value),
+                              ),
+                            )
+                            .toList(),
+                        validator: (value) => value?.trim().isEmpty ?? true
+                            ? 'Pflichtfeld'
+                            : null,
+                        onChanged: (value) => setDialogState(() {
+                          country.text = value ?? '';
+                          dividendCurrency.text =
+                              countryCurrency(value ?? '') ??
+                              defaultCurrencyForCountry(value);
+                        }),
                       ),
+                    ),
                     if (isBond || isDerivative)
                       textField(issuer, 'Emittent', required: isDerivative),
                     if (isDerivative) ...[
                       SizedBox(
                         width: 285,
-                        child: DropdownButtonFormField<String>(
+                        child: SearchableDropdownButtonFormField<String>(
                           initialValue: instrumentSubtype,
                           decoration: const InputDecoration(
                             labelText: 'Produkttyp',
@@ -1129,7 +1340,7 @@ Future<void> _editStock(
                       ),
                       SizedBox(
                         width: 285,
-                        child: DropdownButtonFormField<String>(
+                        child: SearchableDropdownButtonFormField<String>(
                           initialValue: positionDirection,
                           decoration: const InputDecoration(
                             labelText: 'Richtung / Optionsart',
@@ -1201,13 +1412,18 @@ Future<void> _editStock(
                         ),
                       ),
                     if (supportsDividends) ...[
-                      currencyField(dividendCurrency, 'Dividendenwährung'),
+                      textField(
+                        dividendCurrency,
+                        'Dividendenwährung',
+                        required: true,
+                        readOnly: true,
+                      ),
                       SizedBox(
                         width: 285,
-                        child: DropdownButtonFormField<String>(
+                        child: SearchableDropdownButtonFormField<String>(
                           initialValue: dividendFrequency,
                           decoration: const InputDecoration(
-                            labelText: 'Auszahlungsrhythmus',
+                            labelText: 'Auszahlungsrhythmus *',
                           ),
                           items:
                               const [
@@ -1230,10 +1446,10 @@ Future<void> _editStock(
                       ),
                       SizedBox(
                         width: 285,
-                        child: DropdownButtonFormField<int>(
+                        child: SearchableDropdownButtonFormField<int>(
                           initialValue: dividendStartMonth,
                           decoration: const InputDecoration(
-                            labelText: 'Startmonat',
+                            labelText: 'Startmonat *',
                           ),
                           items: List.generate(
                             12,
@@ -1245,6 +1461,12 @@ Future<void> _editStock(
                           onChanged: (value) =>
                               dividendStartMonth = value ?? dividendStartMonth,
                         ),
+                      ),
+                      textField(
+                        dividendPerShare,
+                        'Dividende je Stück / Ausschüttung',
+                        required: true,
+                        number: true,
                       ),
                     ],
                     textField(companyData, 'Optionale Zusatzdaten'),
@@ -1274,6 +1496,7 @@ Future<void> _editStock(
                 final error = portfolioMasterValidationError(
                   assetType: assetType,
                   name: name.text,
+                  country: country.text,
                   symbol: symbol.text,
                   isin: isin.text,
                   wkn: wkn.text,
@@ -1355,6 +1578,10 @@ Future<void> _editStock(
               sector: Value(sector.text.trim()),
               dividendFrequency: Value(dividendFrequency),
               dividendStartMonth: Value(dividendStartMonth),
+              dividendPerShare: Value(
+                double.tryParse(dividendPerShare.text.replaceAll(',', '.')) ??
+                    0,
+              ),
               companyData: Value(companyData.text.trim()),
               createdAt: stock?.createdAt ?? now,
               updatedAt: now,
@@ -1391,6 +1618,7 @@ Future<void> _editStock(
     knockOutBarrier,
     leverage,
     subscriptionRatio,
+    dividendPerShare,
   ]) {
     controller.dispose();
   }

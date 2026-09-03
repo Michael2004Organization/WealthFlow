@@ -116,7 +116,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                 subtitle: 'Interaktive Auswertungen über alle Module.',
                 action: SizedBox(
                   width: 220,
-                  child: DropdownButtonFormField<String>(
+                  child: SearchableDropdownButtonFormField<String>(
                     key: ValueKey(_sortMode),
                     initialValue: _sortMode,
                     isExpanded: true,
@@ -247,7 +247,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
               children: [
                 SizedBox(
                   width: 190,
-                  child: DropdownButtonFormField<String>(
+                  child: SearchableDropdownButtonFormField<String>(
                     initialValue: _periodMode,
                     decoration: const InputDecoration(labelText: 'Zeitraum'),
                     items: const [
@@ -868,7 +868,7 @@ class _CashflowChartState extends State<_CashflowChart> {
               const Spacer(),
               SizedBox(
                 width: 116,
-                child: DropdownButtonFormField<int>(
+                child: SearchableDropdownButtonFormField<int>(
                   initialValue: _months,
                   isDense: true,
                   decoration: const InputDecoration(labelText: 'Monate'),
@@ -912,7 +912,7 @@ class _CashflowChartState extends State<_CashflowChart> {
                                 ? 'Einnahmen'
                                 : 'Ausgaben';
                             return BarTooltipItem(
-                              '${DateFormat('MMMM yyyy', 'de_DE').format(date)}\n'
+                              '${_statisticsMonthNames[date.month - 1]} ${date.year}\n'
                               '$label: ${money(rod.toY)}',
                               const TextStyle(
                                 color: Colors.white,

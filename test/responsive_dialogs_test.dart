@@ -183,7 +183,7 @@ void main() {
     final assetTypeDropdown = find
         .descendant(
           of: find.byType(AlertDialog),
-          matching: find.byType(DropdownButtonFormField<String>),
+          matching: find.byType(DropdownMenu<String>),
         )
         .first;
     await tester.ensureVisible(assetTypeDropdown);
@@ -192,7 +192,7 @@ void main() {
     await tester.tap(find.text('Kryptowährung').last);
     await tester.pumpAndSettle();
     expect(find.text('ISIN'), findsNothing);
-    expect(find.text('Symbol'), findsWidgets);
+    expect(find.textContaining('Symbol'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 

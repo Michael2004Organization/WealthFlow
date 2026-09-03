@@ -46,6 +46,7 @@ String portfolioMasterIdentity({
 String? portfolioMasterValidationError({
   required String assetType,
   required String name,
+  required String country,
   String symbol = '',
   String isin = '',
   String wkn = '',
@@ -57,6 +58,7 @@ String? portfolioMasterValidationError({
     return 'Unzulässige Anlageklasse.';
   }
   if (name.trim().isEmpty) return 'Name fehlt.';
+  if (country.trim().isEmpty) return 'Land fehlt.';
   if (assetType == 'Kryptowährung' && symbol.trim().isEmpty) {
     return 'Für Kryptowährungen ist ein Symbol erforderlich.';
   }

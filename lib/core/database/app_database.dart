@@ -193,6 +193,7 @@ class StockMasters extends Table {
       text().withDefault(const Constant('jährlich'))();
   IntColumn get dividendStartMonth =>
       integer().withDefault(const Constant(1))();
+  RealColumn get dividendPerShare => real().withDefault(const Constant(0))();
   TextColumn get companyData => text().withDefault(const Constant(''))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -494,6 +495,7 @@ class NetWorthSnapshots extends Table {
   RealColumn get accountBalance => real()();
   RealColumn get portfolioValue => real()();
   RealColumn get totalNetWorth => real()();
+  RealColumn get vehicleValue => real().withDefault(const Constant(0))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -565,7 +567,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -841,6 +843,29 @@ final class AppDatabase extends _$AppDatabase {
         await _backfillCountryCurrencies();
         await _seedAssetClasses();
       }
+      if (from < 19) {
+        final stockMasterColumns = await customSelect(
+          "PRAGMA table_info('stock_masters')",
+        ).get();
+        if (!stockMasterColumns.any(
+          (row) => row.data['name'] == 'dividend_per_share',
+        )) {
+          await migrator.addColumn(stockMasters, stockMasters.dividendPerShare);
+        }
+        final snapshotColumns = await customSelect(
+          "PRAGMA table_info('net_worth_snapshots')",
+        ).get();
+        if (snapshotColumns.isEmpty) {
+          await migrator.createTable(netWorthSnapshots);
+        } else if (!snapshotColumns.any(
+          (row) => row.data['name'] == 'vehicle_value',
+        )) {
+          await migrator.addColumn(
+            netWorthSnapshots,
+            netWorthSnapshots.vehicleValue,
+          );
+        }
+      }
     },
   );
 
@@ -994,6 +1019,7 @@ final class AppDatabase extends _$AppDatabase {
       portfolioMasterValidationError(
         assetType: value.assetType.present ? value.assetType.value : 'Aktie',
         name: value.name.value,
+        country: value.country.present ? value.country.value : '',
         symbol: value.symbol.value,
         isin: value.isin.present ? value.isin.value : '',
         wkn: value.wkn.present ? value.wkn.value : '',
@@ -1080,6 +1106,7 @@ final class AppDatabase extends _$AppDatabase {
               country: Value(stock.country),
               sector: Value(stock.sector),
               dividendCurrency: Value(savedDividendCurrency),
+              annualDividend: Value(stock.dividendPerShare),
               dividendFrequency: Value(stock.dividendFrequency),
               dividendStartMonth: Value(stock.dividendStartMonth),
               dividendWithholdingTaxRate: Value(configuredRate ?? fallbackRate),
@@ -3288,7 +3315,10 @@ final class AppDatabase extends _$AppDatabase {
         }
       }
       for (final json in rows('netWorthSnapshots')) {
-        final remote = NetWorthSnapshot.fromJson(json);
+        final remote = NetWorthSnapshot.fromJson({
+          ...json,
+          'vehicleValue': json['vehicleValue'] ?? 0,
+        });
         if (remote.userId != userId) continue;
         await into(
           netWorthSnapshots,
@@ -3321,6 +3351,11 @@ final class AppDatabase extends _$AppDatabase {
               (row) => row.userId.equals(userId) & row.deletedAt.isNull(),
             ))
             .get();
+    final vehicleRows =
+        await (select(vehicles)..where(
+              (row) => row.userId.equals(userId) & row.deletedAt.isNull(),
+            ))
+            .get();
     final accountBalance = accountRows.fold<double>(
       0,
       (sum, row) => sum + row.balance,
@@ -3334,6 +3369,10 @@ final class AppDatabase extends _$AppDatabase {
           0,
           (sum, row) => sum + row.weightGrams * row.currentPricePerGram,
         );
+    final vehicleValue = vehicleRows.fold<double>(
+      0,
+      (sum, row) => sum + row.currentValue,
+    );
     final last =
         await (select(netWorthSnapshots)
               ..where((row) => row.userId.equals(userId))
@@ -3342,7 +3381,8 @@ final class AppDatabase extends _$AppDatabase {
             .getSingleOrNull();
     if (last != null &&
         last.accountBalance == accountBalance &&
-        last.portfolioValue == portfolioValue) {
+        last.portfolioValue == portfolioValue &&
+        last.vehicleValue == vehicleValue) {
       await persistUserFile(userId);
       return;
     }
@@ -3354,6 +3394,7 @@ final class AppDatabase extends _$AppDatabase {
         accountBalance: accountBalance,
         portfolioValue: portfolioValue,
         totalNetWorth: accountBalance + portfolioValue,
+        vehicleValue: Value(vehicleValue),
       ),
     );
     await persistUserFile(userId);
@@ -3456,7 +3497,7 @@ final class AppDatabase extends _$AppDatabase {
 
   Future<void> saveVehicle(VehiclesCompanion value) async {
     await into(vehicles).insertOnConflictUpdate(value);
-    await persistUserFile(value.userId.value);
+    await captureNetWorth(value.userId.value);
   }
 
   Future<void> deleteVehicle(String id, String userId) async {
@@ -3498,7 +3539,7 @@ final class AppDatabase extends _$AppDatabase {
             ),
           );
     });
-    await persistUserFile(userId);
+    await captureNetWorth(userId);
   }
 
   Stream<List<VehicleCost>> watchVehicleCosts(String userId) =>

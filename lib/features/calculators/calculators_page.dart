@@ -1347,7 +1347,7 @@ class _AccountTargetCalculatorState
       verticalResultHeight: 600,
       input: Column(
         children: [
-          DropdownButtonFormField<String>(
+          SearchableDropdownButtonFormField<String>(
             key: ValueKey(selectedId),
             initialValue: selectedId,
             isExpanded: true,

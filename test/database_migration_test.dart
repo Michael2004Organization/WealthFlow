@@ -119,6 +119,7 @@ void main() {
     final rates = await database.watchCountryTaxRates().first;
 
     expect(master.assetType, 'ETF');
+    expect(master.dividendPerShare, 0);
     expect((await database.stockPrice('world-etf'))?.price, 123.45);
     expect(
       await database.stockDividendsForYear('world-etf', 1970),
@@ -130,5 +131,12 @@ void main() {
       'CHF',
     );
     expect(await database.watchAssetClasses().first, hasLength(7));
+    final snapshotColumns = await database
+        .customSelect("PRAGMA table_info('net_worth_snapshots')")
+        .get();
+    expect(
+      snapshotColumns.map((row) => row.data['name']),
+      contains('vehicle_value'),
+    );
   });
 }

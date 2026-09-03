@@ -735,6 +735,7 @@ void main() {
             name: name,
             assetType: const Value('Kryptowährung'),
             symbol: 'BTC',
+            country: const Value('USA'),
             createdAt: now,
             updatedAt: now,
           );

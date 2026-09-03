@@ -157,9 +157,11 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   PageHeader(
-                    title: 'Dividenden',
-                    subtitle:
-                        'Erträge und Ausschüttungsrhythmus deiner Positionen.',
+                    title:
+                        'Dividenden – Erträge und Ausschüttungsrhythmus deiner Positionen',
+                    subtitle: '',
+                    titleSingleLine: true,
+                    actionBelow: true,
                     action: Wrap(
                       spacing: 10,
                       runSpacing: 10,
@@ -202,7 +204,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                         ),
                         SizedBox(
                           width: 290,
-                          child: DropdownButtonFormField<String>(
+                          child: SearchableDropdownButtonFormField<String>(
                             key: ValueKey(selectedAccountId),
                             initialValue: selectedAccountId,
                             isExpanded: true,
@@ -241,7 +243,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                         if (dividendItems.isNotEmpty)
                           SizedBox(
                             width: 290,
-                            child: DropdownButtonFormField<String>(
+                            child: SearchableDropdownButtonFormField<String>(
                               key: ValueKey(selectedId),
                               initialValue: selectedId,
                               isExpanded: true,
@@ -1107,7 +1109,7 @@ class _DividendCalendar extends ConsumerWidget {
                     200.0,
                     300.0,
                   ),
-                  child: DropdownButtonFormField<String>(
+                  child: SearchableDropdownButtonFormField<String>(
                     key: ValueKey(selectedId),
                     initialValue: selectedId,
                     isExpanded: true,
@@ -1280,7 +1282,7 @@ Future<void> _showHistoryLoader(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              DropdownButtonFormField<int>(
+              SearchableDropdownButtonFormField<int>(
                 initialValue: year,
                 decoration: const InputDecoration(
                   labelText: 'Historisches Jahr',
@@ -2424,7 +2426,7 @@ Future<void> _showScheduleEditor(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (schedule == null) ...[
-                    DropdownButtonFormField<int>(
+                    SearchableDropdownButtonFormField<int>(
                       initialValue: startMonth,
                       isExpanded: true,
                       decoration: const InputDecoration(
@@ -2557,7 +2559,7 @@ Future<void> _showScheduleEditor(
                     ),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
+                  SearchableDropdownButtonFormField<String>(
                     initialValue: currency.text.trim().toUpperCase(),
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Währung'),
