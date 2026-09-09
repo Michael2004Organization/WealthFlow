@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wealthflow/core/database/app_database.dart';
@@ -9,6 +10,7 @@ import 'package:wealthflow/features/calculators/calculators_page.dart';
 import 'package:wealthflow/features/finance/accounts_page.dart';
 import 'package:wealthflow/features/finance/investments_page.dart';
 import 'package:wealthflow/features/household/household_page.dart';
+import 'package:wealthflow/features/settings/administration_page.dart';
 import 'package:wealthflow/features/vehicles/vehicles_page.dart';
 
 void main() {
@@ -38,6 +40,65 @@ void main() {
     );
     await tester.pumpAndSettle();
     return database;
+  }
+
+  for (final size in [const Size(360, 800), const Size(1920, 1080)]) {
+    testWidgets('tax country dialog supports mouse input at $size', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        const AdministrationPage(),
+        size: size,
+        overrides: [
+          isAdminProvider.overrideWithValue(true),
+          usersProvider.overrideWith((_) => Stream.value(const <User>[])),
+          stockMastersProvider.overrideWith(
+            (_) => Stream.value(const <StockMaster>[]),
+          ),
+          countryTaxRatesProvider.overrideWith(
+            (_) => Stream.value(const <CountryTaxRate>[]),
+          ),
+          appConfigurationProvider.overrideWith((_) => const Stream.empty()),
+          preferencesProvider.overrideWith((_) => Stream.value(null)),
+          assetClassesProvider.overrideWith(
+            (_) => Stream.value(const <AssetClassesData>[]),
+          ),
+          errorLogsProvider.overrideWith(
+            (_) => Stream.value(const <AppErrorLog>[]),
+          ),
+        ],
+      );
+      final tab = find.text('Steuern');
+      await tester.ensureVisible(tab);
+      await tester.tap(tab);
+      await tester.pumpAndSettle();
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: size.center(Offset.zero));
+      addTearDown(mouse.removePointer);
+      await tester.tap(find.text('Land hinzufügen'));
+      await tester.pumpAndSettle();
+      expect(find.text('Steuerland hinzufügen'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      final currency = find.descendant(
+        of: find.byType(DropdownMenu<String>),
+        matching: find.byType(TextField),
+      );
+      await mouse.moveTo(tester.getCenter(currency));
+      await tester.tap(currency);
+      await tester.enterText(currency, 'US');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('USD').hitTestable());
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(currency).controller!.text, 'USD');
+      await tester.tap(find.text('Abbrechen'));
+      await tester.pumpAndSettle();
+      await mouse.moveTo(const Offset(10, 10));
+      await tester.pump();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
   }
 
   testWidgets('account editor fits a narrow mobile viewport', (tester) async {

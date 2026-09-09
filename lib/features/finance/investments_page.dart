@@ -1785,7 +1785,7 @@ Future<void> _showInvestmentDetails(
                   Chip(
                     avatar: const Icon(Icons.inventory_2_outlined, size: 18),
                     label: Text(
-                      investment.quantity.toStringAsFixed(2) + ' Stück',
+                      '${investment.quantity.toStringAsFixed(2)} Stück',
                     ),
                   ),
                   Chip(
@@ -1796,7 +1796,7 @@ Future<void> _showInvestmentDetails(
                   ),
                   Chip(
                     avatar: const Icon(Icons.show_chart_rounded, size: 18),
-                    label: Text('Kurs ' + money(investment.currentPrice)),
+                    label: Text('Kurs ${money(investment.currentPrice)}'),
                   ),
                   if (!hasApiKey)
                     ActionChip(
@@ -1813,7 +1813,7 @@ Future<void> _showInvestmentDetails(
                       label: Text('Kurs automatisch verwaltet'),
                     ),
                   if (investment.isin.isNotEmpty)
-                    Chip(label: Text('ISIN ' + investment.isin)),
+                    Chip(label: Text('ISIN ${investment.isin}')),
                 ],
               ),
               const SizedBox(height: 16),
@@ -1842,9 +1842,7 @@ Future<void> _showInvestmentDetails(
                               child: Icon(Icons.add_chart_rounded),
                             ),
                             title: Text(
-                              purchase.quantity.toStringAsFixed(2) +
-                                  ' Stück · ' +
-                                  money(purchase.purchasePrice),
+                              '${purchase.quantity.toStringAsFixed(2)} Stück · ${money(purchase.purchasePrice)}',
                             ),
                             subtitle: Text(
                               DateFormat(
@@ -1852,7 +1850,7 @@ Future<void> _showInvestmentDetails(
                                   ).format(purchase.purchaseDate) +
                                   (purchase.fees == 0
                                       ? ''
-                                      : ' · Gebühren ' + money(purchase.fees)),
+                                      : ' · Gebühren ${money(purchase.fees)}'),
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1892,8 +1890,9 @@ Future<void> _showInvestmentDetails(
                                               userId,
                                             );
                                       }
-                                      if (context.mounted)
+                                      if (context.mounted) {
                                         Navigator.pop(context);
+                                      }
                                     }
                                   },
                                   itemBuilder: (_) => const [
@@ -3480,8 +3479,9 @@ Future<void> _showInvestmentSaleDialog(
                   validator: (value) {
                     final parsed = _parseNumber(value);
                     if (parsed == null || parsed <= 0) return 'Ungültige Menge';
-                    if (parsed > investment.quantity)
+                    if (parsed > investment.quantity) {
                       return 'Mehr als verfügbar';
+                    }
                     return null;
                   },
                 ),
@@ -3606,8 +3606,9 @@ Future<void> _showPhysicalSaleDialog(
                   ),
                   validator: (value) {
                     final parsed = _parseNumber(value);
-                    if (parsed == null || parsed <= 0)
+                    if (parsed == null || parsed <= 0) {
                       return 'Ungültiges Gewicht';
+                    }
                     if (parsed > asset.weightGrams) return 'Mehr als verfügbar';
                     return null;
                   },
@@ -3817,8 +3818,9 @@ Future<void> _showPurchaseEditor(
           ),
           FilledButton(
             onPressed: () {
-              if (key.currentState?.validate() ?? false)
+              if (key.currentState?.validate() ?? false) {
                 Navigator.pop(dialogContext, true);
+              }
             },
             child: const Text('Speichern'),
           ),

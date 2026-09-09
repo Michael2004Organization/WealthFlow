@@ -49,77 +49,72 @@ class SearchableDropdownButtonFormField<T> extends StatelessWidget {
       validator: validator,
       autovalidateMode: autovalidateMode,
       enabled: enabled,
-      builder: (state) => LayoutBuilder(
-        builder: (context, constraints) {
-          final width = isExpanded && constraints.hasBoundedWidth
-              ? constraints.maxWidth
-              : null;
-          return DropdownMenu<T>(
-            enabled: enabled,
-            width: width,
-            menuHeight: menuMaxHeight,
-            initialSelection: state.value,
-            focusNode: focusNode,
-            requestFocusOnTap: true,
-            enableFilter: true,
-            enableSearch: true,
-            expandedInsets: isExpanded ? EdgeInsets.zero : null,
-            dropdownMenuEntries: [
-              for (final item in options)
-                DropdownMenuEntry<T>(
-                  value: item.value as T,
-                  label: _dropdownSearchLabel(item),
-                  labelWidget: item.child,
-                  enabled: item.enabled,
-                ),
-            ],
-            filterCallback: (entries, query) {
-              final normalized = query.trim().toLowerCase();
-              if (normalized.isEmpty) return entries;
-              final startsWith = <DropdownMenuEntry<T>>[];
-              final contains = <DropdownMenuEntry<T>>[];
-              for (final entry in entries) {
-                final label = entry.label.toLowerCase();
-                if (label.startsWith(normalized)) {
-                  startsWith.add(entry);
-                } else if (label.contains(normalized)) {
-                  contains.add(entry);
-                }
-              }
-              return [...startsWith, ...contains];
-            },
-            decorationBuilder: (context, menuController) => decoration.copyWith(
-              isDense: isDense,
-              errorText: state.errorText,
-              suffixIcon: IconButton(
-                tooltip: menuController.isOpen
-                    ? 'Auswahl schließen'
-                    : 'Auswahl öffnen oder Suchtext eingeben',
-                onPressed: enabled
-                    ? () {
-                        if (menuController.isOpen) {
-                          menuController.close();
-                        } else {
-                          menuController.open();
-                        }
-                      }
-                    : null,
-                icon: Icon(
-                  menuController.isOpen
-                      ? Icons.arrow_drop_up_rounded
-                      : Icons.arrow_drop_down_rounded,
-                ),
-              ),
+      // AlertDialog measures intrinsic widths before laying out its content.
+      // Let DropdownMenu handle expansion itself: a LayoutBuilder here breaks
+      // that measurement and leaves the dialog without a hit-testable size.
+      builder: (state) => DropdownMenu<T>(
+        enabled: enabled,
+        menuHeight: menuMaxHeight,
+        initialSelection: state.value,
+        focusNode: focusNode,
+        requestFocusOnTap: true,
+        enableFilter: true,
+        enableSearch: true,
+        expandedInsets: isExpanded ? EdgeInsets.zero : null,
+        dropdownMenuEntries: [
+          for (final item in options)
+            DropdownMenuEntry<T>(
+              value: item.value as T,
+              label: _dropdownSearchLabel(item),
+              labelWidget: item.child,
+              enabled: item.enabled,
             ),
-            onSelected: enabled
-                ? (value) {
-                    if (value == null) return;
-                    state.didChange(value);
-                    onChanged?.call(value);
+        ],
+        filterCallback: (entries, query) {
+          final normalized = query.trim().toLowerCase();
+          if (normalized.isEmpty) return entries;
+          final startsWith = <DropdownMenuEntry<T>>[];
+          final contains = <DropdownMenuEntry<T>>[];
+          for (final entry in entries) {
+            final label = entry.label.toLowerCase();
+            if (label.startsWith(normalized)) {
+              startsWith.add(entry);
+            } else if (label.contains(normalized)) {
+              contains.add(entry);
+            }
+          }
+          return [...startsWith, ...contains];
+        },
+        decorationBuilder: (context, menuController) => decoration.copyWith(
+          isDense: isDense,
+          errorText: state.errorText,
+          suffixIcon: IconButton(
+            tooltip: menuController.isOpen
+                ? 'Auswahl schließen'
+                : 'Auswahl öffnen oder Suchtext eingeben',
+            onPressed: enabled
+                ? () {
+                    if (menuController.isOpen) {
+                      menuController.close();
+                    } else {
+                      menuController.open();
+                    }
                   }
                 : null,
-          );
-        },
+            icon: Icon(
+              menuController.isOpen
+                  ? Icons.arrow_drop_up_rounded
+                  : Icons.arrow_drop_down_rounded,
+            ),
+          ),
+        ),
+        onSelected: enabled
+            ? (value) {
+                if (value == null) return;
+                state.didChange(value);
+                onChanged?.call(value);
+              }
+            : null,
       ),
     );
   }

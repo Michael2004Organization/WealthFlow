@@ -3474,7 +3474,7 @@ final class AppDatabase extends _$AppDatabase {
             MasterDataCompanion.insert(
               id: _uuid.v5(
                 Namespace.url.value,
-                '$userId:' + kind.key + ':$value',
+                '$userId:${kind.key}:$value',
               ),
               userId: userId,
               kind: kind.key,

@@ -531,10 +531,8 @@ class _AccountActivityDialogState extends State<_AccountActivityDialog> {
                               Padding(
                                 padding: const EdgeInsets.fromLTRB(8, 14, 8, 6),
                                 child: Text(
-                                  _accountMonthNames[entry.bookingDate.month -
-                                          1] +
-                                      ' ' +
-                                      entry.bookingDate.year.toString(),
+                                  '${_accountMonthNames[entry.bookingDate.month - 1]} '
+                                  '${entry.bookingDate.year}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -556,11 +554,8 @@ class _AccountActivityDialogState extends State<_AccountActivityDialog> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               subtitle: Text(
-                                DateFormat(
-                                      'dd.MM.yyyy',
-                                    ).format(entry.bookingDate) +
-                                    ' · ' +
-                                    entry.category,
+                                '${DateFormat('dd.MM.yyyy').format(entry.bookingDate)} '
+                                '· ${entry.category}',
                               ),
                               trailing: Text(
                                 (entry.isIncome ? '+' : '−') +

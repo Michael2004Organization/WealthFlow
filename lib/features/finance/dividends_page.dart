@@ -434,15 +434,14 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                                             '${_perShareSummary(item, schedules)} je Stück',
                                           ),
                                           trailing: Text(
-                                            money(
+                                            '${money(
                                                   _annualDividend(
                                                         projection,
                                                         item.id,
                                                       ) /
                                                       12,
                                                   currency: baseCurrency,
-                                                ) +
-                                                '/Monat',
+                                                )}/Monat',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w800,
                                               fontSize: 15,
@@ -1181,7 +1180,7 @@ class _DividendCalendar extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              (selected?.name ?? 'Alle Aktien') + ' im Jahresverlauf',
+              '${selected?.name ?? 'Alle Aktien'} im Jahresverlauf',
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
@@ -1225,14 +1224,12 @@ class _DividendCalendar extends ConsumerWidget {
                     [
                       row.exDate == null
                           ? 'Ex-Datum offen'
-                          : 'Ex ' +
-                                DateFormat('dd.MM.yyyy').format(row.exDate!),
+                          : 'Ex ${DateFormat('dd.MM.yyyy').format(row.exDate!)}',
                       row.paymentDate == null
                           ? 'Zahlungstermin offen'
-                          : 'Zahlung ' +
-                                DateFormat(
+                          : 'Zahlung ${DateFormat(
                                   'dd.MM.yyyy',
-                                ).format(row.paymentDate!),
+                                ).format(row.paymentDate!)}',
                       row.currency,
                     ].join(' · '),
                   ),
@@ -2005,11 +2002,9 @@ class _DividendMonthCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          (payment.investment.symbol.isEmpty
+                          '${payment.investment.symbol.isEmpty
                                   ? payment.investment.name
-                                  : payment.investment.symbol) +
-                              ' · ' +
-                              money(payment.tax.net, currency: baseCurrency),
+                                  : payment.investment.symbol} · ${money(payment.tax.net, currency: baseCurrency)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -2415,7 +2410,7 @@ Future<void> _showScheduleEditor(
     context: context,
     builder: (dialogContext) => StatefulBuilder(
       builder: (context, setDialogState) => AlertDialog(
-        title: Text('Auszahlung für ' + investment.name),
+        title: Text('Auszahlung für ${investment.name}'),
         content: SizedBox(
           width: (MediaQuery.sizeOf(context).width - 64).clamp(280, 560),
           child: Form(
@@ -2529,8 +2524,7 @@ Future<void> _showScheduleEditor(
                           ? 'Ex-Datum bei Bedarf je Monat bearbeiten'
                           : exDate == null
                           ? 'Ex-Datum auswählen'
-                          : 'Ex-Datum ' +
-                                DateFormat('dd.MM.yyyy').format(exDate!),
+                          : 'Ex-Datum ${DateFormat('dd.MM.yyyy').format(exDate!)}',
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -2554,8 +2548,7 @@ Future<void> _showScheduleEditor(
                           ? 'Zahlungstermin bei Bedarf je Eintrag bearbeiten'
                           : paymentDate == null
                           ? 'Zahlungstermin auswählen'
-                          : 'Zahlung ' +
-                                DateFormat('dd.MM.yyyy').format(paymentDate!),
+                          : 'Zahlung ${DateFormat('dd.MM.yyyy').format(paymentDate!)}',
                     ),
                   ),
                   const SizedBox(height: 12),

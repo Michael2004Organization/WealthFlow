@@ -621,9 +621,7 @@ class _AccountsChart extends StatelessWidget {
                   PieChartSectionData(
                     value: accounts[index].balance.abs(),
                     title:
-                        accounts[index].label +
-                        '\n' +
-                        money(accounts[index].balance),
+                        '${accounts[index].label}\n${money(accounts[index].balance)}',
                     radius: 62,
                     color: Colors.primaries[index % Colors.primaries.length],
                     titleStyle: const TextStyle(
@@ -786,7 +784,7 @@ class _CategoryChart extends StatelessWidget {
                     PieChartSectionData(
                       value: sorted[index].value,
                       title:
-                          sorted[index].key + '\n' + money(sorted[index].value),
+                          '${sorted[index].key}\n${money(sorted[index].value)}',
                       radius: 64,
                       color: Colors.primaries[index % Colors.primaries.length],
                       titleStyle: const TextStyle(

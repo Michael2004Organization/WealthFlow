@@ -93,9 +93,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                               (account) => DropdownMenuItem(
                                 value: account.id,
                                 child: Text(
-                                  account.label +
-                                      ' · ' +
-                                      money(
+                                  '${account.label} · ${money(
                                         accountBalanceAt(
                                           account: account,
                                           date:
@@ -111,7 +109,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                                           purchases: purchases,
                                           sales: sales,
                                         ),
-                                      ),
+                                      )}',
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -327,7 +325,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
     final sameMonth =
         period.year == _selectedMonth.year &&
         period.month == _selectedMonth.month;
-    final text = (entry.merchant + ' ' + entry.description).toLowerCase();
+    final text = '${entry.merchant} ${entry.description}'.toLowerCase();
     return sameMonth &&
         selectedAccountId != null &&
         entry.accountId == selectedAccountId &&
@@ -482,15 +480,14 @@ class _MonthSummary extends StatelessWidget {
             width: width,
             child: Tooltip(
               message: saved > 0
-                  ? money(saved) +
-                        ' wurden als Sparen/Investieren markiert. '
-                            'Umbuchungen senken die Sparquote nicht.'
+                  ? '${money(saved)} wurden als Sparen/Investieren markiert. '
+                        'Umbuchungen senken die Sparquote nicht.'
                   : 'Umbuchungen zwischen eigenen Konten werden nicht als Ausgabe gewertet.',
               child: MetricCard(
                 title: 'Sparquote',
                 value: income <= 0
                     ? '–'
-                    : savingsRate.toStringAsFixed(1) + ' %',
+                    : '${savingsRate.toStringAsFixed(1)} %',
                 icon: Icons.savings_rounded,
                 color: savingsRate >= 0
                     ? Colors.purple
@@ -977,12 +974,10 @@ class _EntryEditorState extends State<_EntryEditor> {
                         (account) => DropdownMenuItem(
                           value: account.id,
                           child: Text(
-                            account.label +
-                                ' · ' +
-                                money(
+                            '${account.label} · ${money(
                                   account.balance,
                                   currency: account.currency,
-                                ),
+                                )}',
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),

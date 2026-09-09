@@ -810,7 +810,7 @@ class _FuelPriceCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            fuelPrice.toStringAsFixed(3).replaceAll('.', ',') + ' €/l',
+            '${fuelPrice.toStringAsFixed(3).replaceAll('.', ',')} €/l',
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
@@ -948,7 +948,7 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
             title: const Text('Startkapital aus Depot lesen'),
             subtitle: Text(
               _usePortfolio
-                  ? 'Aktueller Depotwert: ' + money(portfolio)
+                  ? 'Aktueller Depotwert: ${money(portfolio)}'
                   : 'Eigenen Startwert verwenden',
             ),
             value: _usePortfolio,
@@ -1090,21 +1090,17 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
               ),
               _Result(
                 label: 'Durch Kapital zu decken',
-                value: money(payout - netDividends) + '/Monat',
+                value: '${money(payout - netDividends)}/Monat',
               ),
             ],
           ),
           const SizedBox(height: 18),
           Text(
-            'Modellrechnung Deutschland · effektive Rendite ' +
-                (realAnnualReturn * 100).toStringAsFixed(2) +
-                ' % p. a. ' +
-                (_considerTaxes ? 'nach Steuer' : 'ohne Steuer') +
-                ' · ' +
-                (_considerInflation
-                    ? 'in heutiger Kaufkraft'
-                    : 'ohne Inflation') +
-                '. Kursschwankungen und Freibeträge werden nicht simuliert.',
+            'Modellrechnung Deutschland · effektive Rendite '
+            '${(realAnnualReturn * 100).toStringAsFixed(2)} % p. a. '
+            '${_considerTaxes ? 'nach Steuer' : 'ohne Steuer'} · '
+            '${_considerInflation ? 'in heutiger Kaufkraft' : 'ohne Inflation'}. '
+            'Kursschwankungen und Freibeträge werden nicht simuliert.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),

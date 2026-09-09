@@ -181,11 +181,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               PageHeader(
-                title: 'Hallo, ' + (user?.displayName.split(' ').first ?? 'du'),
+                title: 'Hallo, ${user?.displayName.split(' ').first ?? 'du'}',
                 subtitle:
-                    'Finanzieller Überblick für ' +
-                    _dashboardMonthLabel(_selectedMonth) +
-                    '.',
+                    'Finanzieller Überblick für ${_dashboardMonthLabel(_selectedMonth)}.',
                 action: Wrap(
                   spacing: 10,
                   runSpacing: 10,
@@ -668,7 +666,7 @@ double _dashboardDividendForMonth(
 }
 
 String _dashboardMonthLabel(DateTime date) =>
-    _dashboardMonths[date.month - 1] + ' ' + date.year.toString();
+    '${_dashboardMonths[date.month - 1]} ${date.year}';
 
 const _dashboardMonths = [
   'Januar',
