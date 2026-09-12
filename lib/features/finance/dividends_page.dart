@@ -2150,75 +2150,54 @@ Future<void> _showDividendPaymentDetail(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _DividendCurrencyHeader(
-                sourceCurrency: payment.sourceCurrency,
-                baseCurrency: accountCurrency,
-              ),
-              const Divider(height: 18),
               _DividendTaxRow(
                 label: 'Brutto',
-                baseValue: tax.gross,
-                sourceValue: payment.grossSource,
-                baseCurrency: accountCurrency,
-                sourceCurrency: payment.sourceCurrency,
+                value: payment.grossSource,
+                currency: payment.sourceCurrency,
                 emphasized: true,
               ),
               _DividendTaxRow(
                 label:
                     'Quellensteuer (${payment.withholdingTaxRate.toStringAsFixed(2)} % · ${payment.investment.country})',
-                baseValue: -tax.withholdingTax,
-                sourceValue: -tax.withholdingTax / rate,
-                baseCurrency: accountCurrency,
-                sourceCurrency: payment.sourceCurrency,
+                value: -tax.withholdingTax / rate,
+                currency: payment.sourceCurrency,
               ),
               if (tax.creditableWithholdingTax > 0)
                 _DividendTaxRow(
                   label: 'Davon anrechenbare Quellensteuer',
-                  baseValue: tax.creditableWithholdingTax,
-                  sourceValue: tax.creditableWithholdingTax / rate,
-                  baseCurrency: accountCurrency,
-                  sourceCurrency: payment.sourceCurrency,
+                  value: tax.creditableWithholdingTax / rate,
+                  currency: payment.sourceCurrency,
                   informational: true,
                 ),
               _DividendTaxRow(
                 label: 'Kapitalertragsteuer ($germanCapitalGainsTaxRate %)',
-                baseValue: -tax.germanCapitalTax,
-                sourceValue: -tax.germanCapitalTax / rate,
-                baseCurrency: accountCurrency,
-                sourceCurrency: payment.sourceCurrency,
+                value: -tax.germanCapitalTax / rate,
+                currency: payment.sourceCurrency,
               ),
               _DividendTaxRow(
                 label:
                     'Solidaritätszuschlag ($solidaritySurchargeRate % auf Kapitalertragsteuer)',
-                baseValue: -tax.solidaritySurcharge,
-                sourceValue: -tax.solidaritySurcharge / rate,
-                baseCurrency: accountCurrency,
-                sourceCurrency: payment.sourceCurrency,
+                value: -tax.solidaritySurcharge / rate,
+                currency: payment.sourceCurrency,
               ),
               if (tax.churchTax > 0)
                 _DividendTaxRow(
                   label: 'Kirchensteuer',
-                  baseValue: -tax.churchTax,
-                  sourceValue: -tax.churchTax / rate,
-                  baseCurrency: accountCurrency,
-                  sourceCurrency: payment.sourceCurrency,
+                  value: -tax.churchTax / rate,
+                  currency: payment.sourceCurrency,
                 ),
               if (tax.allowanceUsed > 0)
                 _DividendTaxRow(
                   label: 'Genutzter Freistellungsauftrag',
-                  baseValue: tax.allowanceUsed,
-                  sourceValue: tax.allowanceUsed / rate,
-                  baseCurrency: accountCurrency,
-                  sourceCurrency: payment.sourceCurrency,
+                  value: tax.allowanceUsed / rate,
+                  currency: payment.sourceCurrency,
                   informational: true,
                 ),
               const SizedBox(height: 6),
               _DividendTaxRow(
                 label: 'Zwischensumme nach Abzug Steuern',
-                baseValue: tax.net,
-                sourceValue: tax.net / rate,
-                baseCurrency: accountCurrency,
-                sourceCurrency: payment.sourceCurrency,
+                value: tax.net / rate,
+                currency: payment.sourceCurrency,
                 emphasized: true,
               ),
               Padding(
@@ -2234,10 +2213,8 @@ Future<void> _showDividendPaymentDetail(
               const Divider(height: 18),
               _DividendTaxRow(
                 label: 'Netto',
-                baseValue: tax.net,
-                sourceValue: tax.net / rate,
-                baseCurrency: accountCurrency,
-                sourceCurrency: payment.sourceCurrency,
+                value: tax.net,
+                currency: accountCurrency,
                 emphasized: true,
               ),
             ],
@@ -2254,60 +2231,18 @@ Future<void> _showDividendPaymentDetail(
   },
 );
 
-class _DividendCurrencyHeader extends StatelessWidget {
-  const _DividendCurrencyHeader({
-    required this.sourceCurrency,
-    required this.baseCurrency,
-  });
-
-  final String sourceCurrency;
-  final String baseCurrency;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final source = Text(
-        'Landes-/Dividendenwährung\n${sourceCurrency.toUpperCase()}',
-        textAlign: TextAlign.right,
-        style: const TextStyle(fontWeight: FontWeight.w800),
-      );
-      final account = Text(
-        'Accountwährung\n${baseCurrency.toUpperCase()}',
-        textAlign: TextAlign.right,
-        style: const TextStyle(fontWeight: FontWeight.w800),
-      );
-      return Row(
-        children: [
-          if (constraints.maxWidth >= 560)
-            const Expanded(flex: 3, child: SizedBox()),
-          Expanded(flex: 2, child: source),
-          const SizedBox(
-            height: 42,
-            child: VerticalDivider(width: 20, thickness: 1),
-          ),
-          Expanded(flex: 2, child: account),
-        ],
-      );
-    },
-  );
-}
-
 class _DividendTaxRow extends StatelessWidget {
   const _DividendTaxRow({
     required this.label,
-    required this.baseValue,
-    required this.sourceValue,
-    required this.baseCurrency,
-    required this.sourceCurrency,
+    required this.value,
+    required this.currency,
     this.emphasized = false,
     this.informational = false,
   });
 
   final String label;
-  final double baseValue;
-  final double sourceValue;
-  final String baseCurrency;
-  final String sourceCurrency;
+  final double value;
+  final String currency;
   final bool emphasized;
   final bool informational;
 
@@ -2337,26 +2272,18 @@ class _DividendTaxRow extends StatelessWidget {
             ),
           ),
         );
-        final values = Row(
-          children: [
-            Expanded(child: amount(sourceValue, sourceCurrency)),
-            const SizedBox(
-              height: 30,
-              child: VerticalDivider(width: 20, thickness: 1),
-            ),
-            Expanded(child: amount(baseValue, baseCurrency)),
-          ],
-        );
+        final valueWidget = amount(value, currency);
         if (constraints.maxWidth < 560) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [labelWidget, const SizedBox(height: 5), values],
+            children: [labelWidget, const SizedBox(height: 5), valueWidget],
           );
         }
         return Row(
           children: [
             Expanded(flex: 3, child: labelWidget),
-            Expanded(flex: 4, child: values),
+            const SizedBox(width: 16),
+            Expanded(flex: 2, child: valueWidget),
           ],
         );
       },

@@ -2546,9 +2546,11 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                   child: SearchableDropdownButtonFormField<String>(
                     initialValue: _normalizedType,
                     isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Anlageklasse *',
-                      prefixIcon: Icon(Icons.category_outlined),
+                    decoration: InputDecoration(
+                      labelText: widget.investment == null
+                          ? 'Anlageklasse *'
+                          : 'Anlageklasse',
+                      prefixIcon: const Icon(Icons.category_outlined),
                     ),
                     items: widget.assetTypes
                         .map(
@@ -2643,14 +2645,19 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                         _field(
                           _symbol,
                           'Symbol',
-                          required: _isCrypto,
+                          required: true,
                           readOnly: _usesSelectedMaster,
                         ),
                       ]),
                       if (!_isCrypto) ...[
                         const SizedBox(height: 12),
                         _responsiveFields([
-                          _field(_isin, 'ISIN', readOnly: _usesSelectedMaster),
+                          _field(
+                            _isin,
+                            'ISIN',
+                            required: true,
+                            readOnly: _usesSelectedMaster,
+                          ),
                           _field(_wkn, 'WKN', readOnly: _usesSelectedMaster),
                         ]),
                       ],
@@ -2837,12 +2844,15 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                             'Dividende je Stück / Ausschüttung',
                             number: true,
                             required: true,
+                            suffixText: _dividendCurrency.text.toUpperCase(),
                           ),
                           SearchableDropdownButtonFormField<String>(
                             initialValue: _frequency,
                             isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Auszahlungsrhythmus *',
+                            decoration: InputDecoration(
+                              labelText: _usesSelectedMaster
+                                  ? 'Auszahlungsrhythmus'
+                                  : 'Auszahlungsrhythmus *',
                             ),
                             items:
                                 const [
@@ -2868,8 +2878,10 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                           SearchableDropdownButtonFormField<int>(
                             initialValue: _startMonth,
                             isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Startmonat *',
+                            decoration: InputDecoration(
+                              labelText: _usesSelectedMaster
+                                  ? 'Startmonat'
+                                  : 'Startmonat *',
                             ),
                             items: List.generate(
                               12,
@@ -2919,12 +2931,6 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                 if (_supportsDividends) ...[
                   const SizedBox(height: 12),
                   _responsiveFields([
-                    _field(
-                      _dividendCurrency,
-                      'Dividendenwährung',
-                      required: true,
-                      readOnly: true,
-                    ),
                     _field(
                       _dividendExchangeRate,
                       'Kurs zur Standardwährung',
@@ -3041,7 +3047,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
           )
         : null,
     decoration: InputDecoration(
-      labelText: required ? '$label *' : label,
+      labelText: required && !readOnly ? '$label *' : label,
       suffixText: suffixText,
       prefixIcon: Icon(
         readOnly ? Icons.lock_outline_rounded : Icons.edit_outlined,
@@ -3063,7 +3069,9 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       ),
     ),
     validator: (value) {
-      if (required && (value?.trim().isEmpty ?? true)) return 'Pflichtfeld';
+      if (required && !readOnly && (value?.trim().isEmpty ?? true)) {
+        return 'Pflichtfeld';
+      }
       if (number && _number(value) == null) return 'Ungültige Zahl';
       if (number && (_number(value) ?? -1) < 0) return 'Muss positiv sein';
       if (minimum != null &&
@@ -3244,9 +3252,9 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       key: ValueKey('country-$selected-$_selectedStockId'),
       initialValue: selected,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Land *',
-        prefixIcon: Icon(Icons.public_rounded),
+      decoration: InputDecoration(
+        labelText: _usesSelectedMaster ? 'Land' : 'Land *',
+        prefixIcon: const Icon(Icons.public_rounded),
       ),
       items: values
           .map((value) => DropdownMenuItem(value: value, child: Text(value)))

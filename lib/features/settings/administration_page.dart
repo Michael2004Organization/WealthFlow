@@ -1274,9 +1274,9 @@ Future<void> _editStock(
                     textField(
                       symbol,
                       isCrypto ? 'Symbol' : 'Symbol / Ticker',
-                      required: isCrypto,
+                      required: true,
                     ),
-                    if (!isCrypto) textField(isin, 'ISIN'),
+                    if (!isCrypto) textField(isin, 'ISIN', required: true),
                     if (!isCrypto) textField(wkn, 'WKN'),
                     currencyField(currency, 'Kurswährung'),
                     textField(exchange, 'Börse / Handelsplatz'),
