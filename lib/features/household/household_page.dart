@@ -10,6 +10,7 @@ import '../../core/finance/amount_input.dart';
 import '../../core/finance/budget_period.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/widgets/save_feedback.dart';
 
 class HouseholdPage extends ConsumerStatefulWidget {
   const HouseholdPage({super.key});
@@ -552,7 +553,7 @@ class _EntryTile extends ConsumerWidget {
         entry.sourceType == 'transfer' || entry.sourceType == 'saving';
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      onTap: entry.sourceType == 'vehicle' || linked
+      onTap: entry.sourceType == 'vehicle'
           ? null
           : () => showEntryEditor(context, ref, entry: entry),
       leading: CircleAvatar(
@@ -613,7 +614,7 @@ class _EntryTile extends ConsumerWidget {
           PopupMenuButton<String>(
             onSelected: (value) => _handleAction(context, ref, value),
             itemBuilder: (_) => [
-              if (entry.sourceType != 'vehicle' && !linked)
+              if (entry.sourceType != 'vehicle')
                 const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
               if (recurring && entry.sourceType != 'vehicle' && !linked)
                 const PopupMenuItem(
@@ -673,13 +674,21 @@ class _EntryTile extends ConsumerWidget {
         ? allEntries.where((item) => item.sourceId == entry.sourceId)
         : [entry];
     final restorable = removed.toList();
-    if (series) {
-      await database.deleteLedgerSeries(entry.recurrenceId, userId);
-    } else if (linked) {
-      await database.deleteLinkedLedgerEntries(entry.sourceId, userId);
-    } else {
-      await database.deleteLedgerEntry(entry.id, userId);
-    }
+    final deleted = await saveWithFeedback(
+      context,
+      () async {
+        if (series) {
+          await database.deleteLedgerSeries(entry.recurrenceId, userId);
+        } else if (linked) {
+          await database.deleteLinkedLedgerEntries(entry.sourceId, userId);
+        } else {
+          await database.deleteLedgerEntry(entry.id, userId);
+        }
+      },
+      failure: 'Löschen fehlgeschlagen',
+      source: 'Buchung löschen',
+    );
+    if (!deleted) return;
     // Reminders of deleted bookings must not fire any more.
     final removedIds = restorable.map((item) => item.id).toSet();
     final reminders = (await database.watchReminders(userId).first)
@@ -755,7 +764,14 @@ Future<void> showEntryEditor(
       onSaveAndNext: entry == null ? persist : null,
     ),
   );
-  if (result != null) await persist(result);
+  if (result != null && context.mounted) {
+    await saveWithFeedback(
+      context,
+      () => persist(result),
+      failure: 'Buchung nicht gespeichert',
+      source: 'Buchung speichern',
+    );
+  }
 }
 
 Future<void> _persistSubmission(
@@ -907,6 +923,13 @@ class _EntryEditorState extends State<_EntryEditor> {
   DateTime _reminderAt = DateTime.now().add(const Duration(days: 1));
 
   bool get _isNew => widget.entry == null;
+
+  /// Editing one side of a transfer or saving booking; the other side
+  /// follows on save.
+  bool get _isLinkedEdit =>
+      !_isNew &&
+      (widget.entry!.sourceType == 'transfer' ||
+          widget.entry!.sourceType == 'saving');
   bool get _income => _kind == 'income';
   String get _bookingKind => switch (_kind) {
     'transfer' => 'transfer',
@@ -1153,6 +1176,19 @@ class _EntryEditorState extends State<_EntryEditor> {
       _budgetOffset != 0;
 
   Widget _kindSelector() {
+    if (_isLinkedEdit) {
+      final saving = _kind == 'saving';
+      return ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(
+          saving ? Icons.savings_rounded : Icons.swap_horiz_rounded,
+        ),
+        title: Text(saving ? 'Sparbuchung' : 'Umbuchung'),
+        subtitle: const Text(
+          'Betrag, Datum und Texte werden auch auf der Gegenseite angepasst.',
+        ),
+      );
+    }
     final segments = [
       const ButtonSegment(
         value: 'expense',
@@ -1425,7 +1461,8 @@ class _EntryEditorState extends State<_EntryEditor> {
           bookingDate: date,
           budgetMonth: Value(budgetMonth),
           amount: amount,
-          isIncome: Value(_income),
+          // A linked edit keeps the side it is on (outgoing or incoming).
+          isIncome: Value(_isLinkedEdit ? widget.entry!.isIncome : _income),
           category: category,
           merchant: Value(_merchant.text.trim()),
           description: Value(_description.text.trim()),

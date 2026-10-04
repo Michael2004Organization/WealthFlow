@@ -226,6 +226,7 @@ final themeModeProvider = Provider<ThemeMode>((ref) {
   return switch (preference?.themeMode) {
     'light' => ThemeMode.light,
     'dark' => ThemeMode.dark,
+    'system' => ThemeMode.system,
     _ => ThemeMode.dark,
   };
 });

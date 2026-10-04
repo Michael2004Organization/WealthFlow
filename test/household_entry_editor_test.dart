@@ -77,7 +77,11 @@ void main() {
     expect(await database.watchLedgerEntries(_userId).first, hasLength(1));
   });
 
-  Future<AppDatabase> pumpHousehold(WidgetTester tester, Size size) async {
+  Future<AppDatabase> pumpHousehold(
+    WidgetTester tester,
+    Size size, {
+    Future<void> Function(AppDatabase database)? seed,
+  }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -86,6 +90,7 @@ void main() {
     await tester.runAsync(
       () => database.saveLedgerEntries([_entry('previous')]),
     );
+    if (seed != null) await tester.runAsync(() => seed(database));
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -147,4 +152,84 @@ void main() {
       await tester.runAsync(database.close);
     });
   }
+  testWidgets('editing one side of a transfer updates both sides', (
+    tester,
+  ) async {
+    final now = DateTime.utc(2026, 7, 1);
+    final database = await pumpHousehold(
+      tester,
+      const Size(1280, 900),
+      seed: (database) async {
+        await database.saveAccount(
+          AccountsCompanion.insert(
+            id: 'tagesgeld',
+            userId: _userId,
+            bankName: 'Testbank',
+            label: 'Tagesgeld',
+            balance: const Value(0),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        await database.saveLedgerEntries([
+          for (final income in [false, true])
+            LedgerEntriesCompanion.insert(
+              id: income ? 'transfer-in' : 'transfer-out',
+              userId: _userId,
+              // The page opens on the current month.
+              bookingDate: DateTime.now(),
+              amount: 200,
+              isIncome: Value(income),
+              category: 'Umbuchung',
+              merchant: const Value('Umbuchung Tagesgeld'),
+              sourceType: const Value('transfer'),
+              sourceId: const Value('transfer-1'),
+              accountId: Value(income ? 'tagesgeld' : 'giro'),
+              createdAt: now,
+              updatedAt: now,
+            ),
+        ]);
+      },
+    );
+
+    await tester.tap(find.text('Umbuchung Tagesgeld'));
+    await tester.pumpAndSettle();
+    expect(find.text('Buchung bearbeiten'), findsOneWidget);
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Betrag *'),
+      '250',
+    );
+    await tester.tap(find.text('Speichern'));
+    for (var i = 0; i < 20; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+
+    final entries = (await tester.runAsync(
+      () => database.watchLedgerEntries(_userId).first,
+    ))!;
+    final legs = {
+      for (final entry in entries.where((e) => e.sourceId == 'transfer-1'))
+        entry.id: entry,
+    };
+    expect(legs['transfer-out']!.amount, 250);
+    expect(legs['transfer-out']!.isIncome, isFalse);
+    expect(legs['transfer-in']!.amount, 250);
+    expect(legs['transfer-in']!.isIncome, isTrue);
+    final balances = {
+      for (final account in (await tester.runAsync(
+        () => database.watchAccounts(_userId).first,
+      ))!)
+        account.id: account.balance,
+    };
+    // 1000 start, 50 from the earlier booking, 250 moved out.
+    expect(balances['giro'], 700);
+    expect(balances['tagesgeld'], 250);
+    expect(tester.takeException(), isNull);
+    await tester.runAsync(database.close);
+  });
 }
