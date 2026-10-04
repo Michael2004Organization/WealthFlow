@@ -73,8 +73,35 @@ void main() {
     expect(result.germanCapitalTax, 0);
     expect(result.solidaritySurcharge, 0);
     expect(result.net, 85);
-    expect(result.allowanceUsed, 85);
-    expect(result.allowanceRemaining, 915);
+    expect(result.allowanceUsed, 100);
+    expect(result.allowanceRemaining, 900);
+  });
+
+  test('US withholding tax is deducted in USD before conversion', () {
+    final result = calculateGermanDividendTax(
+      grossAmount: 54.822676 * 0.271,
+      exchangeRate: 1 / 1.1551,
+      withholdingTaxRate: 15,
+      allowanceRemaining: 1000,
+    );
+
+    expect(result.grossSource, 14.86);
+    expect(result.withholdingTaxSource, 2.23);
+    expect(result.gross - result.withholdingTax, closeTo(10.93, 0.001));
+    expect(result.net, 10.93);
+  });
+
+  test('conversion happens after withholding tax to avoid cent drift', () {
+    // 12.63 USD x 0.8645 = 10.92 EUR. Converting gross first would round
+    // 12.84 EUR - 1.93 EUR = 10.91 EUR.
+    final result = calculateGermanDividendTax(
+      grossAmount: 54.822676 * 0.271,
+      exchangeRate: 0.8645,
+      withholdingTaxRate: 15,
+      allowanceRemaining: 1000,
+    );
+
+    expect(result.net, 10.92);
   });
 
   test('optional church tax is included in the net dividend', () {
