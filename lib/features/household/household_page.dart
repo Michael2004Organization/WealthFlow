@@ -185,21 +185,15 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                   child: Center(child: CircularProgressIndicator()),
                 ),
               ],
-              error: (error, stackTrace) {
-                debugPrint('Buchungen konnten nicht geladen werden: $error');
-                return const [
-                  Padding(
-                    padding: EdgeInsets.all(48),
-                    child: Center(
-                      child: Text(
-                        'Die Buchungen konnten nicht geladen werden. '
-                        'Bitte die App neu starten.',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
+              error: (error, _) => [
+                SizedBox(
+                  height: 200,
+                  child: LoadErrorMessage(
+                    'Buchungen konnten nicht geladen werden',
+                    error: error,
                   ),
-                ];
-              },
+                ),
+              ],
               data: (allEntries) {
                 final entries = allEntries
                     .where((entry) => _matches(entry, selectedAccountId))

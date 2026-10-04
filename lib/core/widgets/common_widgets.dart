@@ -128,6 +128,27 @@ String _dropdownSearchLabel<T>(DropdownMenuItem<T> item) {
   return item.value?.toString() ?? '';
 }
 
+/// User-facing message for data that failed to load. The technical [error]
+/// only goes to the debug log.
+class LoadErrorMessage extends StatelessWidget {
+  LoadErrorMessage(this.message, {required Object error, super.key}) {
+    debugPrint('$message: $error');
+  }
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Text(
+        '$message. Bitte die App neu starten.',
+        textAlign: TextAlign.center,
+      ),
+    ),
+  );
+}
+
 class PageHeader extends StatelessWidget {
   const PageHeader({
     required this.title,

@@ -36,10 +36,9 @@ class RemindersPage extends ConsumerWidget {
                 child: reminders.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (error, _) => Center(
-                    child: Text(
-                      'Erinnerungen konnten nicht geladen werden: $error',
-                    ),
+                  error: (error, _) => LoadErrorMessage(
+                    'Erinnerungen konnten nicht geladen werden',
+                    error: error,
                   ),
                   data: (items) => items.isEmpty
                       ? EmptyState(

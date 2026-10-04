@@ -43,6 +43,10 @@ class AppShell extends ConsumerWidget {
     _Destination('Mehr', Icons.grid_view_outlined, Icons.grid_view_rounded),
   ];
 
+  /// Shell pages reachable from the phone navigation bar. Rechner and
+  /// Fahrzeuge (4 and 5) are opened from "Mehr" there.
+  static const _mobileDestinations = [0, 1, 2, 3, 6];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(shellIndexProvider);
@@ -86,15 +90,17 @@ class AppShell extends ConsumerWidget {
             ),
             body: content,
             bottomNavigationBar: NavigationBar(
-              selectedIndex: selected,
+              selectedIndex: _mobileDestinations.contains(selected)
+                  ? _mobileDestinations.indexOf(selected)
+                  : _mobileDestinations.length - 1,
               onDestinationSelected: (value) =>
-                  selectShellDestination(ref, value),
+                  selectShellDestination(ref, _mobileDestinations[value]),
               destinations: [
-                for (final destination in _destinations)
+                for (final index in _mobileDestinations)
                   NavigationDestination(
-                    icon: Icon(destination.icon),
-                    selectedIcon: Icon(destination.selectedIcon),
-                    label: destination.label,
+                    icon: Icon(_destinations[index].icon),
+                    selectedIcon: Icon(_destinations[index].selectedIcon),
+                    label: _destinations[index].label,
                   ),
               ],
             ),

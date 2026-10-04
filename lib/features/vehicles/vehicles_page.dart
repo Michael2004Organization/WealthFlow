@@ -39,10 +39,9 @@ class VehiclesPage extends ConsumerWidget {
                 child: vehicles.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (error, _) => Center(
-                    child: Text(
-                      'Fahrzeuge konnten nicht geladen werden: $error',
-                    ),
+                  error: (error, _) => LoadErrorMessage(
+                    'Fahrzeuge konnten nicht geladen werden',
+                    error: error,
                   ),
                   data: (items) {
                     if (items.isEmpty) {

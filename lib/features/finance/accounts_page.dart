@@ -47,7 +47,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
             children: [
               PageHeader(
                 title: 'Konten',
-                subtitle: 'Bankkonten und verfügbare Beträge an einem Ort.',
+                subtitle: '',
                 action: FilledButton.icon(
                   onPressed: () => showAccountEditor(context, ref),
                   icon: const Icon(Icons.add_rounded),
@@ -58,8 +58,9 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 child: accounts.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (error, _) => Center(
-                    child: Text('Konten konnten nicht geladen werden: $error'),
+                  error: (error, _) => LoadErrorMessage(
+                    'Konten konnten nicht geladen werden',
+                    error: error,
                   ),
                   data: (items) {
                     if (items.isEmpty) {

@@ -41,7 +41,10 @@ class MasterDataPage extends ConsumerWidget {
                 child: data.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (error, _) => Center(child: Text('$error')),
+                  error: (error, _) => LoadErrorMessage(
+                    'Stammdaten konnten nicht geladen werden',
+                    error: error,
+                  ),
                   data: (items) {
                     final sortedAssetClasses = [...assetClasses]
                       ..sort(

@@ -93,7 +93,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
             children: [
               PageHeader(
                 title: 'Portfolio',
-                subtitle: 'Positionen, Performance und Erträge im Blick.',
+                subtitle: '',
                 action: _PortfolioHeaderActions(
                   children: [
                     FilledButton.tonalIcon(
@@ -244,10 +244,9 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                 child: asyncItems.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (error, _) => Center(
-                    child: Text(
-                      'Portfolio konnte nicht geladen werden: $error',
-                    ),
+                  error: (error, _) => LoadErrorMessage(
+                    'Portfolio konnte nicht geladen werden',
+                    error: error,
                   ),
                   data: (allItems) {
                     final portfolioItems = allItems
