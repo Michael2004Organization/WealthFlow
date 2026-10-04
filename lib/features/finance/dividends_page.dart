@@ -11,6 +11,7 @@ import '../../core/finance/dividend_math.dart';
 import '../../core/finance/portfolio_tax_summary.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/finance/amount_input.dart';
 import 'investments_page.dart';
 
 final _dividendInvestmentFilterProvider = StateProvider<String?>((_) => null);
@@ -1670,8 +1671,7 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
     ),
   );
 
-  double? _number(String value) =>
-      double.tryParse(value.trim().replaceAll(',', '.'));
+  double? _number(String value) => parseAmount(value);
 
   Future<void> _save() async {
     final userId = ref.read(currentUserIdProvider);
@@ -2416,9 +2416,7 @@ Future<void> _showScheduleEditor(
                       suffixText: currency.text.trim().toUpperCase(),
                     ),
                     validator: (value) {
-                      final parsed = double.tryParse(
-                        (value ?? '').replaceAll(',', '.'),
-                      );
+                      final parsed = parseAmount(value);
                       return parsed == null || parsed <= 0
                           ? 'Bitte einen positiven Betrag eingeben.'
                           : null;
@@ -2507,9 +2505,7 @@ Future<void> _showScheduleEditor(
                           '1 ${currency.text.trim().toUpperCase()} = ? $baseCurrency',
                     ),
                     validator: (value) {
-                      final parsed = double.tryParse(
-                        (value ?? '').replaceAll(',', '.'),
-                      );
+                      final parsed = parseAmount(value);
                       return parsed == null || parsed <= 0
                           ? 'Bitte einen positiven Kurs eingeben.'
                           : null;
@@ -2530,9 +2526,7 @@ Future<void> _showScheduleEditor(
                           'Wird über das Land in der Administration festgelegt.',
                     ),
                     validator: (value) {
-                      final parsed = double.tryParse(
-                        (value ?? '').replaceAll(',', '.'),
-                      );
+                      final parsed = parseAmount(value);
                       return parsed == null || parsed < 0 || parsed > 100
                           ? 'Wert zwischen 0 und 100 eingeben.'
                           : null;
@@ -2541,17 +2535,9 @@ Future<void> _showScheduleEditor(
                   const SizedBox(height: 12),
                   Builder(
                     builder: (context) {
-                      final gross =
-                          double.tryParse(amount.text.replaceAll(',', '.')) ??
-                          0;
-                      final rate =
-                          double.tryParse(
-                            exchangeRate.text.replaceAll(',', '.'),
-                          ) ??
-                          0;
-                      final tax =
-                          double.tryParse(taxRate.text.replaceAll(',', '.')) ??
-                          0;
+                      final gross = parseAmount(amount.text) ?? 0;
+                      final rate = parseAmount(exchangeRate.text) ?? 0;
+                      final tax = parseAmount(taxRate.text) ?? 0;
                       final allowance =
                           ref
                               .read(preferencesProvider)
@@ -2645,7 +2631,7 @@ Future<void> _showScheduleEditor(
             userId: userId,
             investmentId: investment.id,
             paymentMonth: month,
-            amountPerShare: double.parse(amount.text.replaceAll(',', '.')),
+            amountPerShare: parseAmount(amount.text)!,
             exDate: Value(months.length == 1 ? exDate : old?.exDate),
             paymentDate: Value(
               months.length == 1 ? paymentDate : old?.paymentDate,
@@ -2654,12 +2640,8 @@ Future<void> _showScheduleEditor(
               (paymentDate ?? exDate)?.year ?? DateTime.now().year,
             ),
             currency: Value(currency.text.trim().toUpperCase()),
-            exchangeRate: Value(
-              double.parse(exchangeRate.text.replaceAll(',', '.')),
-            ),
-            withholdingTaxRate: Value(
-              double.parse(taxRate.text.replaceAll(',', '.')),
-            ),
+            exchangeRate: Value(parseAmount(exchangeRate.text)!),
+            withholdingTaxRate: Value(parseAmount(taxRate.text)!),
             createdAt: old?.createdAt ?? now,
             updatedAt: now,
           ),
