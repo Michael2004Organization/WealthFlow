@@ -1609,6 +1609,13 @@ final class AppDatabase extends _$AppDatabase {
         ),
       );
 
+  /// Books entries whose date has arrived since the app was opened.
+  Future<void> applyDueLedgerEntries(String userId) async {
+    if (await _applyDueLedgerEntries(userId)) {
+      await captureNetWorth(userId);
+    }
+  }
+
   Stream<List<Account>> watchAccounts(String userId) async* {
     if (await _applyDueLedgerEntries(userId)) {
       await captureNetWorth(userId);

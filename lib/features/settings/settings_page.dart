@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/database/app_database.dart';
+import '../auth/auth_controller.dart';
 import '../../core/finance/currencies.dart';
 import '../../core/providers.dart';
 import '../../core/security/data_cipher.dart';
@@ -24,6 +25,7 @@ class SettingsPage extends ConsumerWidget {
     final preference = ref.watch(preferencesProvider).valueOrNull;
     final user = ref.watch(authControllerProvider).user;
     final backupStatus = ref.watch(backupStatusProvider).valueOrNull;
+    final appPinSet = ref.watch(appPinProvider).valueOrNull != null;
     if (preference == null || user == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -65,6 +67,16 @@ class SettingsPage extends ConsumerWidget {
                     title: const Text('Passwort ändern'),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _changePassword(context, ref),
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.lock_outline_rounded),
+                    title: const Text('App-Sperre mit PIN'),
+                    subtitle: const Text(
+                      'Beim Öffnen und nach 30 Sekunden im Hintergrund wird die PIN abgefragt.',
+                    ),
+                    value: appPinSet,
+                    onChanged: (enable) =>
+                        _toggleAppLock(context, ref, user.id, enable),
                   ),
                 ],
               ),
@@ -685,6 +697,105 @@ class SettingsPage extends ConsumerWidget {
         scheduledAt: reminder.scheduledAt.toLocal(),
       );
     }
+  }
+
+  Future<void> _toggleAppLock(
+    BuildContext context,
+    WidgetRef ref,
+    String userId,
+    bool enable,
+  ) async {
+    final store = ref.read(secureSessionStoreProvider);
+    if (enable) {
+      final pin = await _askPin(context, confirm: true);
+      if (pin == null) return;
+      final saved = await store.writeAppPin(userId, await hashAppPin(pin));
+      ref.invalidate(appPinProvider);
+      if (context.mounted) {
+        _showSnack(
+          context,
+          saved
+              ? 'App-Sperre ist eingeschaltet.'
+              : 'Auf diesem Gerät gibt es keinen sicheren Schlüsselspeicher. Die App-Sperre ist hier nicht verfügbar.',
+        );
+      }
+      return;
+    }
+    final stored = await store.readAppPin(userId);
+    if (stored == null || !context.mounted) return;
+    final pin = await _askPin(context, confirm: false);
+    if (pin == null) return;
+    if (!await verifyAppPin(pin, stored)) {
+      if (context.mounted) _showSnack(context, 'Die PIN ist nicht korrekt.');
+      return;
+    }
+    await store.writeAppPin(userId, null);
+    ref.invalidate(appPinProvider);
+    if (context.mounted) _showSnack(context, 'App-Sperre ist ausgeschaltet.');
+  }
+
+  Future<String?> _askPin(BuildContext context, {required bool confirm}) async {
+    final pin = TextEditingController();
+    final repeat = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    InputDecoration decoration(String label) =>
+        InputDecoration(labelText: label, counterText: '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(confirm ? 'PIN festlegen' : 'PIN eingeben'),
+        content: SizedBox(
+          width: 360,
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: pin,
+                  autofocus: true,
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 8,
+                  decoration: decoration('PIN (4 bis 8 Ziffern)'),
+                  validator: (value) =>
+                      (value?.length ?? 0) < 4 ? 'Mindestens 4 Ziffern' : null,
+                ),
+                if (confirm)
+                  TextFormField(
+                    controller: repeat,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    maxLength: 8,
+                    decoration: decoration('PIN wiederholen'),
+                    validator: (value) =>
+                        value != pin.text ? 'PINs stimmen nicht überein' : null,
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(dialogContext, pin.text);
+              }
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    pin.dispose();
+    repeat.dispose();
+    return result;
   }
 
   Future<void> _setBackupPassword(

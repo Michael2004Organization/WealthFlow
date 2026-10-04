@@ -19,6 +19,7 @@ final class SecureSessionStore {
   static const _marketApiKeyPrefix = 'wealthflow.market_api_key.';
   static const _exchangeApiKeyPrefix = 'wealthflow.exchange_api_key.';
   static const _backupKeyPrefix = 'wealthflow.backup_key.';
+  static const _appPinPrefix = 'wealthflow.app_pin.';
   final FlutterSecureStorage _storage;
   static String? _memoryUserId;
   static final Map<String, List<int>> _memoryDataKeys = {};
@@ -36,6 +37,41 @@ final class SecureSessionStore {
   /// and the backup password must be entered again after a restart.
   bool isBackupKeyPersistent(String userId) =>
       !_volatileBackupKeys.contains(userId);
+
+  /// Hash and salt of the app lock PIN, or null when the lock is off.
+  Future<({String hash, String salt})?> readAppPin(String userId) async {
+    try {
+      final encoded = await _storage.read(key: _appPinPrefix + userId);
+      if (encoded == null) return null;
+      final value = jsonDecode(encoded);
+      if (value is! Map) return null;
+      return (hash: value['hash'] as String, salt: value['salt'] as String);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Stores the PIN hash only in the platform key store; returns false when
+  /// that is unavailable, so the lock is not offered without it.
+  Future<bool> writeAppPin(
+    String userId,
+    ({String hash, String salt})? value,
+  ) async {
+    try {
+      final key = _appPinPrefix + userId;
+      if (value == null) {
+        await _storage.delete(key: key);
+      } else {
+        await _storage.write(
+          key: key,
+          value: jsonEncode({'hash': value.hash, 'salt': value.salt}),
+        );
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   Future<BackupKey?> readBackupKey(String userId) async {
     final memory = _memoryBackupKeys[userId];

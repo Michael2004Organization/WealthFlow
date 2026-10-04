@@ -272,3 +272,11 @@ final currencyConverterProvider = Provider<CurrencyConverter>((ref) {
       const <CountryTaxRate>[];
   return CurrencyConverter.fromRates(base, rates);
 });
+
+/// Stored hash of the app lock PIN of the signed-in user; null when off.
+final appPinProvider = FutureProvider<({String hash, String salt})?>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Future.value(null)
+      : ref.watch(secureSessionStoreProvider).readAppPin(userId);
+});

@@ -56,6 +56,11 @@ final class AuthController extends StateNotifier<AuthState> {
   final AppDatabase _database;
   final SecureSessionStore _sessionStore;
   static const _uuid = Uuid();
+  bool _sessionRestored = false;
+
+  /// True when the user was signed in from the stored session without
+  /// entering the password, so an app lock has to be passed first.
+  bool get sessionRestored => _sessionRestored;
 
   Future<void> _restoreSession() async {
     try {
@@ -63,6 +68,7 @@ final class AuthController extends StateNotifier<AuthState> {
       final user = userId == null ? null : await _database.userById(userId);
       if (user != null) {
         await _loadFileKeys(user.id);
+        _sessionRestored = true;
       }
       state = AuthState(
         status: user == null ? AuthStatus.signedOut : AuthStatus.signedIn,
@@ -127,6 +133,7 @@ final class AuthController extends StateNotifier<AuthState> {
       });
       final user = await _database.userById(userId);
       await _loadFileKeys(userId);
+      _sessionRestored = false;
       state = AuthState(status: AuthStatus.signedIn, user: user);
       unawaited(_sessionStore.writeUserId(userId));
       unawaited(_database.seedDefaultMasterData(userId));
@@ -167,6 +174,7 @@ final class AuthController extends StateNotifier<AuthState> {
         return false;
       }
       await _loadFileKeys(user.id);
+      _sessionRestored = false;
       state = AuthState(status: AuthStatus.signedIn, user: user);
       unawaited(_sessionStore.writeUserId(user.id));
       unawaited(_database.preferencesFor(user.id));
@@ -251,6 +259,19 @@ final class AuthController extends StateNotifier<AuthState> {
 
 PasswordDigest _hashPassword(String password) =>
     const PasswordHasher().hash(password);
+
+/// Hashes an app lock PIN in a background isolate.
+Future<({String hash, String salt})> hashAppPin(String pin) async {
+  final digest = await compute(_hashPassword, pin);
+  return (hash: digest.hash, salt: digest.salt);
+}
+
+Future<bool> verifyAppPin(String pin, ({String hash, String salt}) stored) =>
+    compute(_verifyPassword, (
+      password: pin,
+      salt: stored.salt,
+      hash: stored.hash,
+    ));
 
 bool _verifyPassword(({String password, String salt, String hash}) request) =>
     const PasswordHasher().verify(request.password, request.salt, request.hash);

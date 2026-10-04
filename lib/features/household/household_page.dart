@@ -660,6 +660,7 @@ class _EntryTile extends ConsumerWidget {
     final userId = ref.read(currentUserIdProvider);
     if (userId == null) return;
     final database = ref.read(databaseProvider);
+    final notifications = ref.read(notificationServiceProvider);
     final messenger = ScaffoldMessenger.of(context);
     final allEntries =
         ref.read(ledgerEntriesProvider).valueOrNull ?? const <LedgerEntry>[];
@@ -679,6 +680,15 @@ class _EntryTile extends ConsumerWidget {
     } else {
       await database.deleteLedgerEntry(entry.id, userId);
     }
+    // Reminders of deleted bookings must not fire any more.
+    final removedIds = restorable.map((item) => item.id).toSet();
+    final reminders = (await database.watchReminders(userId).first)
+        .where((reminder) => removedIds.contains(reminder.ledgerEntryId))
+        .toList();
+    for (final reminder in reminders) {
+      await database.deleteReminder(reminder.id, userId);
+      await notifications.cancel(reminder.id);
+    }
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -690,7 +700,24 @@ class _EntryTile extends ConsumerWidget {
               ? null
               : SnackBarAction(
                   label: 'Rückgängig',
-                  onPressed: () => database.restoreLedgerEntries(restorable),
+                  onPressed: () async {
+                    await database.restoreLedgerEntries(restorable);
+                    for (final reminder in reminders) {
+                      await database.saveReminder(
+                        reminder
+                            .toCompanion(false)
+                            .copyWith(
+                              deletedAt: const Value(null),
+                              updatedAt: Value(DateTime.now().toUtc()),
+                            ),
+                      );
+                      await notifications.schedule(
+                        id: reminder.id,
+                        title: reminder.title,
+                        scheduledAt: reminder.scheduledAt.toLocal(),
+                      );
+                    }
+                  },
                 ),
         ),
       );

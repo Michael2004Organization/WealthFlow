@@ -352,8 +352,11 @@ class _AccountCard extends ConsumerWidget {
                           await confirmDelete(
                             context,
                             title: 'Konto löschen?',
-                            message:
-                                '${account.label} wird aus allen Übersichten entfernt.',
+                            message: _deleteAccountMessage(
+                              account,
+                              ref.read(ledgerEntriesProvider).valueOrNull ??
+                                  const <LedgerEntry>[],
+                            ),
                           )) {
                         final userId = ref.read(currentUserIdProvider);
                         if (userId != null) {
@@ -1045,4 +1048,14 @@ class _AccountEditorState extends State<_AccountEditor> {
       effectiveAt: _validFrom,
     ));
   }
+}
+
+String _deleteAccountMessage(Account account, List<LedgerEntry> entries) {
+  final count = entries
+      .where((entry) => entry.accountId == account.id)
+      .length;
+  final base = '${account.label} wird aus allen Übersichten entfernt.';
+  if (count == 0) return base;
+  return '$base ${count == 1 ? 'Eine Buchung bleibt' : '$count Buchungen bleiben'} '
+      'im Haushaltsbuch erhalten, wird aber keinem Konto mehr zugerechnet.';
 }
