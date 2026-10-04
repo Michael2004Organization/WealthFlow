@@ -1444,7 +1444,9 @@ class _EntryEditorState extends State<_EntryEditor> {
   Future<void> _pickReminderDate() async {
     final selected = await showDatePicker(
       context: context,
-      firstDate: DateTime.now(),
+      firstDate: _reminderAt.isBefore(DateTime.now())
+          ? _reminderAt
+          : DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 3650)),
       initialDate: _reminderAt,
     );

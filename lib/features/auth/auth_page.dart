@@ -18,6 +18,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   bool _register = false;
   bool _obscure = true;
   bool _createInitialAdmin = true;
+  // Einmal laden, damit der FutureBuilder bei jedem Rebuild nicht neu startet
+  // (sonst blitzt die Administrator-Auswahl kurz auf und verschiebt das Layout).
+  late final Future<int> _userCount = ref.read(databaseProvider).userCount();
 
   @override
   void dispose() {
@@ -137,7 +140,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               ),
               const SizedBox(height: 14),
               FutureBuilder<int>(
-                future: ref.read(databaseProvider).userCount(),
+                future: _userCount,
                 builder: (context, snapshot) => snapshot.data == 0
                     ? CheckboxListTile(
                         contentPadding: EdgeInsets.zero,

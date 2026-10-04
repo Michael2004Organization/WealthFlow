@@ -2231,7 +2231,7 @@ Future<void> showInvestmentEditor(
       } else {
         final addedQuantity = result.quantity.value;
         final totalQuantity =
-            ((duplicate.quantity + addedQuantity) * 100).round() / 100;
+            ((duplicate.quantity + addedQuantity) * 1000000).round() / 1000000;
         final averagePrice = totalQuantity == 0
             ? 0.0
             : (duplicate.quantity * duplicate.purchasePrice +

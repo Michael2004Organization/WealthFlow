@@ -201,28 +201,44 @@ final class AuthController extends StateNotifier<AuthState> {
   Future<bool> changePassword(String current, String replacement) async {
     final user = state.user;
     if (user == null) return false;
-    if (replacement.length < 10) {
-      state = state.copyWith(error: 'Das neue Passwort muss 10 Zeichen haben.');
+    if (!_isStrongPassword(replacement)) {
+      state = state.copyWith(error: _passwordRuleMessage);
       return false;
     }
     state = state.copyWith(isBusy: true, clearError: true);
-    final valid = await compute(_verifyPassword, (
-      password: current,
-      salt: user.passwordSalt,
-      hash: user.passwordHash,
-    ));
-    if (!valid) {
+    try {
+      final valid = await compute(_verifyPassword, (
+        password: current,
+        salt: user.passwordSalt,
+        hash: user.passwordHash,
+      ));
+      if (!valid) {
+        state = state.copyWith(
+          isBusy: false,
+          error: 'Das aktuelle Passwort ist nicht korrekt.',
+        );
+        return false;
+      }
+      final digest = await compute(_hashPassword, replacement);
+      await _database.updateUserPassword(user.id, digest.hash, digest.salt);
+      final refreshed = await _database.userById(user.id);
+      state = AuthState(status: AuthStatus.signedIn, user: refreshed);
+      return true;
+    } catch (error, stackTrace) {
+      unawaited(
+        _database.logError(
+          userId: user.id,
+          source: 'Passwortänderung',
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
       state = state.copyWith(
         isBusy: false,
-        error: 'Das aktuelle Passwort ist nicht korrekt.',
+        error: 'Das Passwort konnte nicht geändert werden.',
       );
       return false;
     }
-    final digest = await compute(_hashPassword, replacement);
-    await _database.updateUserPassword(user.id, digest.hash, digest.salt);
-    final refreshed = await _database.userById(user.id);
-    state = AuthState(status: AuthStatus.signedIn, user: refreshed);
-    return true;
   }
 
   Future<void> logout() async {
@@ -240,13 +256,17 @@ final class AuthController extends StateNotifier<AuthState> {
     if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(normalized)) {
       return 'Bitte gib eine gültige E-Mail-Adresse ein.';
     }
-    if (password.length < 10 ||
-        !password.contains(RegExp('[A-Za-z]')) ||
-        !password.contains(RegExp('[0-9]'))) {
-      return 'Das Passwort braucht mindestens 10 Zeichen, Buchstaben und Zahlen.';
-    }
+    if (!_isStrongPassword(password)) return _passwordRuleMessage;
     return null;
   }
+
+  static const _passwordRuleMessage =
+      'Das Passwort braucht mindestens 10 Zeichen, Buchstaben und Zahlen.';
+
+  static bool _isStrongPassword(String password) =>
+      password.length >= 10 &&
+      password.contains(RegExp('[A-Za-z]')) &&
+      password.contains(RegExp('[0-9]'));
 }
 
 PasswordDigest _hashPassword(String password) =>

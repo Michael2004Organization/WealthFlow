@@ -595,8 +595,11 @@ class SettingsPage extends ConsumerWidget {
                   decoration: const InputDecoration(
                     labelText: 'Neues Passwort',
                   ),
-                  validator: (value) => (value?.length ?? 0) < 10
-                      ? 'Mindestens 10 Zeichen'
+                  validator: (value) =>
+                      (value?.length ?? 0) < 10 ||
+                          !(value ?? '').contains(RegExp('[A-Za-z]')) ||
+                          !(value ?? '').contains(RegExp('[0-9]'))
+                      ? 'Mindestens 10 Zeichen mit Buchstaben und Zahlen'
                       : null,
                 ),
                 const SizedBox(height: 12),

@@ -1969,6 +1969,23 @@ final class AppDatabase extends _$AppDatabase {
         ),
       );
       await _recalculateInvestmentFromPurchases(purchase.investmentId, userId);
+      if (purchase.cashApplied) {
+        final holding =
+            await (select(investments)..where(
+                  (row) =>
+                      row.id.equals(purchase.investmentId) &
+                      row.userId.equals(userId),
+                ))
+                .getSingleOrNull();
+        final previousTotal =
+            purchase.purchasePrice * purchase.quantity + purchase.fees;
+        final newTotal = purchasePrice * quantity + fees;
+        await _changePortfolioCashIfAvailable(
+          userId: userId,
+          accountId: holding?.accountId ?? '',
+          delta: previousTotal - newTotal,
+        );
+      }
     });
     await captureNetWorth(userId);
   }
@@ -2012,6 +2029,13 @@ final class AppDatabase extends _$AppDatabase {
             '${purchase.quantity} Stück zu ${purchase.purchasePrice.toStringAsFixed(2)}',
       );
       await _recalculateInvestmentFromPurchases(purchase.investmentId, userId);
+      if (purchase.cashApplied && investment != null) {
+        await _changePortfolioCashIfAvailable(
+          userId: userId,
+          accountId: investment.accountId,
+          delta: purchase.purchasePrice * purchase.quantity + purchase.fees,
+        );
+      }
     });
     await captureNetWorth(userId);
   }
@@ -2290,23 +2314,22 @@ final class AppDatabase extends _$AppDatabase {
           updatedAt: Value(DateTime.now().toUtc()),
         ),
       );
-      await (update(accounts)..where(
-            (row) =>
-                row.id.equals(investment.accountId) & row.userId.equals(userId),
-          ))
-          .write(
-            AccountsCompanion(
-              balance: Value(
-                (await (select(accounts)..where(
-                              (row) => row.id.equals(investment.accountId),
-                            ))
-                            .getSingle())
-                        .balance +
-                    proceeds,
-              ),
-              updatedAt: Value(DateTime.now().toUtc()),
-            ),
-          );
+      final creditedAccount =
+          await (select(accounts)..where(
+                (row) =>
+                    row.id.equals(investment.accountId) &
+                    row.userId.equals(userId),
+              ))
+              .getSingle();
+      await (update(
+        accounts,
+      )..where((row) => row.id.equals(creditedAccount.id))).write(
+        AccountsCompanion(
+          balance: Value(creditedAccount.balance + proceeds),
+          availableBalance: Value(creditedAccount.availableBalance + proceeds),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
     });
     await captureNetWorth(userId);
   }
@@ -2434,6 +2457,7 @@ final class AppDatabase extends _$AppDatabase {
         )..where((row) => row.id.equals(destinationAccountId))).write(
           AccountsCompanion(
             balance: Value(account.balance + proceeds),
+            availableBalance: Value(account.availableBalance + proceeds),
             updatedAt: Value(DateTime.now().toUtc()),
           ),
         );
@@ -2586,6 +2610,33 @@ final class AppDatabase extends _$AppDatabase {
             ))
             .getSingleOrNull();
     if (account == null) throw StateError('Das Portfolio-Konto fehlt.');
+    await (update(accounts)..where((row) => row.id.equals(accountId))).write(
+      AccountsCompanion(
+        balance: Value(account.balance + delta),
+        availableBalance: Value(account.availableBalance + delta),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+  }
+
+  /// Verbucht [delta] auf dem Portfolio-Konto. Fehlt das Konto oder ist es
+  /// gelöscht, passiert nichts, damit das Bearbeiten eines Kaufs nie daran
+  /// scheitert.
+  Future<void> _changePortfolioCashIfAvailable({
+    required String userId,
+    required String accountId,
+    required double delta,
+  }) async {
+    if (accountId.isEmpty || delta.abs() < 1e-9) return;
+    final account =
+        await (select(accounts)..where(
+              (row) =>
+                  row.id.equals(accountId) &
+                  row.userId.equals(userId) &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    if (account == null) return;
     await (update(accounts)..where((row) => row.id.equals(accountId))).write(
       AccountsCompanion(
         balance: Value(account.balance + delta),
@@ -2958,14 +3009,7 @@ final class AppDatabase extends _$AppDatabase {
           updatedAt: Value(DateTime.now().toUtc()),
         ),
       );
-      await (update(
-        vehicleCosts,
-      )..where((row) => row.id.equals('ledger:${entry.id}'))).write(
-        VehicleCostsCompanion(
-          deletedAt: Value(DateTime.now().toUtc()),
-          updatedAt: Value(DateTime.now().toUtc()),
-        ),
-      );
+      await _deleteVehicleCostsOfEntries([entry], userId);
     });
     await captureNetWorth(userId);
   }
@@ -2996,6 +3040,7 @@ final class AppDatabase extends _$AppDatabase {
               updatedAt: Value(DateTime.now().toUtc()),
             ),
           );
+      await _deleteVehicleCostsOfEntries(entries, userId);
     });
     await captureNetWorth(userId);
   }
@@ -3024,8 +3069,30 @@ final class AppDatabase extends _$AppDatabase {
               updatedAt: Value(DateTime.now().toUtc()),
             ),
           );
+      await _deleteVehicleCostsOfEntries(entries, userId);
     });
     await captureNetWorth(userId);
+  }
+
+  /// Entfernt die zu Buchungen gehörenden Fahrzeugkosten: bei Buchungen aus
+  /// dem Haushaltsbuch (`ledger:<id>`) und bei Buchungen, die aus einer
+  /// Fahrzeugkosten-Erfassung stammen (`sourceId` = ID der Fahrzeugkosten).
+  Future<void> _deleteVehicleCostsOfEntries(
+    Iterable<LedgerEntry> entries,
+    String userId,
+  ) async {
+    final costIds = <String>{
+      for (final entry in entries) 'ledger:${entry.id}',
+      for (final entry in entries)
+        if (entry.sourceType == 'vehicle' && entry.sourceId.isNotEmpty)
+          entry.sourceId,
+    };
+    if (costIds.isEmpty) return;
+    final now = DateTime.now().toUtc();
+    await (update(vehicleCosts)..where(
+          (row) => row.id.isIn(costIds) & row.userId.equals(userId),
+        ))
+        .write(VehicleCostsCompanion(deletedAt: Value(now), updatedAt: Value(now)));
   }
 
   Future<void> _applyLedgerToAccount(
@@ -3568,8 +3635,10 @@ final class AppDatabase extends _$AppDatabase {
         'Vor dem Erfassen von Fahrzeugkosten muss ein Haushaltskonto gewählt werden.',
       );
     }
-    await into(vehicleCosts).insertOnConflictUpdate(cost);
-    await saveLedgerEntry(ledger.copyWith(accountId: Value(accountId)));
+    await transaction(() async {
+      await into(vehicleCosts).insertOnConflictUpdate(cost);
+      await saveLedgerEntry(ledger.copyWith(accountId: Value(accountId)));
+    });
   }
 
   Stream<UserPreference?> watchPreferences(String userId) => (select(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/database/app_database.dart' show User;
 import '../core/providers.dart';
 import '../features/dashboard/dashboard_page.dart';
 import '../features/calculators/calculators_page.dart';
@@ -46,6 +47,7 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(shellIndexProvider);
+    final moreDestination = ref.watch(moreDestinationProvider);
     final user = ref.watch(authControllerProvider).user;
     final pages = const [
       DashboardPage(),
@@ -56,6 +58,31 @@ class AppShell extends ConsumerWidget {
       VehiclesPage(),
       MorePage(),
     ];
+    // Die Hauptziele und Unterseiten von „Mehr“ sind Provider-Zustand, keine
+    // Navigator-Routen. Die System-Zurück-Geste soll deshalb erst eine Ebene
+    // zurück (Unterseite → Mehr, Tab → Übersicht) und erst dann die App schließen.
+    final atRoot = selected == 0 && moreDestination == null;
+    return PopScope(
+      canPop: atRoot,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (selected == 6 && moreDestination != null) {
+          ref.read(moreDestinationProvider.notifier).state = null;
+        } else {
+          selectShellDestination(ref, 0);
+        }
+      },
+      child: _buildScaffold(context, ref, selected, user, pages),
+    );
+  }
+
+  Widget _buildScaffold(
+    BuildContext context,
+    WidgetRef ref,
+    int selected,
+    User? user,
+    List<Widget> pages,
+  ) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final desktop = constraints.maxWidth >= 900;

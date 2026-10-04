@@ -177,7 +177,9 @@ Future<void> showReminderEditor(
                   onPressed: () async {
                     final selected = await showDatePicker(
                       context: context,
-                      firstDate: DateTime.now(),
+                      firstDate: scheduledAt.isBefore(DateTime.now())
+                          ? scheduledAt
+                          : DateTime.now(),
                       lastDate: DateTime.now().add(const Duration(days: 3650)),
                       initialDate: scheduledAt,
                     );

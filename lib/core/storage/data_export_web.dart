@@ -9,7 +9,11 @@ Future<bool> downloadReadonlyExport(String json, String fileName) async {
   html.AnchorElement(href: url)
     ..download = fileName
     ..click();
-  html.Url.revokeObjectUrl(url);
+  // Sofortiges Freigeben kann den Download in manchen Browsern abbrechen.
+  Future<void>.delayed(
+    const Duration(seconds: 2),
+    () => html.Url.revokeObjectUrl(url),
+  );
   return true;
 }
 
