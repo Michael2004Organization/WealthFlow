@@ -4,6 +4,8 @@ import 'dart:math';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'data_cipher.dart';
+
 final class SecureSessionStore {
   SecureSessionStore({FlutterSecureStorage? storage})
     : _storage =
@@ -16,9 +18,54 @@ final class SecureSessionStore {
   static const _dataKeyPrefix = 'wealthflow.data_key.';
   static const _marketApiKeyPrefix = 'wealthflow.market_api_key.';
   static const _exchangeApiKeyPrefix = 'wealthflow.exchange_api_key.';
+  static const _backupKeyPrefix = 'wealthflow.backup_key.';
   final FlutterSecureStorage _storage;
   static String? _memoryUserId;
   static final Map<String, List<int>> _memoryDataKeys = {};
+  static final Set<String> _volatileDataKeys = {};
+  static final Map<String, BackupKey> _memoryBackupKeys = {};
+  static final Set<String> _volatileBackupKeys = {};
+
+  /// False when the device key of [userId] only lives in memory because the
+  /// platform key store is unavailable. Files written with it become
+  /// unreadable after the next start.
+  bool isDataKeyPersistent(String userId) =>
+      !_volatileDataKeys.contains(userId);
+
+  /// False when the backup key could not be saved in the platform key store
+  /// and the backup password must be entered again after a restart.
+  bool isBackupKeyPersistent(String userId) =>
+      !_volatileBackupKeys.contains(userId);
+
+  Future<BackupKey?> readBackupKey(String userId) async {
+    final memory = _memoryBackupKeys[userId];
+    if (memory != null) return memory;
+    try {
+      final encoded = await _storage.read(key: _backupKeyPrefix + userId);
+      if (encoded == null) return null;
+      final value = BackupKey.fromJson(jsonDecode(encoded));
+      if (value != null) _memoryBackupKeys[userId] = value;
+      return value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Keeps the derived key, never the password, in the platform key store.
+  Future<bool> writeBackupKey(String userId, BackupKey value) async {
+    _memoryBackupKeys[userId] = value;
+    try {
+      await _storage.write(
+        key: _backupKeyPrefix + userId,
+        value: jsonEncode(value.toJson()),
+      );
+      _volatileBackupKeys.remove(userId);
+      return true;
+    } catch (_) {
+      _volatileBackupKeys.add(userId);
+      return false;
+    }
+  }
 
   Future<String?> readUserId() async {
     try {
@@ -91,8 +138,10 @@ final class SecureSessionStore {
         key: _dataKeyPrefix + userId,
         value: base64Encode(created),
       );
+      _volatileDataKeys.remove(userId);
     } catch (_) {
       // Never place encryption keys in the unencrypted preferences fallback.
+      _volatileDataKeys.add(userId);
     }
     return created;
   }

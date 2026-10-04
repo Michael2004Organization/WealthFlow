@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
@@ -533,6 +534,13 @@ class NetWorthSnapshots extends Table {
 final class AppDatabase extends _$AppDatabase {
   static const _uuid = Uuid();
   final Map<String, List<int>> _dataFileKeys = {};
+  final Map<String, BackupKey> _backupKeys = {};
+  final Map<String, Timer> _pendingPersists = {};
+  final Map<String, BackupStatus> _backupStatus = {};
+  final _backupStatusChanges = StreamController<String>.broadcast();
+
+  /// Delay that bundles several quick changes into one data file write.
+  static const persistDelay = Duration(seconds: 3);
   AppDatabase()
     : super(
         driftDatabase(
@@ -551,16 +559,78 @@ final class AppDatabase extends _$AppDatabase {
     _dataFileKeys[userId] = List<int>.unmodifiable(key);
   }
 
-  void clearDataFileKey(String userId) => _dataFileKeys.remove(userId);
+  void clearDataFileKey(String userId) {
+    _dataFileKeys.remove(userId);
+    _backupKeys.remove(userId);
+    _pendingPersists.remove(userId)?.cancel();
+  }
 
+  /// Password-derived key for the data file; null keeps the device key.
+  void setBackupKey(String userId, BackupKey? key) {
+    if (key == null) {
+      _backupKeys.remove(userId);
+    } else {
+      _backupKeys[userId] = key;
+    }
+    _backupStatusChanges.add(userId);
+  }
+
+  bool hasBackupKey(String userId) => _backupKeys.containsKey(userId);
+
+  @override
+  Future<void> close() async {
+    for (final timer in _pendingPersists.values) {
+      timer.cancel();
+    }
+    _pendingPersists.clear();
+    await _backupStatusChanges.close();
+    return super.close();
+  }
+
+  Stream<BackupStatus?> watchBackupStatus(String userId) async* {
+    yield _backupStatus[userId];
+    yield* _backupStatusChanges.stream
+        .where((changed) => changed == userId)
+        .map((_) => _backupStatus[userId]);
+  }
+
+  void _schedulePersist(String userId) {
+    if (!_dataFileKeys.containsKey(userId)) return;
+    _pendingPersists.remove(userId)?.cancel();
+    _pendingPersists[userId] = Timer(persistDelay, () {
+      _pendingPersists.remove(userId);
+      unawaited(persistUserFile(userId));
+    });
+  }
+
+  /// Writes a pending data file update right away, e.g. before logout or
+  /// when the app goes to the background.
+  Future<void> flushPendingPersist(String userId) async {
+    final pending = _pendingPersists.remove(userId);
+    if (pending == null) return;
+    pending.cancel();
+    await persistUserFile(userId);
+  }
+
+  /// Decrypts a data file. Password-protected files use the stored backup key
+  /// when it matches, otherwise [password]; throws [BackupPasswordRequired]
+  /// when neither is available.
   Future<Map<String, dynamic>> decodeUserDataFile(
     String userId,
-    String content,
-  ) async {
-    final key = _dataFileKeys[userId];
-    final clear = key == null
-        ? content
-        : await DataCipher.decrypt(content, key);
+    String content, {
+    String? password,
+  }) async {
+    final String clear;
+    if (DataCipher.isPasswordProtected(content)) {
+      clear = await DataCipher.decryptWithPassword(
+        content,
+        stored: _backupKeys[userId],
+        password: password,
+      );
+    } else {
+      final key = _dataFileKeys[userId];
+      clear = key == null ? content : await DataCipher.decrypt(content, key);
+    }
     final decoded = jsonDecode(clear);
     if (decoded is! Map) throw const FormatException('Ungültige Datendatei');
     return Map<String, dynamic>.from(decoded);
@@ -1685,7 +1755,7 @@ final class AppDatabase extends _$AppDatabase {
             );
       }
     });
-    await persistUserFile(userId);
+    _schedulePersist(userId);
   }
 
   Future<void> selectAccountForUsage({
@@ -1784,7 +1854,7 @@ final class AppDatabase extends _$AppDatabase {
             ),
       );
     });
-    await persistUserFile(userId);
+    _schedulePersist(userId);
   }
 
   Future<bool> accountCanBeUsed(
@@ -1901,7 +1971,7 @@ final class AppDatabase extends _$AppDatabase {
   ) async {
     final stamped = value.copyWith(updatedAt: Value(DateTime.now().toUtc()));
     await into(investmentPurchases).insertOnConflictUpdate(stamped);
-    await persistUserFile(value.userId.value);
+    _schedulePersist(value.userId.value);
   }
 
   Future<void> applyPortfolioPurchaseToCash({
@@ -2753,7 +2823,7 @@ final class AppDatabase extends _$AppDatabase {
 
   Future<void> saveDividendSchedule(DividendSchedulesCompanion value) async {
     await into(dividendSchedules).insertOnConflictUpdate(value);
-    await persistUserFile(value.userId.value);
+    _schedulePersist(value.userId.value);
   }
 
   Future<void> deleteDividendSchedule(String id, String userId) async {
@@ -2765,7 +2835,7 @@ final class AppDatabase extends _$AppDatabase {
         updatedAt: Value(DateTime.now().toUtc()),
       ),
     );
-    await persistUserFile(userId);
+    _schedulePersist(userId);
   }
 
   Stream<List<LedgerEntry>> watchLedgerEntries(String userId) =>
@@ -2791,7 +2861,7 @@ final class AppDatabase extends _$AppDatabase {
 
   Future<void> saveReminder(RemindersCompanion value) async {
     await into(reminders).insertOnConflictUpdate(value);
-    await persistUserFile(value.userId.value);
+    _schedulePersist(value.userId.value);
   }
 
   Future<void> deleteReminder(String id, String userId) async {
@@ -2803,12 +2873,12 @@ final class AppDatabase extends _$AppDatabase {
         updatedAt: Value(DateTime.now().toUtc()),
       ),
     );
-    await persistUserFile(userId);
+    _schedulePersist(userId);
   }
 
   Future<void> saveMasterDatum(MasterDataCompanion value) async {
     await into(masterData).insert(value, mode: InsertMode.insertOrIgnore);
-    await persistUserFile(value.userId.value);
+    _schedulePersist(value.userId.value);
   }
 
   Future<void> deleteMasterDatum(String id, String userId) async {
@@ -2820,7 +2890,7 @@ final class AppDatabase extends _$AppDatabase {
         updatedAt: Value(DateTime.now().toUtc()),
       ),
     );
-    await persistUserFile(userId);
+    _schedulePersist(userId);
   }
 
   Future<void> saveLedgerEntry(LedgerEntriesCompanion value) =>
@@ -2908,11 +2978,18 @@ final class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// Applies [template] to every entry of a monthly series.
+  ///
+  /// Transfers and savings keep both legs: entries on the other side of
+  /// [edited] (the incoming or outgoing counterpart) only take over amount
+  /// and texts and keep their own account, direction and category. Every
+  /// entry keeps its own link to its counterpart.
   Future<void> updateLedgerSeries(
     String recurrenceId,
     String userId,
-    LedgerEntriesCompanion template,
-  ) async {
+    LedgerEntriesCompanion template, {
+    LedgerEntry? edited,
+  }) async {
     if (recurrenceId.isEmpty) return;
     final existing =
         await (select(ledgerEntries)..where(
@@ -2922,20 +2999,87 @@ final class AppDatabase extends _$AppDatabase {
                   row.deletedAt.isNull(),
             ))
             .get();
-    final replacements = existing
-        .map(
-          (entry) => template.copyWith(
-            id: Value(entry.id),
-            userId: Value(entry.userId),
-            bookingDate: Value(entry.bookingDate),
-            budgetMonth: Value(entry.budgetMonth),
-            recurrenceId: Value(entry.recurrenceId),
-            createdAt: Value(entry.createdAt),
-            updatedAt: Value(DateTime.now().toUtc()),
-          ),
-        )
-        .toList();
+    final now = DateTime.now().toUtc();
+    final editedIsIncome =
+        edited?.isIncome ??
+        (template.isIncome.present ? template.isIncome.value : false);
+    final replacements = existing.map((entry) {
+      if (_isLinkedLedgerEntry(entry) && entry.isIncome != editedIsIncome) {
+        return _counterpartUpdate(entry, template, now, keepDate: true);
+      }
+      return template.copyWith(
+        id: Value(entry.id),
+        userId: Value(entry.userId),
+        bookingDate: Value(entry.bookingDate),
+        budgetMonth: Value(entry.budgetMonth),
+        recurrenceId: Value(entry.recurrenceId),
+        sourceType: Value(entry.sourceType),
+        sourceId: Value(entry.sourceId),
+        createdAt: Value(entry.createdAt),
+        updatedAt: Value(now),
+      );
+    }).toList();
     await saveLedgerEntries(replacements);
+  }
+
+  /// Saves an edited entry. For transfers and savings the other leg follows
+  /// amount, date and texts, so both account balances stay consistent.
+  Future<void> saveLedgerEntryWithCounterpart(
+    LedgerEntriesCompanion value,
+  ) async {
+    final sourceType = value.sourceType.present ? value.sourceType.value : '';
+    final sourceId = value.sourceId.present ? value.sourceId.value : '';
+    if ((sourceType != 'transfer' && sourceType != 'saving') ||
+        sourceId.isEmpty) {
+      return saveLedgerEntries([value]);
+    }
+    final counterparts =
+        await (select(ledgerEntries)..where(
+              (row) =>
+                  row.sourceId.equals(sourceId) &
+                  row.userId.equals(value.userId.value) &
+                  row.id.equals(value.id.value).not() &
+                  row.deletedAt.isNull(),
+            ))
+            .get();
+    final now = DateTime.now().toUtc();
+    await saveLedgerEntries([
+      value,
+      for (final counterpart in counterparts)
+        _counterpartUpdate(counterpart, value, now, keepDate: false),
+    ]);
+  }
+
+  bool _isLinkedLedgerEntry(LedgerEntry entry) =>
+      (entry.sourceType == 'transfer' || entry.sourceType == 'saving') &&
+      entry.sourceId.isNotEmpty;
+
+  LedgerEntriesCompanion _counterpartUpdate(
+    LedgerEntry counterpart,
+    LedgerEntriesCompanion source,
+    DateTime now, {
+    required bool keepDate,
+  }) {
+    final companion = counterpart.toCompanion(false);
+    return companion.copyWith(
+      amount: source.amount.present ? source.amount : companion.amount,
+      bookingDate: !keepDate && source.bookingDate.present
+          ? source.bookingDate
+          : companion.bookingDate,
+      budgetMonth: !keepDate && source.budgetMonth.present
+          ? source.budgetMonth
+          : companion.budgetMonth,
+      merchant: source.merchant.present ? source.merchant : companion.merchant,
+      description: source.description.present
+          ? source.description
+          : companion.description,
+      paymentMethod: source.paymentMethod.present
+          ? source.paymentMethod
+          : companion.paymentMethod,
+      // Left out so saveLedgerEntries reverses and re-applies the leg.
+      accountApplied: const Value.absent(),
+      updatedAt: Value(now),
+    );
   }
 
   Future<void> deleteLedgerEntry(String id, String userId) async {
@@ -3148,6 +3292,13 @@ final class AppDatabase extends _$AppDatabase {
     final preferences = await (select(
       userPreferences,
     )..where((r) => r.userId.equals(userId))).getSingleOrNull();
+    final stockIds = investmentRows
+        .map((row) => row.stockId)
+        .whereType<String>()
+        .toSet();
+    final stockRows = stockIds.isEmpty
+        ? const <StockMaster>[]
+        : await (select(stockMasters)..where((r) => r.id.isIn(stockIds))).get();
     return {
       'format': 'WealthFlow readonly export',
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
@@ -3174,16 +3325,75 @@ final class AppDatabase extends _$AppDatabase {
       'masterData': masterRows.map((e) => e.toJson()).toList(),
       'reminders': reminderRows.map((e) => e.toJson()).toList(),
       'netWorthSnapshots': snapshotRows.map((e) => e.toJson()).toList(),
+      // Catalogue entries the positions refer to, so a restore on a fresh
+      // device does not leave investments pointing at missing master data.
+      'stockMasters': stockRows.map((e) => e.toJson()).toList(),
       'preferences': preferences?.toJson(),
     };
   }
 
+  /// Merges an exported data file into the account of [userId].
+  ///
+  /// Rows are always assigned to [userId], so a backup made under another
+  /// account (for example before a reinstall) can be restored. Afterwards the
+  /// account balances are corrected by every booking, sale and purchase whose
+  /// cash effect differs from the version the kept balance was based on.
   Future<void> mergeUserData(String userId, Map<String, dynamic> data) async {
     List<Map<String, dynamic>> rows(String key) =>
         (data[key] as List<dynamic>? ?? const [])
             .whereType<Map>()
-            .map((row) => Map<String, dynamic>.from(row))
+            .map((row) => {...Map<String, dynamic>.from(row), 'userId': userId})
             .toList();
+
+    final stockIdReplacements = <String, String>{};
+    for (final json in data['stockMasters'] as List<dynamic>? ?? const []) {
+      if (json is! Map) continue;
+      final remote = StockMaster.fromJson(Map<String, dynamic>.from(json));
+      final existing = await (select(
+        stockMasters,
+      )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+      if (existing != null) continue;
+      final match = await _matchingStockMaster(remote.toCompanion(false));
+      if (match != null) {
+        stockIdReplacements[remote.id] = match.id;
+      } else {
+        await into(
+          stockMasters,
+        ).insert(remote.toCompanion(false), mode: InsertMode.insertOrIgnore);
+      }
+    }
+
+    final localAccounts = {
+      for (final row in await (select(
+        accounts,
+      )..where((r) => r.userId.equals(userId))).get())
+        row.id: row,
+    };
+    final localEntries = {
+      for (final row in await (select(
+        ledgerEntries,
+      )..where((r) => r.userId.equals(userId))).get())
+        row.id: row,
+    };
+    final localSales = {
+      for (final row in await (select(
+        portfolioSales,
+      )..where((r) => r.userId.equals(userId))).get())
+        row.id: row,
+    };
+    final localPurchases = {
+      for (final row in await (select(
+        investmentPurchases,
+      )..where((r) => r.userId.equals(userId))).get())
+        row.id: row,
+    };
+    final remoteEntries = {
+      for (final json in rows('ledgerEntries'))
+        json['id'] as String: LedgerEntry.fromJson(json),
+    };
+    final remoteSales = <String, PortfolioSale>{};
+    final remotePurchases = <String, InvestmentPurchase>{};
+    final balanceFromFile = <String>{};
 
     await transaction(() async {
       for (final json in rows('accounts')) {
@@ -3193,6 +3403,7 @@ final class AppDatabase extends _$AppDatabase {
           accounts,
         )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
         if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
+          balanceFromFile.add(remote.id);
           await into(
             accounts,
           ).insertOnConflictUpdate(remote.toCompanion(false));
@@ -3206,7 +3417,11 @@ final class AppDatabase extends _$AppDatabase {
         ).insertOnConflictUpdate(remote.toCompanion(false));
       }
       for (final json in rows('investments')) {
-        final remote = Investment.fromJson(json);
+        final stockId = json['stockId'];
+        final remote = Investment.fromJson({
+          ...json,
+          'stockId': stockIdReplacements[stockId] ?? stockId,
+        });
         if (remote.userId != userId) continue;
         final local = await (select(
           investments,
@@ -3235,6 +3450,7 @@ final class AppDatabase extends _$AppDatabase {
           ...json,
         });
         if (remote.userId != userId) continue;
+        remotePurchases[remote.id] = remote;
         await into(
           investmentPurchases,
         ).insertOnConflictUpdate(remote.toCompanion(false));
@@ -3247,6 +3463,7 @@ final class AppDatabase extends _$AppDatabase {
           ...json,
         });
         if (remote.userId != userId) continue;
+        remoteSales[remote.id] = remote;
         await into(
           portfolioSales,
         ).insert(remote.toCompanion(false), mode: InsertMode.insertOrIgnore);
@@ -3342,9 +3559,125 @@ final class AppDatabase extends _$AppDatabase {
           netWorthSnapshots,
         ).insert(remote.toCompanion(false), mode: InsertMode.insertOrIgnore);
       }
+      await _correctBalancesAfterMerge(
+        userId: userId,
+        balanceFromFile: balanceFromFile,
+        localAccounts: localAccounts,
+        localEntries: localEntries,
+        remoteEntries: remoteEntries,
+        localSales: localSales,
+        remoteSales: remoteSales,
+        localPurchases: localPurchases,
+        remotePurchases: remotePurchases,
+      );
     });
     await _applyDueLedgerEntries(userId);
     await captureNetWorth(userId);
+  }
+
+  /// Each kept balance already contains the cash effects of the side it came
+  /// from (this device or the file). The difference to the merged rows is
+  /// booked on top, so no booking is lost or counted twice.
+  Future<void> _correctBalancesAfterMerge({
+    required String userId,
+    required Set<String> balanceFromFile,
+    required Map<String, Account> localAccounts,
+    required Map<String, LedgerEntry> localEntries,
+    required Map<String, LedgerEntry> remoteEntries,
+    required Map<String, PortfolioSale> localSales,
+    required Map<String, PortfolioSale> remoteSales,
+    required Map<String, InvestmentPurchase> localPurchases,
+    required Map<String, InvestmentPurchase> remotePurchases,
+  }) async {
+    final mergedAccounts = await (select(
+      accounts,
+    )..where((r) => r.userId.equals(userId))).get();
+    final mergedEntries = {
+      for (final row in await (select(
+        ledgerEntries,
+      )..where((r) => r.userId.equals(userId))).get())
+        row.id: row,
+    };
+    final mergedSales = {
+      for (final row in await (select(
+        portfolioSales,
+      )..where((r) => r.userId.equals(userId))).get())
+        row.id: row,
+    };
+    final mergedPurchases = {
+      for (final row in await (select(
+        investmentPurchases,
+      )..where((r) => r.userId.equals(userId))).get())
+        row.id: row,
+    };
+    final investmentAccounts = {
+      for (final row in await (select(
+        investments,
+      )..where((r) => r.userId.equals(userId))).get())
+        row.id: row.accountId,
+    };
+
+    double ledgerEffect(LedgerEntry? entry, String accountId) =>
+        entry == null ||
+            entry.accountId != accountId ||
+            !entry.accountApplied ||
+            entry.deletedAt != null
+        ? 0
+        : entry.isIncome
+        ? entry.amount
+        : -entry.amount;
+    double saleEffect(PortfolioSale? sale, String accountId) {
+      if (sale == null) return 0;
+      final credited =
+          sale.destinationAccountId ??
+          (sale.accountCredited ? sale.accountId : null);
+      return credited == accountId ? sale.proceeds : 0;
+    }
+
+    double purchaseEffect(InvestmentPurchase? purchase, String accountId) =>
+        purchase == null ||
+            !purchase.cashApplied ||
+            purchase.deletedAt != null ||
+            investmentAccounts[purchase.investmentId] != accountId
+        ? 0
+        : -(purchase.purchasePrice * purchase.quantity + purchase.fees);
+
+    for (final account in mergedAccounts) {
+      final fromFile = balanceFromFile.contains(account.id);
+      // A balance that existed on neither side has nothing to correct.
+      if (!fromFile && !localAccounts.containsKey(account.id)) continue;
+      final keptEntries = fromFile ? remoteEntries : localEntries;
+      final keptSales = fromFile ? remoteSales : localSales;
+      final keptPurchases = fromFile ? remotePurchases : localPurchases;
+      var ledgerDelta = 0.0;
+      for (final id in {...mergedEntries.keys, ...keptEntries.keys}) {
+        ledgerDelta +=
+            ledgerEffect(mergedEntries[id], account.id) -
+            ledgerEffect(keptEntries[id], account.id);
+      }
+      var cashDelta = 0.0;
+      for (final id in {...mergedSales.keys, ...keptSales.keys}) {
+        cashDelta +=
+            saleEffect(mergedSales[id], account.id) -
+            saleEffect(keptSales[id], account.id);
+      }
+      for (final id in {...mergedPurchases.keys, ...keptPurchases.keys}) {
+        cashDelta +=
+            purchaseEffect(mergedPurchases[id], account.id) -
+            purchaseEffect(keptPurchases[id], account.id);
+      }
+      if (ledgerDelta.abs() < 0.000001 && cashDelta.abs() < 0.000001) {
+        continue;
+      }
+      await (update(accounts)..where((row) => row.id.equals(account.id))).write(
+        AccountsCompanion(
+          balance: Value(account.balance + ledgerDelta + cashDelta),
+          availableBalance: Value(
+            account.availableBalance + ledgerDelta + cashDelta,
+          ),
+        ),
+      );
+    }
   }
 
   Stream<List<NetWorthSnapshot>> watchNetWorthSnapshots(String userId) =>
@@ -3401,7 +3734,7 @@ final class AppDatabase extends _$AppDatabase {
         last.accountBalance == accountBalance &&
         last.portfolioValue == portfolioValue &&
         last.vehicleValue == vehicleValue) {
-      await persistUserFile(userId);
+      _schedulePersist(userId);
       return;
     }
     await into(netWorthSnapshots).insert(
@@ -3415,27 +3748,55 @@ final class AppDatabase extends _$AppDatabase {
         vehicleValue: Value(vehicleValue),
       ),
     );
-    await persistUserFile(userId);
+    _schedulePersist(userId);
   }
 
   Future<bool> persistUserFile(String userId) async {
+    final preference = await (select(
+      userPreferences,
+    )..where((row) => row.userId.equals(userId))).getSingleOrNull();
+    final path = preference?.dataFilePath ?? '';
+    final key = _dataFileKeys[userId];
+    if (path.isEmpty || key == null) return false;
     try {
-      final preference = await (select(
-        userPreferences,
-      )..where((row) => row.userId.equals(userId))).getSingleOrNull();
-      final path = preference?.dataFilePath ?? '';
-      if (path.isEmpty) return false;
       final data = await exportUserData(userId);
       final json = const JsonEncoder.withIndent('  ').convert(data);
-      final key = _dataFileKeys[userId];
-      if (key == null) return false;
-      final encrypted = await DataCipher.encrypt(json, key);
-      return writeDataFile(encrypted, path);
-    } catch (_) {
+      final encrypted = await DataCipher.encrypt(
+        json,
+        key,
+        backupKey: _backupKeys[userId],
+      );
+      final written = await writeDataFile(encrypted, path);
+      _setBackupStatus(
+        userId,
+        written
+            ? BackupStatus.success(DateTime.now())
+            : BackupStatus.failure('Der Speicherort ist nicht beschreibbar.'),
+      );
+      return written;
+    } catch (error, stackTrace) {
       // Local database writes must never fail just because an external backup
-      // location is temporarily unavailable.
+      // location is temporarily unavailable, but the user has to learn that
+      // the data file is no longer up to date.
+      _setBackupStatus(
+        userId,
+        const BackupStatus.failure(
+          'Die Datendatei konnte nicht geschrieben werden.',
+        ),
+      );
+      await logError(
+        userId: userId,
+        source: 'Datendatei',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return false;
     }
+  }
+
+  void _setBackupStatus(String userId, BackupStatus status) {
+    _backupStatus[userId] = status;
+    _backupStatusChanges.add(userId);
   }
 
   Future<void> seedDefaultMasterData(String userId) async {
@@ -3490,10 +3851,7 @@ final class AppDatabase extends _$AppDatabase {
           batch.insert(
             masterData,
             MasterDataCompanion.insert(
-              id: _uuid.v5(
-                Namespace.url.value,
-                '$userId:${kind.key}:$value',
-              ),
+              id: _uuid.v5(Namespace.url.value, '$userId:${kind.key}:$value'),
               userId: userId,
               kind: kind.key,
               value: value,
@@ -3568,7 +3926,7 @@ final class AppDatabase extends _$AppDatabase {
 
   Future<void> saveVehicleCost(VehicleCostsCompanion value) async {
     await into(vehicleCosts).insertOnConflictUpdate(value);
-    await persistUserFile(value.userId.value);
+    _schedulePersist(value.userId.value);
   }
 
   Future<void> saveVehicleCostWithLedger(
@@ -3618,6 +3976,17 @@ final class AppDatabase extends _$AppDatabase {
       }
     }
     await into(userPreferences).insertOnConflictUpdate(value);
-    await persistUserFile(value.userId.value);
+    _schedulePersist(value.userId.value);
   }
+}
+
+/// Outcome of the most recent data file write in this session.
+final class BackupStatus {
+  const BackupStatus.success(DateTime this.writtenAt) : error = null;
+  const BackupStatus.failure(String this.error) : writtenAt = null;
+
+  final DateTime? writtenAt;
+  final String? error;
+
+  bool get succeeded => error == null;
 }

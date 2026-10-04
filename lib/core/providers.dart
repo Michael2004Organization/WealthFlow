@@ -255,3 +255,10 @@ void selectShellDestination(WidgetRef ref, int destination) {
   }
   ref.read(shellIndexProvider.notifier).state = destination;
 }
+
+final backupStatusProvider = StreamProvider<BackupStatus?>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(null)
+      : ref.watch(databaseProvider).watchBackupStatus(userId);
+});

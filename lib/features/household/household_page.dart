@@ -744,7 +744,10 @@ Future<void> _persistSubmission(
       entry.recurrenceId,
       userId,
       result.entries.first,
+      edited: entry,
     );
+  } else if (entry != null && result.entries.length == 1) {
+    await database.saveLedgerEntryWithCounterpart(result.entries.first);
   } else {
     await database.saveLedgerEntries(result.entries);
   }
