@@ -434,14 +434,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                                             '${_perShareSummary(item, schedules)} je Stück',
                                           ),
                                           trailing: Text(
-                                            '${money(
-                                                  _annualDividend(
-                                                        projection,
-                                                        item.id,
-                                                      ) /
-                                                      12,
-                                                  currency: baseCurrency,
-                                                )}/Monat',
+                                            '${money(_annualDividend(projection, item.id) / 12, currency: baseCurrency)}/Monat',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w800,
                                               fontSize: 15,
@@ -1227,9 +1220,7 @@ class _DividendCalendar extends ConsumerWidget {
                           : 'Ex ${DateFormat('dd.MM.yyyy').format(row.exDate!)}',
                       row.paymentDate == null
                           ? 'Zahlungstermin offen'
-                          : 'Zahlung ${DateFormat(
-                                  'dd.MM.yyyy',
-                                ).format(row.paymentDate!)}',
+                          : 'Zahlung ${DateFormat('dd.MM.yyyy').format(row.paymentDate!)}',
                       row.currency,
                     ].join(' · '),
                   ),
@@ -2002,9 +1993,7 @@ class _DividendMonthCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${payment.investment.symbol.isEmpty
-                                  ? payment.investment.name
-                                  : payment.investment.symbol} · ${money(payment.tax.net, currency: baseCurrency)}',
+                          '${payment.investment.symbol.isEmpty ? payment.investment.name : payment.investment.symbol} · ${money(payment.tax.net, currency: baseCurrency)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -2152,51 +2141,20 @@ Future<void> _showDividendPaymentDetail(
             children: [
               _DividendTaxRow(
                 label: 'Brutto',
-                value: payment.grossSource,
+                value: tax.grossSource,
                 currency: payment.sourceCurrency,
                 emphasized: true,
               ),
               _DividendTaxRow(
                 label:
                     'Quellensteuer (${payment.withholdingTaxRate.toStringAsFixed(2)} % · ${payment.investment.country})',
-                value: -tax.withholdingTax / rate,
+                value: -tax.withholdingTaxSource,
                 currency: payment.sourceCurrency,
               ),
-              if (tax.creditableWithholdingTax > 0)
-                _DividendTaxRow(
-                  label: 'Davon anrechenbare Quellensteuer',
-                  value: tax.creditableWithholdingTax / rate,
-                  currency: payment.sourceCurrency,
-                  informational: true,
-                ),
-              _DividendTaxRow(
-                label: 'Kapitalertragsteuer ($germanCapitalGainsTaxRate %)',
-                value: -tax.germanCapitalTax / rate,
-                currency: payment.sourceCurrency,
-              ),
-              _DividendTaxRow(
-                label:
-                    'Solidaritätszuschlag ($solidaritySurchargeRate % auf Kapitalertragsteuer)',
-                value: -tax.solidaritySurcharge / rate,
-                currency: payment.sourceCurrency,
-              ),
-              if (tax.churchTax > 0)
-                _DividendTaxRow(
-                  label: 'Kirchensteuer',
-                  value: -tax.churchTax / rate,
-                  currency: payment.sourceCurrency,
-                ),
-              if (tax.allowanceUsed > 0)
-                _DividendTaxRow(
-                  label: 'Genutzter Freistellungsauftrag',
-                  value: tax.allowanceUsed / rate,
-                  currency: payment.sourceCurrency,
-                  informational: true,
-                ),
               const SizedBox(height: 6),
               _DividendTaxRow(
-                label: 'Zwischensumme nach Abzug Steuern',
-                value: tax.net / rate,
+                label: 'Zwischensumme nach Quellensteuer',
+                value: tax.grossSource - tax.withholdingTaxSource,
                 currency: payment.sourceCurrency,
                 emphasized: true,
               ),
@@ -2210,6 +2168,42 @@ Future<void> _showDividendPaymentDetail(
                   ),
                 ),
               ),
+              _DividendTaxRow(
+                label: 'Nach Quellensteuer umgerechnet',
+                value: tax.gross - tax.withholdingTax,
+                currency: accountCurrency,
+              ),
+              if (tax.creditableWithholdingTax > 0)
+                _DividendTaxRow(
+                  label: 'Davon anrechenbare Quellensteuer',
+                  value: tax.creditableWithholdingTax,
+                  currency: accountCurrency,
+                  informational: true,
+                ),
+              _DividendTaxRow(
+                label: 'Kapitalertragsteuer ($germanCapitalGainsTaxRate %)',
+                value: -tax.germanCapitalTax,
+                currency: accountCurrency,
+              ),
+              _DividendTaxRow(
+                label:
+                    'Solidaritätszuschlag ($solidaritySurchargeRate % auf Kapitalertragsteuer)',
+                value: -tax.solidaritySurcharge,
+                currency: accountCurrency,
+              ),
+              if (tax.churchTax > 0)
+                _DividendTaxRow(
+                  label: 'Kirchensteuer',
+                  value: -tax.churchTax,
+                  currency: accountCurrency,
+                ),
+              if (tax.allowanceUsed > 0)
+                _DividendTaxRow(
+                  label: 'Genutzter Freistellungsauftrag',
+                  value: tax.allowanceUsed,
+                  currency: accountCurrency,
+                  informational: true,
+                ),
               const Divider(height: 18),
               _DividendTaxRow(
                 label: 'Netto',
@@ -2564,6 +2558,7 @@ Future<void> _showScheduleEditor(
                               .valueOrNull
                               ?.taxAllowance ??
                           1000;
+                      final sourceCurrency = currency.text.trim().toUpperCase();
                       final result = calculateGermanDividendTax(
                         grossAmount: gross * investment.quantity,
                         exchangeRate: rate,
@@ -2583,17 +2578,22 @@ Future<void> _showScheduleEditor(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text(
-                                'Auszahlungsweg je Aktie',
+                                'Auszahlungsweg für die Position',
                                 style: Theme.of(context).textTheme.titleSmall,
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                '${money(gross, currency: currency.text.trim().toUpperCase())} brutto'
-                                ' × ${rate.toStringAsFixed(4)} = '
-                                '${money(result.gross, currency: baseCurrency)} für ${investment.quantity.toStringAsFixed(2)} Stück',
+                                '${investment.quantity.toStringAsFixed(6).replaceFirst(RegExp(r'\.?0+$'), '')} Stück × '
+                                '${amount.text.trim()} $sourceCurrency = '
+                                '${money(result.grossSource, currency: sourceCurrency)} brutto',
                               ),
                               Text(
-                                '− ${money(result.withholdingTax, currency: baseCurrency)} Quellensteuer · '
+                                '− ${money(result.withholdingTaxSource, currency: sourceCurrency)} Quellensteuer = '
+                                '${money(result.grossSource - result.withholdingTaxSource, currency: sourceCurrency)}'
+                                ' × ${rate.toStringAsFixed(4)} = '
+                                '${money(result.gross - result.withholdingTax, currency: baseCurrency)}',
+                              ),
+                              Text(
                                 '− ${money(result.germanCapitalTax, currency: baseCurrency)} Kapitalertragsteuer · '
                                 '− ${money(result.solidaritySurcharge, currency: baseCurrency)} Soli',
                               ),

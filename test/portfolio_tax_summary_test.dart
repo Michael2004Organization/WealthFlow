@@ -28,38 +28,41 @@ void main() {
     expect(included.allowanceRemaining, 500);
   });
 
-  test('historical dividends use shares held on the payment date and net', () {
-    final investment = _investment();
-    final purchase = InvestmentPurchase(
-      id: 'purchase',
-      userId: 'user',
-      investmentId: investment.id,
-      purchaseDate: DateTime(2026, 6, 1),
-      purchasePrice: 10,
-      quantity: 10,
-      fees: 0,
-      cashApplied: false,
-      createdAt: DateTime(2026, 6, 1),
-    );
-    final schedules = [
-      _dividend('before-purchase', DateTime(2026, 5, 15)),
-      _dividend('after-purchase', DateTime(2026, 7, 15)),
-    ];
+  test(
+    'historical dividends use shares held on the payment date and gross amount',
+    () {
+      final investment = _investment();
+      final purchase = InvestmentPurchase(
+        id: 'purchase',
+        userId: 'user',
+        investmentId: investment.id,
+        purchaseDate: DateTime(2026, 6, 1),
+        purchasePrice: 10,
+        quantity: 10,
+        fees: 0,
+        cashApplied: false,
+        createdAt: DateTime(2026, 6, 1),
+      );
+      final schedules = [
+        _dividend('before-purchase', DateTime(2026, 5, 15)),
+        _dividend('after-purchase', DateTime(2026, 7, 15)),
+      ];
 
-    final summary = calculatePortfolioTaxYear(
-      year: 2026,
-      allowance: 1000,
-      investments: [investment],
-      purchases: [purchase],
-      schedules: schedules,
-      sales: const [],
-      through: DateTime(2026, 8, 1),
-    );
+      final summary = calculatePortfolioTaxYear(
+        year: 2026,
+        allowance: 1000,
+        investments: [investment],
+        purchases: [purchase],
+        schedules: schedules,
+        sales: const [],
+        through: DateTime(2026, 8, 1),
+      );
 
-    expect(summary.allowanceUsed, 85);
-    expect(summary.allowanceRemaining, 915);
-    expect(summary.taxPaid, 15);
-  });
+      expect(summary.allowanceUsed, 100);
+      expect(summary.allowanceRemaining, 900);
+      expect(summary.taxPaid, 15);
+    },
+  );
 }
 
 Investment _investment() => Investment(

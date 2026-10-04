@@ -33,6 +33,8 @@ const solidaritySurchargeRate = 5.5;
 
 final class DividendTaxResult {
   const DividendTaxResult({
+    required this.grossSource,
+    required this.withholdingTaxSource,
     required this.gross,
     required this.withholdingTax,
     required this.creditableWithholdingTax,
@@ -44,6 +46,13 @@ final class DividendTaxResult {
     required this.net,
   });
 
+  /// Gross payout in the dividend currency, rounded to cents.
+  final double grossSource;
+
+  /// Foreign withholding tax in the dividend currency, rounded to cents.
+  final double withholdingTaxSource;
+
+  /// Amounts below are in the base currency.
   final double gross;
   final double withholdingTax;
   final double creditableWithholdingTax;
@@ -64,9 +73,18 @@ DividendTaxResult calculateGermanDividendTax({
   required double allowanceRemaining,
   double churchTaxRate = 0,
 }) {
-  final gross = _cents((grossAmount * exchangeRate).clamp(0, double.infinity));
+  // Foreign withholding tax is deducted in the dividend currency before the
+  // payout is converted, as on a bank statement:
+  // 14.86 USD - 2.23 USD = 12.63 USD -> EUR.
+  final rate = exchangeRate.clamp(0, double.infinity);
+  final grossSource = _cents(grossAmount.clamp(0, double.infinity));
   final sourceRate = withholdingTaxRate.clamp(0, 100).toDouble();
-  final withholdingTax = _cents(gross * sourceRate / 100);
+  final withholdingTaxSource = _cents(grossSource * sourceRate / 100);
+  final gross = _cents(grossSource * rate);
+  final afterWithholding = _cents((grossSource - withholdingTaxSource) * rate);
+  final withholdingTax = _cents(gross - afterWithholding);
+  // The allowance is consumed by the gross income; foreign withholding tax
+  // does not reduce the taxable dividend.
   final taxExemptGross = _cents(
     gross.clamp(0, allowanceRemaining.clamp(0, double.infinity)),
   );
@@ -89,24 +107,20 @@ DividendTaxResult calculateGermanDividendTax({
     germanCapitalTax * churchTaxRate.clamp(0, 100) / 100,
   );
   final net = _cents(
-    gross - withholdingTax - germanCapitalTax - solidarity - churchTax,
-  );
-  // WealthFlow tracks the actually received dividend against the configured
-  // exemption amount. Foreign withholding tax therefore does not consume
-  // allowance that never reached the portfolio account.
-  final allowanceUsed = _cents(
-    net.clamp(0, allowanceRemaining.clamp(0, double.infinity)),
+    afterWithholding - germanCapitalTax - solidarity - churchTax,
   );
   return DividendTaxResult(
+    grossSource: grossSource,
+    withholdingTaxSource: withholdingTaxSource,
     gross: gross,
     withholdingTax: withholdingTax,
     creditableWithholdingTax: creditable,
     germanCapitalTax: germanCapitalTax,
     solidaritySurcharge: solidarity,
     churchTax: churchTax,
-    allowanceUsed: allowanceUsed,
+    allowanceUsed: taxExemptGross,
     allowanceRemaining: _cents(
-      (allowanceRemaining - allowanceUsed).clamp(0, double.infinity),
+      (allowanceRemaining - taxExemptGross).clamp(0, double.infinity),
     ),
     net: net,
   );
