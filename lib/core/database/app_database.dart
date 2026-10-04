@@ -3000,6 +3000,24 @@ final class AppDatabase extends _$AppDatabase {
     await captureNetWorth(userId);
   }
 
+  /// Restores previously deleted ledger entries, e.g. after "Rückgängig".
+  ///
+  /// The entries are saved as new so their account effect is applied again.
+  Future<void> restoreLedgerEntries(Iterable<LedgerEntry> entries) {
+    final now = DateTime.now().toUtc();
+    return saveLedgerEntries(
+      entries.map(
+        (entry) => entry
+            .toCompanion(false)
+            .copyWith(
+              deletedAt: const Value(null),
+              accountApplied: const Value(false),
+              updatedAt: Value(now),
+            ),
+      ),
+    );
+  }
+
   Future<void> deleteLedgerSeries(String recurrenceId, String userId) async {
     await transaction(() async {
       final entries =

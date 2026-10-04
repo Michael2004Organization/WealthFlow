@@ -9,6 +9,7 @@ import '../../core/finance/account_balance_math.dart';
 import '../../core/finance/currencies.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/finance/amount_input.dart';
 
 class AccountsPage extends ConsumerStatefulWidget {
   const AccountsPage({super.key});
@@ -645,6 +646,13 @@ Future<void> _showBalanceHistory(
                 trailing: IconButton(
                   tooltip: 'Historienwert löschen',
                   onPressed: () async {
+                    final confirmed = await confirmDelete(
+                      context,
+                      title: 'Historienwert löschen?',
+                      message:
+                          'Der Kontostand vom ${DateFormat('dd.MM.yyyy').format(row.effectiveAt)} wird entfernt.',
+                    );
+                    if (!confirmed) return;
                     final userId = dialogRef.read(currentUserIdProvider);
                     if (userId != null) {
                       await dialogRef
@@ -774,8 +782,7 @@ Future<void> _addBalanceHistoryPoint(
   available.dispose();
 }
 
-double? _parseAccountNumber(String? value) =>
-    double.tryParse((value ?? '').trim().replaceAll(',', '.'));
+double? _parseAccountNumber(String? value) => parseAmount(value);
 
 Future<void> showAccountEditor(
   BuildContext context,
@@ -994,8 +1001,7 @@ class _AccountEditorState extends State<_AccountEditor> {
     );
   }
 
-  double? _parse(String? value) =>
-      double.tryParse((value ?? '').trim().replaceAll(',', '.'));
+  double? _parse(String? value) => parseAmount(value);
 
   Future<void> _pickValidFrom() async {
     final selected = await showDatePicker(

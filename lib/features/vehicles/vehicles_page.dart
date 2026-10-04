@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/database/app_database.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/finance/amount_input.dart';
 
 class VehiclesPage extends ConsumerWidget {
   const VehiclesPage({super.key});
@@ -480,8 +481,7 @@ class _VehicleEditorState extends State<_VehicleEditor> {
         validator: (value) =>
             (value?.trim().isEmpty ?? true) ? 'Pflichtfeld' : null,
       );
-  double? _number(String? value) =>
-      double.tryParse((value ?? '').replaceAll(',', '.'));
+  double? _number(String? value) => parseAmount(value);
   Future<void> _pickPurchaseDate() async {
     final selected = await showDatePicker(
       context: context,
@@ -711,8 +711,7 @@ class _CostEditorState extends State<_CostEditor> {
       FilledButton(onPressed: _save, child: const Text('Speichern')),
     ],
   );
-  double? _number(String? value) =>
-      double.tryParse((value ?? '').replaceAll(',', '.'));
+  double? _number(String? value) => parseAmount(value);
   Future<void> _pickDate() async {
     final value = await showDatePicker(
       context: context,

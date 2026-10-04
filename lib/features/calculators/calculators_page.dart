@@ -10,6 +10,7 @@ import '../../core/providers.dart';
 import '../../core/database/app_database.dart';
 import '../../core/finance/budget_period.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/finance/amount_input.dart';
 
 class CalculatorsPage extends StatelessWidget {
   const CalculatorsPage({super.key});
@@ -1654,5 +1655,4 @@ class _Result extends StatelessWidget {
   );
 }
 
-double _value(String input) =>
-    double.tryParse(input.trim().replaceAll(',', '.')) ?? 0;
+double _value(String input) => parseAmount(input) ?? 0;

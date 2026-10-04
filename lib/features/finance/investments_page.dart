@@ -12,6 +12,7 @@ import '../../core/finance/portfolio_master_data.dart';
 import '../../core/finance/portfolio_tax_summary.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/finance/amount_input.dart';
 
 final _portfolioActionButtonStyle = FilledButton.styleFrom(
   backgroundColor: const Color(0xFFADB6F7),
@@ -1195,7 +1196,7 @@ Future<void> _editTaxAllowance(
             helperText: 'Administrativer Höchstbetrag: ${money(maximum)}',
           ),
           validator: (value) {
-            final parsed = double.tryParse((value ?? '').replaceAll(',', '.'));
+            final parsed = parseAmount(value);
             if (parsed == null || parsed < 0) return 'Ungültiger Betrag';
             if (parsed > maximum) return 'Höchstbetrag überschritten';
             return null;
@@ -1225,9 +1226,7 @@ Future<void> _editTaxAllowance(
           preference
               .toCompanion(false)
               .copyWith(
-                taxAllowance: Value(
-                  double.parse(controller.text.replaceAll(',', '.')),
-                ),
+                taxAllowance: Value(parseAmount(controller.text)!),
                 updatedAt: Value(DateTime.now().toUtc()),
               ),
         );
@@ -1502,9 +1501,7 @@ Future<void> _showPhysicalAssetEditor(
                                   suffixText: field.$3,
                                 ),
                                 validator: (value) {
-                                  final parsed = double.tryParse(
-                                    (value ?? '').replaceAll(',', '.'),
-                                  );
+                                  final parsed = parseAmount(value);
                                   return parsed == null || parsed < 0
                                       ? 'Ungültiger Wert'
                                       : null;
@@ -1570,8 +1567,7 @@ Future<void> _showPhysicalAssetEditor(
     final userId = ref.read(currentUserIdProvider);
     if (userId != null) {
       final now = DateTime.now().toUtc();
-      double number(TextEditingController value) =>
-          double.parse(value.text.replaceAll(',', '.'));
+      double number(TextEditingController value) => parseAmount(value.text)!;
       await ref
           .read(databaseProvider)
           .savePhysicalAsset(
@@ -3181,8 +3177,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     });
   }
 
-  double? _number(String? value) =>
-      double.tryParse((value ?? '').replaceAll(',', '.'));
+  double? _number(String? value) => parseAmount(value);
 
   static const _newMasterValue = '__new_portfolio_master__';
 
@@ -4317,8 +4312,7 @@ class _SaleTaxRow extends StatelessWidget {
   }
 }
 
-double? _parseNumber(String? value) =>
-    double.tryParse((value ?? '').replaceAll(',', '.'));
+double? _parseNumber(String? value) => parseAmount(value);
 
 String? _positiveNumberValidator(String? value) {
   final parsed = _parseNumber(value);
