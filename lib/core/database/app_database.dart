@@ -1791,29 +1791,35 @@ final class AppDatabase extends _$AppDatabase {
         );
       }
       final hasLedger =
-          await (select(ledgerEntries)..where(
-                (row) =>
-                    row.userId.equals(userId) &
-                    row.accountId.equals(accountId) &
-                    row.deletedAt.isNull(),
-              ))
+          await (select(ledgerEntries)
+                ..limit(1)
+                ..where(
+                  (row) =>
+                      row.userId.equals(userId) &
+                      row.accountId.equals(accountId) &
+                      row.deletedAt.isNull(),
+                ))
               .getSingleOrNull() !=
           null;
       final hasPortfolio =
-          await (select(investments)..where(
-                    (row) =>
-                        row.userId.equals(userId) &
-                        row.accountId.equals(accountId) &
-                        row.deletedAt.isNull(),
-                  ))
+          await (select(investments)
+                    ..limit(1)
+                    ..where(
+                      (row) =>
+                          row.userId.equals(userId) &
+                          row.accountId.equals(accountId) &
+                          row.deletedAt.isNull(),
+                    ))
                   .getSingleOrNull() !=
               null ||
-          await (select(physicalAssets)..where(
-                    (row) =>
-                        row.userId.equals(userId) &
-                        row.accountId.equals(accountId) &
-                        row.deletedAt.isNull(),
-                  ))
+          await (select(physicalAssets)
+                    ..limit(1)
+                    ..where(
+                      (row) =>
+                          row.userId.equals(userId) &
+                          row.accountId.equals(accountId) &
+                          row.deletedAt.isNull(),
+                    ))
                   .getSingleOrNull() !=
               null;
       if (usageType == 'portfolio' && hasLedger) {
@@ -1884,29 +1890,35 @@ final class AppDatabase extends _$AppDatabase {
       return false;
     }
     if (usageType == 'portfolio') {
-      return await (select(ledgerEntries)..where(
-                (row) =>
-                    row.userId.equals(userId) &
-                    row.accountId.equals(accountId) &
-                    row.deletedAt.isNull(),
-              ))
+      return await (select(ledgerEntries)
+                ..limit(1)
+                ..where(
+                  (row) =>
+                      row.userId.equals(userId) &
+                      row.accountId.equals(accountId) &
+                      row.deletedAt.isNull(),
+                ))
               .getSingleOrNull() ==
           null;
     }
-    return await (select(investments)..where(
-                  (row) =>
-                      row.userId.equals(userId) &
-                      row.accountId.equals(accountId) &
-                      row.deletedAt.isNull(),
-                ))
+    return await (select(investments)
+                  ..limit(1)
+                  ..where(
+                    (row) =>
+                        row.userId.equals(userId) &
+                        row.accountId.equals(accountId) &
+                        row.deletedAt.isNull(),
+                  ))
                 .getSingleOrNull() ==
             null &&
-        await (select(physicalAssets)..where(
-                  (row) =>
-                      row.userId.equals(userId) &
-                      row.accountId.equals(accountId) &
-                      row.deletedAt.isNull(),
-                ))
+        await (select(physicalAssets)
+                  ..limit(1)
+                  ..where(
+                    (row) =>
+                        row.userId.equals(userId) &
+                        row.accountId.equals(accountId) &
+                        row.deletedAt.isNull(),
+                  ))
                 .getSingleOrNull() ==
             null;
   }
@@ -3131,14 +3143,20 @@ final class AppDatabase extends _$AppDatabase {
           updatedAt: Value(DateTime.now().toUtc()),
         ),
       );
-      await (update(
-        vehicleCosts,
-      )..where((row) => row.id.equals('ledger:${entry.id}'))).write(
-        VehicleCostsCompanion(
-          deletedAt: Value(DateTime.now().toUtc()),
-          updatedAt: Value(DateTime.now().toUtc()),
-        ),
-      );
+      final linkedCostIds = [
+        'ledger:${entry.id}',
+        if (entry.sourceType == 'vehicle' && entry.sourceId.isNotEmpty)
+          entry.sourceId,
+      ];
+      await (update(vehicleCosts)..where(
+            (row) => row.id.isIn(linkedCostIds) & row.userId.equals(userId),
+          ))
+          .write(
+            VehicleCostsCompanion(
+              deletedAt: Value(DateTime.now().toUtc()),
+              updatedAt: Value(DateTime.now().toUtc()),
+            ),
+          );
     });
     await captureNetWorth(userId);
   }
@@ -3977,8 +3995,64 @@ final class AppDatabase extends _$AppDatabase {
         'Vor dem Erfassen von Fahrzeugkosten muss ein Haushaltskonto gewählt werden.',
       );
     }
+    // When an existing cost is edited, its booking is updated in place so
+    // the old amount is taken back from the account first.
+    final existingLedger = await vehicleCostLedgerEntry(
+      cost.userId.value,
+      cost.id.value,
+    );
     await into(vehicleCosts).insertOnConflictUpdate(cost);
-    await saveLedgerEntry(ledger.copyWith(accountId: Value(accountId)));
+    await saveLedgerEntry(
+      ledger.copyWith(
+        id: existingLedger == null ? null : Value(existingLedger.id),
+        createdAt: existingLedger == null
+            ? null
+            : Value(existingLedger.createdAt),
+        accountId: Value(accountId),
+      ),
+    );
+  }
+
+  Future<LedgerEntry?> vehicleCostLedgerEntry(String userId, String costId) =>
+      (select(ledgerEntries)
+            ..limit(1)
+            ..where(
+              (row) =>
+                  row.userId.equals(userId) &
+                  row.sourceType.equals('vehicle') &
+                  row.sourceId.equals(costId) &
+                  row.deletedAt.isNull(),
+            ))
+          .getSingleOrNull();
+
+  /// Deletes a vehicle cost together with its household booking and gives
+  /// the amount back to the account.
+  Future<void> deleteVehicleCost(String costId, String userId) async {
+    if (costId.startsWith('ledger:')) {
+      // Created in the household book: the booking owns the cost.
+      final entryId = costId.substring('ledger:'.length);
+      await deleteLedgerEntry(entryId, userId);
+      final now = DateTime.now().toUtc();
+      await (update(vehicleCosts)
+            ..where((row) => row.id.equals(costId) & row.userId.equals(userId)))
+          .write(
+            VehicleCostsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+          );
+      _schedulePersist(userId);
+      return;
+    }
+    final entry = await vehicleCostLedgerEntry(userId, costId);
+    if (entry != null) {
+      await deleteLedgerEntry(entry.id, userId);
+    } else {
+      final now = DateTime.now().toUtc();
+      await (update(vehicleCosts)
+            ..where((row) => row.id.equals(costId) & row.userId.equals(userId)))
+          .write(
+            VehicleCostsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+          );
+    }
+    _schedulePersist(userId);
   }
 
   Stream<UserPreference?> watchPreferences(String userId) => (select(

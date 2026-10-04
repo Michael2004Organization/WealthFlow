@@ -9,6 +9,7 @@ import '../../core/finance/account_balance_math.dart';
 import '../../core/finance/currencies.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/widgets/save_feedback.dart';
 import '../../core/finance/amount_input.dart';
 
 class AccountsPage extends ConsumerStatefulWidget {
@@ -772,19 +773,21 @@ Future<void> _addBalanceHistoryPoint(
       ),
     ),
   );
-  if (saved == true) {
-    final userId = ref.read(currentUserIdProvider);
-    if (userId != null) {
-      await ref
-          .read(databaseProvider)
-          .saveAccountBalanceHistory(
-            userId: userId,
-            accountId: account.id,
-            effectiveAt: effectiveAt,
-            balance: _parseAccountNumber(balance.text)!,
-            availableBalance: _parseAccountNumber(available.text)!,
-          );
-    }
+  if (saved == true && context.mounted) {
+    await saveWithFeedback(context, () async {
+      final userId = ref.read(currentUserIdProvider);
+      if (userId != null) {
+        await ref
+            .read(databaseProvider)
+            .saveAccountBalanceHistory(
+              userId: userId,
+              accountId: account.id,
+              effectiveAt: effectiveAt,
+              balance: _parseAccountNumber(balance.text)!,
+              availableBalance: _parseAccountNumber(available.text)!,
+            );
+      }
+    }, source: 'Kontostand speichern');
   }
   balance.dispose();
   available.dispose();
@@ -802,10 +805,12 @@ Future<void> showAccountEditor(
         context: context,
         builder: (_) => _AccountEditor(account: account),
       );
-  if (result != null) {
-    await ref
-        .read(databaseProvider)
-        .saveAccount(result.account, balanceEffectiveAt: result.effectiveAt);
+  if (result != null && context.mounted) {
+    await saveWithFeedback(context, () async {
+      await ref
+          .read(databaseProvider)
+          .saveAccount(result.account, balanceEffectiveAt: result.effectiveAt);
+    }, source: 'Konto speichern');
   }
 }
 
@@ -1051,9 +1056,7 @@ class _AccountEditorState extends State<_AccountEditor> {
 }
 
 String _deleteAccountMessage(Account account, List<LedgerEntry> entries) {
-  final count = entries
-      .where((entry) => entry.accountId == account.id)
-      .length;
+  final count = entries.where((entry) => entry.accountId == account.id).length;
   final base = '${account.label} wird aus allen Übersichten entfernt.';
   if (count == 0) return base;
   return '$base ${count == 1 ? 'Eine Buchung bleibt' : '$count Buchungen bleiben'} '

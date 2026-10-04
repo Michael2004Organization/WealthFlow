@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/database/app_database.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/widgets/save_feedback.dart';
 import '../../core/finance/amount_input.dart';
 
 class VehiclesPage extends ConsumerWidget {
@@ -139,20 +140,13 @@ class VehiclesPage extends ConsumerWidget {
                             child: Column(
                               children: [
                                 for (final cost in costs.take(12))
-                                  ListTile(
-                                    leading: const CircleAvatar(
-                                      child: Icon(Icons.receipt_rounded),
-                                    ),
-                                    title: Text(cost.category),
-                                    subtitle: Text(
-                                      '${DateFormat('dd.MM.yyyy').format(cost.bookingDate)}${cost.notes.isEmpty ? '' : ' · ${cost.notes}'}',
-                                    ),
-                                    trailing: Text(
-                                      money(cost.amount),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
+                                  _CostTile(
+                                    cost: cost,
+                                    vehicle: items
+                                        .where(
+                                          (item) => item.id == cost.vehicleId,
+                                        )
+                                        .firstOrNull,
                                   ),
                               ],
                             ),
@@ -167,6 +161,76 @@ class VehiclesPage extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CostTile extends ConsumerWidget {
+  const _CostTile({required this.cost, required this.vehicle});
+  final VehicleCost cost;
+  final Vehicle? vehicle;
+
+  /// Costs entered in the household book are edited there; here they can
+  /// only be deleted.
+  bool get _fromHousehold => cost.id.startsWith('ledger:');
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vehicle = this.vehicle;
+    final canEdit = vehicle != null && !_fromHousehold;
+    return ListTile(
+      leading: const CircleAvatar(child: Icon(Icons.receipt_rounded)),
+      title: Text(cost.category),
+      subtitle: Text(
+        '${DateFormat('dd.MM.yyyy').format(cost.bookingDate)}${cost.notes.isEmpty ? '' : ' · ${cost.notes}'}',
+      ),
+      onTap: canEdit
+          ? () => showVehicleCostEditor(context, ref, vehicle, cost: cost)
+          : null,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            money(cost.amount),
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Aktionen',
+            onSelected: (action) async {
+              if (action == 'edit' && canEdit) {
+                await showVehicleCostEditor(context, ref, vehicle, cost: cost);
+              } else if (action == 'delete') {
+                await _delete(context, ref);
+              }
+            },
+            itemBuilder: (_) => [
+              if (canEdit)
+                const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
+              const PopupMenuItem(value: 'delete', child: Text('Löschen')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    final confirmed = await confirmDelete(
+      context,
+      title: 'Kosten löschen?',
+      message:
+          '${cost.category} über ${money(cost.amount)} wird gelöscht. '
+          'Die zugehörige Buchung im Haushaltsbuch wird ebenfalls entfernt '
+          'und der Betrag dem Konto wieder gutgeschrieben.',
+    );
+    if (!confirmed || !context.mounted) return;
+    await saveWithFeedback(
+      context,
+      () => ref.read(databaseProvider).deleteVehicleCost(cost.id, userId),
+      failure: 'Löschen fehlgeschlagen',
+      source: 'Fahrzeugkosten löschen',
     );
   }
 }
@@ -274,7 +338,13 @@ Future<void> showVehicleEditor(
     context: context,
     builder: (_) => _VehicleEditor(vehicle: vehicle),
   );
-  if (result != null) await ref.read(databaseProvider).saveVehicle(result);
+  if (result != null && context.mounted) {
+    await saveWithFeedback(
+      context,
+      () => ref.read(databaseProvider).saveVehicle(result),
+      source: 'Fahrzeug speichern',
+    );
+  }
 }
 
 class _VehicleEditor extends StatefulWidget {
@@ -524,8 +594,9 @@ class _VehicleEditorState extends State<_VehicleEditor> {
 Future<void> showVehicleCostEditor(
   BuildContext context,
   WidgetRef ref,
-  Vehicle vehicle,
-) async {
+  Vehicle vehicle, {
+  VehicleCost? cost,
+}) async {
   final accounts = ref.read(accountsProvider).valueOrNull ?? const <Account>[];
   final investments =
       ref.read(investmentsProvider).valueOrNull ?? const <Investment>[];
@@ -537,22 +608,33 @@ Future<void> showVehicleCostEditor(
     return !investments.any((item) => item.accountId == account.id) &&
         !physicalAssets.any((item) => item.accountId == account.id);
   }).toList();
-  final preferredId = ref
-      .read(preferencesProvider)
-      .valueOrNull
-      ?.selectedHouseholdAccountId;
+  final userId = ref.read(currentUserIdProvider);
+  final existingLedger = cost == null || userId == null
+      ? null
+      : await ref
+            .read(databaseProvider)
+            .vehicleCostLedgerEntry(userId, cost.id);
+  final preferredId =
+      existingLedger?.accountId ??
+      ref.read(preferencesProvider).valueOrNull?.selectedHouseholdAccountId;
+  if (!context.mounted) return;
   final result = await showDialog<_VehicleCostSubmission>(
     context: context,
     builder: (_) => _CostEditor(
       vehicle: vehicle,
       accounts: eligibleAccounts,
       preferredAccountId: preferredId,
+      cost: cost,
     ),
   );
-  if (result != null) {
-    await ref
-        .read(databaseProvider)
-        .saveVehicleCostWithLedger(result.cost, result.ledger);
+  if (result != null && context.mounted) {
+    await saveWithFeedback(
+      context,
+      () => ref
+          .read(databaseProvider)
+          .saveVehicleCostWithLedger(result.cost, result.ledger),
+      source: 'Fahrzeugkosten speichern',
+    );
   }
 }
 
@@ -568,21 +650,29 @@ class _CostEditor extends StatefulWidget {
     required this.vehicle,
     required this.accounts,
     required this.preferredAccountId,
+    this.cost,
   });
   final Vehicle vehicle;
   final List<Account> accounts;
   final String? preferredAccountId;
+  final VehicleCost? cost;
   @override
   State<_CostEditor> createState() => _CostEditorState();
 }
 
 class _CostEditorState extends State<_CostEditor> {
   final _key = GlobalKey<FormState>();
-  final _amount = TextEditingController();
-  final _odometer = TextEditingController();
-  final _notes = TextEditingController();
-  String _category = 'Tanken';
-  DateTime _date = DateTime.now();
+  late final _amount = TextEditingController(
+    text: widget.cost == null ? '' : formatAmountInput(widget.cost!.amount),
+  );
+  late final _odometer = TextEditingController(
+    text: widget.cost?.odometer == null
+        ? ''
+        : formatAmountInput(widget.cost!.odometer!),
+  );
+  late final _notes = TextEditingController(text: widget.cost?.notes ?? '');
+  late String _category = widget.cost?.category ?? 'Tanken';
+  late DateTime _date = widget.cost?.bookingDate ?? DateTime.now();
   late String? _accountId =
       widget.accounts
           .where((account) => account.id == widget.preferredAccountId)
@@ -600,7 +690,9 @@ class _CostEditorState extends State<_CostEditor> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-    title: Text('Kosten · ${widget.vehicle.make} ${widget.vehicle.model}'),
+    title: Text(
+      '${widget.cost == null ? 'Kosten' : 'Kosten bearbeiten'} · ${widget.vehicle.make} ${widget.vehicle.model}',
+    ),
     content: SizedBox(
       width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 480.0),
       child: Form(
@@ -729,7 +821,7 @@ class _CostEditorState extends State<_CostEditor> {
     ).read(currentUserIdProvider);
     if (userId == null) return;
     final now = DateTime.now().toUtc();
-    final costId = const Uuid().v4();
+    final costId = widget.cost?.id ?? const Uuid().v4();
     final ledgerId = const Uuid().v4();
     final amount = _number(_amount.text) ?? 0;
     Navigator.pop(
@@ -744,7 +836,7 @@ class _CostEditorState extends State<_CostEditor> {
           amount: amount,
           odometer: Value(_number(_odometer.text)),
           notes: Value(_notes.text.trim()),
-          createdAt: now,
+          createdAt: widget.cost?.createdAt ?? now,
           updatedAt: now,
         ),
         ledger: LedgerEntriesCompanion.insert(

@@ -12,6 +12,7 @@ import '../../core/finance/portfolio_master_data.dart';
 import '../../core/finance/portfolio_tax_summary.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/widgets/save_feedback.dart';
 import '../../core/finance/amount_input.dart';
 
 final _portfolioActionButtonStyle = FilledButton.styleFrom(
@@ -1218,17 +1219,19 @@ Future<void> _editTaxAllowance(
       ],
     ),
   );
-  if (saved == true) {
-    await ref
-        .read(databaseProvider)
-        .savePreferences(
-          preference
-              .toCompanion(false)
-              .copyWith(
-                taxAllowance: Value(parseAmount(controller.text)!),
-                updatedAt: Value(DateTime.now().toUtc()),
-              ),
-        );
+  if (saved == true && context.mounted) {
+    await saveWithFeedback(context, () async {
+      await ref
+          .read(databaseProvider)
+          .savePreferences(
+            preference
+                .toCompanion(false)
+                .copyWith(
+                  taxAllowance: Value(parseAmount(controller.text)!),
+                  updatedAt: Value(DateTime.now().toUtc()),
+                ),
+          );
+    }, source: 'Freistellungsauftrag speichern');
   }
   controller.dispose();
 }
@@ -1276,17 +1279,19 @@ Future<void> _editDefaultInvestmentFee(
       ],
     ),
   );
-  if (saved == true) {
-    await ref
-        .read(databaseProvider)
-        .savePreferences(
-          preference
-              .toCompanion(false)
-              .copyWith(
-                defaultInvestmentFee: Value(_parseNumber(controller.text)!),
-                updatedAt: Value(DateTime.now().toUtc()),
-              ),
-        );
+  if (saved == true && context.mounted) {
+    await saveWithFeedback(context, () async {
+      await ref
+          .read(databaseProvider)
+          .savePreferences(
+            preference
+                .toCompanion(false)
+                .copyWith(
+                  defaultInvestmentFee: Value(_parseNumber(controller.text)!),
+                  updatedAt: Value(DateTime.now().toUtc()),
+                ),
+          );
+    }, source: 'Standardgebühr speichern');
   }
   controller.dispose();
 }
@@ -1562,35 +1567,37 @@ Future<void> _showPhysicalAssetEditor(
       ),
     ),
   );
-  if (saved == true) {
-    final userId = ref.read(currentUserIdProvider);
-    if (userId != null) {
-      final now = DateTime.now().toUtc();
-      double number(TextEditingController value) => parseAmount(value.text)!;
-      await ref
-          .read(databaseProvider)
-          .savePhysicalAsset(
-            PhysicalAssetsCompanion.insert(
-              id: asset?.id ?? const Uuid().v4(),
-              userId: userId,
-              accountId: Value(accountId),
-              name: name.text.trim(),
-              category: Value(category),
-              metalType: Value(category == 'Edelmetall' ? metalType : ''),
-              quantity: Value(number(quantity)),
-              weightGrams: Value(number(weightGrams)),
-              purchaseDate: Value(purchaseDate),
-              purchasePrice: Value(number(purchasePrice)),
-              currentValue: Value(
-                number(weightGrams) * number(currentPricePerGram),
+  if (saved == true && context.mounted) {
+    await saveWithFeedback(context, () async {
+      final userId = ref.read(currentUserIdProvider);
+      if (userId != null) {
+        final now = DateTime.now().toUtc();
+        double number(TextEditingController value) => parseAmount(value.text)!;
+        await ref
+            .read(databaseProvider)
+            .savePhysicalAsset(
+              PhysicalAssetsCompanion.insert(
+                id: asset?.id ?? const Uuid().v4(),
+                userId: userId,
+                accountId: Value(accountId),
+                name: name.text.trim(),
+                category: Value(category),
+                metalType: Value(category == 'Edelmetall' ? metalType : ''),
+                quantity: Value(number(quantity)),
+                weightGrams: Value(number(weightGrams)),
+                purchaseDate: Value(purchaseDate),
+                purchasePrice: Value(number(purchasePrice)),
+                currentValue: Value(
+                  number(weightGrams) * number(currentPricePerGram),
+                ),
+                currentPricePerGram: Value(number(currentPricePerGram)),
+                notes: Value(notes.text.trim()),
+                createdAt: asset?.createdAt ?? now,
+                updatedAt: now,
               ),
-              currentPricePerGram: Value(number(currentPricePerGram)),
-              notes: Value(notes.text.trim()),
-              createdAt: asset?.createdAt ?? now,
-              updatedAt: now,
-            ),
-          );
-    }
+            );
+      }
+    }, source: 'Sachwert speichern');
   }
   for (final controller in [
     name,
@@ -1964,17 +1971,19 @@ Future<void> _editCurrentPrice(
       ],
     ),
   );
-  if (saved == true) {
-    final userId = ref.read(currentUserIdProvider);
-    if (userId != null) {
-      await ref
-          .read(databaseProvider)
-          .updateInvestmentCurrentPrice(
-            id: investment.id,
-            userId: userId,
-            currentPrice: _parseNumber(controller.text)!,
-          );
-    }
+  if (saved == true && context.mounted) {
+    await saveWithFeedback(context, () async {
+      final userId = ref.read(currentUserIdProvider);
+      if (userId != null) {
+        await ref
+            .read(databaseProvider)
+            .updateInvestmentCurrentPrice(
+              id: investment.id,
+              userId: userId,
+              currentPrice: _parseNumber(controller.text)!,
+            );
+      }
+    }, source: 'Kurs speichern');
   }
   controller.dispose();
 }
@@ -2137,197 +2146,199 @@ Future<void> showInvestmentEditor(
       hasExchangeApiKey: exchangeApiKey?.trim().isNotEmpty ?? false,
     ),
   );
-  if (saved != null) {
-    var result = saved.investment;
-    final database = ref.read(databaseProvider);
-    final userId = ref.read(currentUserIdProvider);
-    if (userId != null) {
-      if (!result.stockId.present || result.stockId.value == null) {
-        final now = DateTime.now().toUtc();
-        final master = await database.ensurePortfolioMaster(
-          userId,
-          StockMastersCompanion.insert(
-            id: const Uuid().v4(),
+  if (saved != null && context.mounted) {
+    await saveWithFeedback(context, () async {
+      var result = saved.investment;
+      final database = ref.read(databaseProvider);
+      final userId = ref.read(currentUserIdProvider);
+      if (userId != null) {
+        if (!result.stockId.present || result.stockId.value == null) {
+          final now = DateTime.now().toUtc();
+          final master = await database.ensurePortfolioMaster(
+            userId,
+            StockMastersCompanion.insert(
+              id: const Uuid().v4(),
+              name: result.name.value,
+              assetType: Value(result.assetType.value),
+              symbol: result.symbol.value,
+              isin: Value(result.isin.value),
+              wkn: Value(result.wkn.value),
+              instrumentSubtype: Value(result.instrumentSubtype.value),
+              positionDirection: Value(result.positionDirection.value),
+              issuer: Value(result.issuer.value),
+              underlying: Value(result.underlying.value),
+              instrumentCurrency: Value(result.instrumentCurrency.value),
+              nominalValue: Value(result.nominalValue.value),
+              couponRate: Value(result.couponRate.value),
+              maturityDate: Value(result.maturityDate.value),
+              strikePrice: Value(result.strikePrice.value),
+              knockOutBarrier: Value(result.knockOutBarrier.value),
+              leverage: Value(result.leverage.value),
+              subscriptionRatio: Value(result.subscriptionRatio.value),
+              currency: Value(result.instrumentCurrency.value),
+              dividendCurrency: Value(result.dividendCurrency.value),
+              country: Value(result.country.value),
+              broker: Value(result.broker.value),
+              sector: Value(result.sector.value),
+              dividendFrequency: Value(result.dividendFrequency.value),
+              dividendStartMonth: Value(result.dividendStartMonth.value),
+              dividendPerShare: Value(result.annualDividend.value),
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+          result = result.copyWith(stockId: Value(master.id));
+        }
+        Investment? duplicate;
+        if (investment == null) {
+          final newIdentity = portfolioMasterIdentity(
+            assetType: result.assetType.value,
             name: result.name.value,
-            assetType: Value(result.assetType.value),
             symbol: result.symbol.value,
-            isin: Value(result.isin.value),
-            wkn: Value(result.wkn.value),
-            instrumentSubtype: Value(result.instrumentSubtype.value),
-            positionDirection: Value(result.positionDirection.value),
-            issuer: Value(result.issuer.value),
-            underlying: Value(result.underlying.value),
-            instrumentCurrency: Value(result.instrumentCurrency.value),
-            nominalValue: Value(result.nominalValue.value),
-            couponRate: Value(result.couponRate.value),
-            maturityDate: Value(result.maturityDate.value),
-            strikePrice: Value(result.strikePrice.value),
-            knockOutBarrier: Value(result.knockOutBarrier.value),
-            leverage: Value(result.leverage.value),
-            subscriptionRatio: Value(result.subscriptionRatio.value),
-            currency: Value(result.instrumentCurrency.value),
-            dividendCurrency: Value(result.dividendCurrency.value),
-            country: Value(result.country.value),
-            broker: Value(result.broker.value),
-            sector: Value(result.sector.value),
-            dividendFrequency: Value(result.dividendFrequency.value),
-            dividendStartMonth: Value(result.dividendStartMonth.value),
-            dividendPerShare: Value(result.annualDividend.value),
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
-        result = result.copyWith(stockId: Value(master.id));
-      }
-      Investment? duplicate;
-      if (investment == null) {
-        final newIdentity = portfolioMasterIdentity(
-          assetType: result.assetType.value,
-          name: result.name.value,
-          symbol: result.symbol.value,
-          isin: result.isin.value,
-          wkn: result.wkn.value,
-          instrumentSubtype: result.instrumentSubtype.value,
-          issuer: result.issuer.value,
-          underlying: result.underlying.value,
-          maturityDate: result.maturityDate.value,
-        );
-        duplicate = existingItems
-            .where(
-              (item) =>
-                  portfolioMasterIdentity(
-                    assetType: item.assetType,
-                    name: item.name,
-                    symbol: item.symbol,
-                    isin: item.isin,
-                    wkn: item.wkn,
-                    instrumentSubtype: item.instrumentSubtype,
-                    issuer: item.issuer,
-                    underlying: item.underlying,
-                    maturityDate: item.maturityDate,
-                  ) ==
-                  newIdentity,
-            )
-            .firstOrNull;
-      }
-      final targetId = duplicate?.id ?? result.id.value;
-      if (duplicate == null) {
-        await database.saveInvestment(result);
-        if (investment != null && investmentPurchases.length == 1) {
-          await database.updateInvestmentPurchase(
-            userId: userId,
-            purchaseId: investmentPurchases.single.id,
-            purchaseDate: result.purchaseDate.value,
-            purchasePrice: result.purchasePrice.value,
-            quantity: result.quantity.value,
-            fees: result.fees.value,
+            isin: result.isin.value,
+            wkn: result.wkn.value,
+            instrumentSubtype: result.instrumentSubtype.value,
+            issuer: result.issuer.value,
+            underlying: result.underlying.value,
+            maturityDate: result.maturityDate.value,
+          );
+          duplicate = existingItems
+              .where(
+                (item) =>
+                    portfolioMasterIdentity(
+                      assetType: item.assetType,
+                      name: item.name,
+                      symbol: item.symbol,
+                      isin: item.isin,
+                      wkn: item.wkn,
+                      instrumentSubtype: item.instrumentSubtype,
+                      issuer: item.issuer,
+                      underlying: item.underlying,
+                      maturityDate: item.maturityDate,
+                    ) ==
+                    newIdentity,
+              )
+              .firstOrNull;
+        }
+        final targetId = duplicate?.id ?? result.id.value;
+        if (duplicate == null) {
+          await database.saveInvestment(result);
+          if (investment != null && investmentPurchases.length == 1) {
+            await database.updateInvestmentPurchase(
+              userId: userId,
+              purchaseId: investmentPurchases.single.id,
+              purchaseDate: result.purchaseDate.value,
+              purchasePrice: result.purchasePrice.value,
+              quantity: result.quantity.value,
+              fees: result.fees.value,
+            );
+          }
+        } else {
+          final addedQuantity = result.quantity.value;
+          final totalQuantity =
+              ((duplicate.quantity + addedQuantity) * 100).round() / 100;
+          final averagePrice = totalQuantity == 0
+              ? 0.0
+              : (duplicate.quantity * duplicate.purchasePrice +
+                        addedQuantity * result.purchasePrice.value) /
+                    totalQuantity;
+          await database.saveInvestment(
+            InvestmentsCompanion.insert(
+              id: duplicate.id,
+              userId: duplicate.userId,
+              stockId: result.stockId,
+              accountId: result.accountId,
+              name: result.name.value,
+              symbol: result.symbol,
+              isin: result.isin,
+              wkn: result.wkn,
+              assetType: result.assetType.value,
+              instrumentSubtype: result.instrumentSubtype,
+              positionDirection: result.positionDirection,
+              issuer: result.issuer,
+              underlying: result.underlying,
+              instrumentCurrency: result.instrumentCurrency,
+              nominalValue: result.nominalValue,
+              couponRate: result.couponRate,
+              maturityDate: result.maturityDate,
+              strikePrice: result.strikePrice,
+              knockOutBarrier: result.knockOutBarrier,
+              leverage: result.leverage,
+              subscriptionRatio: result.subscriptionRatio,
+              broker: result.broker,
+              country: result.country,
+              sector: result.sector,
+              purchaseDate:
+                  duplicate.purchaseDate.isBefore(result.purchaseDate.value)
+                  ? duplicate.purchaseDate
+                  : result.purchaseDate.value,
+              purchasePrice: averagePrice,
+              quantity: totalQuantity,
+              fees: Value(duplicate.fees + result.fees.value),
+              currentPrice: result.currentPrice.value,
+              annualDividend: result.annualDividend,
+              dividendCurrency: result.dividendCurrency,
+              dividendExchangeRate: result.dividendExchangeRate,
+              dividendWithholdingTaxRate: result.dividendWithholdingTaxRate,
+              dividendFrequency: result.dividendFrequency,
+              dividendStartMonth: result.dividendStartMonth,
+              notes: result.notes,
+              createdAt: duplicate.createdAt,
+              updatedAt: DateTime.now().toUtc(),
+            ),
           );
         }
-      } else {
-        final addedQuantity = result.quantity.value;
-        final totalQuantity =
-            ((duplicate.quantity + addedQuantity) * 100).round() / 100;
-        final averagePrice = totalQuantity == 0
-            ? 0.0
-            : (duplicate.quantity * duplicate.purchasePrice +
-                      addedQuantity * result.purchasePrice.value) /
-                  totalQuantity;
-        await database.saveInvestment(
-          InvestmentsCompanion.insert(
-            id: duplicate.id,
-            userId: duplicate.userId,
-            stockId: result.stockId,
-            accountId: result.accountId,
-            name: result.name.value,
-            symbol: result.symbol,
-            isin: result.isin,
-            wkn: result.wkn,
-            assetType: result.assetType.value,
-            instrumentSubtype: result.instrumentSubtype,
-            positionDirection: result.positionDirection,
-            issuer: result.issuer,
-            underlying: result.underlying,
-            instrumentCurrency: result.instrumentCurrency,
-            nominalValue: result.nominalValue,
-            couponRate: result.couponRate,
-            maturityDate: result.maturityDate,
-            strikePrice: result.strikePrice,
-            knockOutBarrier: result.knockOutBarrier,
-            leverage: result.leverage,
-            subscriptionRatio: result.subscriptionRatio,
-            broker: result.broker,
-            country: result.country,
-            sector: result.sector,
-            purchaseDate:
-                duplicate.purchaseDate.isBefore(result.purchaseDate.value)
-                ? duplicate.purchaseDate
-                : result.purchaseDate.value,
-            purchasePrice: averagePrice,
-            quantity: totalQuantity,
-            fees: Value(duplicate.fees + result.fees.value),
-            currentPrice: result.currentPrice.value,
-            annualDividend: result.annualDividend,
-            dividendCurrency: result.dividendCurrency,
-            dividendExchangeRate: result.dividendExchangeRate,
-            dividendWithholdingTaxRate: result.dividendWithholdingTaxRate,
-            dividendFrequency: result.dividendFrequency,
-            dividendStartMonth: result.dividendStartMonth,
-            notes: result.notes,
-            createdAt: duplicate.createdAt,
-            updatedAt: DateTime.now().toUtc(),
-          ),
-        );
-      }
-      if (investment == null) {
-        await database.saveInvestmentPurchase(
-          InvestmentPurchasesCompanion.insert(
-            id: const Uuid().v4(),
+        if (investment == null) {
+          await database.saveInvestmentPurchase(
+            InvestmentPurchasesCompanion.insert(
+              id: const Uuid().v4(),
+              userId: userId,
+              investmentId: targetId,
+              purchaseDate: result.purchaseDate.value,
+              purchasePrice: result.purchasePrice.value,
+              quantity: result.quantity.value,
+              fees: result.fees,
+              cashApplied: Value(saved.buy),
+              createdAt: DateTime.now().toUtc(),
+            ),
+          );
+          await _importCachedDividendHistory(
+            database: database,
             userId: userId,
             investmentId: targetId,
+            stockId: result.stockId.value,
             purchaseDate: result.purchaseDate.value,
-            purchasePrice: result.purchasePrice.value,
-            quantity: result.quantity.value,
-            fees: result.fees,
-            cashApplied: Value(saved.buy),
-            createdAt: DateTime.now().toUtc(),
-          ),
-        );
-        await _importCachedDividendHistory(
-          database: database,
-          userId: userId,
-          investmentId: targetId,
-          stockId: result.stockId.value,
-          purchaseDate: result.purchaseDate.value,
-          exchangeRate: result.dividendExchangeRate.value,
-          withholdingTaxRate: result.dividendWithholdingTaxRate.value,
-        );
-        if (saved.buy) {
-          await database.applyPortfolioPurchaseToCash(
-            userId: userId,
-            accountId: result.accountId.value,
-            amount:
-                result.purchasePrice.value * result.quantity.value +
-                result.fees.value,
-            purchasedAt: result.purchaseDate.value,
+            exchangeRate: result.dividendExchangeRate.value,
+            withholdingTaxRate: result.dividendWithholdingTaxRate.value,
+          );
+          if (saved.buy) {
+            await database.applyPortfolioPurchaseToCash(
+              userId: userId,
+              accountId: result.accountId.value,
+              amount:
+                  result.purchasePrice.value * result.quantity.value +
+                  result.fees.value,
+              purchasedAt: result.purchaseDate.value,
+            );
+          }
+        }
+        for (final item in {
+          'broker': result.broker.value,
+          'country': result.country.value,
+          'sector': result.sector.value,
+        }.entries.where((item) => item.value.trim().isNotEmpty)) {
+          await database.saveMasterDatum(
+            MasterDataCompanion.insert(
+              id: const Uuid().v4(),
+              userId: userId,
+              kind: item.key,
+              value: item.value.trim(),
+              createdAt: DateTime.now().toUtc(),
+            ),
           );
         }
       }
-      for (final item in {
-        'broker': result.broker.value,
-        'country': result.country.value,
-        'sector': result.sector.value,
-      }.entries.where((item) => item.value.trim().isNotEmpty)) {
-        await database.saveMasterDatum(
-          MasterDataCompanion.insert(
-            id: const Uuid().v4(),
-            userId: userId,
-            kind: item.key,
-            value: item.value.trim(),
-            createdAt: DateTime.now().toUtc(),
-          ),
-        );
-      }
-    }
+    }, source: 'Position speichern');
   }
 }
 
@@ -3546,20 +3557,22 @@ Future<void> _showInvestmentSaleDialog(
       ),
     ),
   );
-  if (saved == true) {
-    final userId = ref.read(currentUserIdProvider);
-    if (userId != null) {
-      await ref
-          .read(databaseProvider)
-          .sellInvestment(
-            userId: userId,
-            investmentId: investment.id,
-            quantity: _parseNumber(quantity.text)!,
-            pricePerUnit: _parseNumber(price.text)!,
-            fees: _parseNumber(fee.text)!,
-            soldAt: date,
-          );
-    }
+  if (saved == true && context.mounted) {
+    await saveWithFeedback(context, () async {
+      final userId = ref.read(currentUserIdProvider);
+      if (userId != null) {
+        await ref
+            .read(databaseProvider)
+            .sellInvestment(
+              userId: userId,
+              investmentId: investment.id,
+              quantity: _parseNumber(quantity.text)!,
+              pricePerUnit: _parseNumber(price.text)!,
+              fees: _parseNumber(fee.text)!,
+              soldAt: date,
+            );
+      }
+    }, source: 'Verkauf speichern');
   }
   quantity.dispose();
   price.dispose();
@@ -3700,23 +3713,25 @@ Future<void> _showPhysicalSaleDialog(
       ),
     ),
   );
-  if (saved == true) {
-    final userId = ref.read(currentUserIdProvider);
-    if (userId != null) {
-      await ref
-          .read(databaseProvider)
-          .sellPhysicalAsset(
-            userId: userId,
-            assetId: asset.id,
-            grams: _parseNumber(grams.text)!,
-            pricePerGram: _parseNumber(price.text)!,
-            fees: _parseNumber(fee.text)!,
-            soldAt: date,
-            destinationAccountId: destinationAccountId == historyOnly
-                ? null
-                : destinationAccountId,
-          );
-    }
+  if (saved == true && context.mounted) {
+    await saveWithFeedback(context, () async {
+      final userId = ref.read(currentUserIdProvider);
+      if (userId != null) {
+        await ref
+            .read(databaseProvider)
+            .sellPhysicalAsset(
+              userId: userId,
+              assetId: asset.id,
+              grams: _parseNumber(grams.text)!,
+              pricePerGram: _parseNumber(price.text)!,
+              fees: _parseNumber(fee.text)!,
+              soldAt: date,
+              destinationAccountId: destinationAccountId == historyOnly
+                  ? null
+                  : destinationAccountId,
+            );
+      }
+    }, source: 'Sachwert-Verkauf speichern');
   }
   grams.dispose();
   price.dispose();
@@ -3830,30 +3845,32 @@ Future<void> _showPurchaseEditor(
       ),
     ),
   );
-  if (saved == true) {
-    final userId = ref.read(currentUserIdProvider);
-    if (userId != null) {
-      await ref
-          .read(databaseProvider)
-          .updateInvestmentPurchase(
-            userId: userId,
-            purchaseId: purchase.id,
-            purchaseDate: date,
-            purchasePrice: _parseNumber(price.text)!,
-            quantity: _parseNumber(quantity.text)!,
-            fees: _parseNumber(fee.text)!,
-          );
-      if (investment != null) {
+  if (saved == true && context.mounted) {
+    await saveWithFeedback(context, () async {
+      final userId = ref.read(currentUserIdProvider);
+      if (userId != null) {
         await ref
             .read(databaseProvider)
-            .updateInvestmentDividend(
-              id: investment.id,
+            .updateInvestmentPurchase(
               userId: userId,
-              dividendPerShare: _parseNumber(dividend.text)!,
+              purchaseId: purchase.id,
+              purchaseDate: date,
+              purchasePrice: _parseNumber(price.text)!,
+              quantity: _parseNumber(quantity.text)!,
+              fees: _parseNumber(fee.text)!,
             );
+        if (investment != null) {
+          await ref
+              .read(databaseProvider)
+              .updateInvestmentDividend(
+                id: investment.id,
+                userId: userId,
+                dividendPerShare: _parseNumber(dividend.text)!,
+              );
+        }
       }
-    }
-    if (context.mounted) Navigator.pop(context);
+      if (context.mounted) Navigator.pop(context);
+    }, source: 'Kauf bearbeiten');
   }
   quantity.dispose();
   price.dispose();
