@@ -148,8 +148,9 @@ List<PortfolioTaxEvent> calculatePortfolioTaxEvents({
   for (final event in events) {
     final sale = event.sale;
     if (sale != null) {
-      final gain = sale.realizedGain.clamp(0, double.infinity).toDouble();
-      final consumed = gain.clamp(0, remaining).toDouble();
+      // The allowance the sale actually used, after partial exemption and
+      // loss offsetting, as stored when it was booked.
+      final consumed = sale.allowanceUsed.clamp(0, remaining).toDouble();
       remaining -= consumed;
       results.add(
         PortfolioTaxEvent(

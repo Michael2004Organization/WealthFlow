@@ -1357,7 +1357,7 @@ class _AccountTargetCalculatorState
                   (item) => DropdownMenuItem(
                     value: item.id,
                     child: Text(
-                      '${item.label} · ${money(item.balance)}',
+                      '${item.label} · ${money(item.balance, currency: item.currency)}',
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -1433,7 +1433,10 @@ class _AccountTargetCalculatorState
                   spacing: 20,
                   runSpacing: 12,
                   children: [
-                    _Result(label: 'Heute', value: money(account.balance)),
+                    _Result(
+                      label: 'Heute',
+                      value: money(account.balance, currency: account.currency),
+                    ),
                     _Result(label: 'Ziel', value: money(target)),
                     _Result(
                       label:

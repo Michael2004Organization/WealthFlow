@@ -4,6 +4,8 @@ import 'dart:math';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'data_cipher.dart';
+
 final class SecureSessionStore {
   SecureSessionStore({FlutterSecureStorage? storage})
     : _storage =
@@ -16,9 +18,90 @@ final class SecureSessionStore {
   static const _dataKeyPrefix = 'wealthflow.data_key.';
   static const _marketApiKeyPrefix = 'wealthflow.market_api_key.';
   static const _exchangeApiKeyPrefix = 'wealthflow.exchange_api_key.';
+  static const _backupKeyPrefix = 'wealthflow.backup_key.';
+  static const _appPinPrefix = 'wealthflow.app_pin.';
   final FlutterSecureStorage _storage;
   static String? _memoryUserId;
   static final Map<String, List<int>> _memoryDataKeys = {};
+  static final Set<String> _volatileDataKeys = {};
+  static final Map<String, BackupKey> _memoryBackupKeys = {};
+  static final Set<String> _volatileBackupKeys = {};
+
+  /// False when the device key of [userId] only lives in memory because the
+  /// platform key store is unavailable. Files written with it become
+  /// unreadable after the next start.
+  bool isDataKeyPersistent(String userId) =>
+      !_volatileDataKeys.contains(userId);
+
+  /// False when the backup key could not be saved in the platform key store
+  /// and the backup password must be entered again after a restart.
+  bool isBackupKeyPersistent(String userId) =>
+      !_volatileBackupKeys.contains(userId);
+
+  /// Hash and salt of the app lock PIN, or null when the lock is off.
+  Future<({String hash, String salt})?> readAppPin(String userId) async {
+    try {
+      final encoded = await _storage.read(key: _appPinPrefix + userId);
+      if (encoded == null) return null;
+      final value = jsonDecode(encoded);
+      if (value is! Map) return null;
+      return (hash: value['hash'] as String, salt: value['salt'] as String);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Stores the PIN hash only in the platform key store; returns false when
+  /// that is unavailable, so the lock is not offered without it.
+  Future<bool> writeAppPin(
+    String userId,
+    ({String hash, String salt})? value,
+  ) async {
+    try {
+      final key = _appPinPrefix + userId;
+      if (value == null) {
+        await _storage.delete(key: key);
+      } else {
+        await _storage.write(
+          key: key,
+          value: jsonEncode({'hash': value.hash, 'salt': value.salt}),
+        );
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<BackupKey?> readBackupKey(String userId) async {
+    final memory = _memoryBackupKeys[userId];
+    if (memory != null) return memory;
+    try {
+      final encoded = await _storage.read(key: _backupKeyPrefix + userId);
+      if (encoded == null) return null;
+      final value = BackupKey.fromJson(jsonDecode(encoded));
+      if (value != null) _memoryBackupKeys[userId] = value;
+      return value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Keeps the derived key, never the password, in the platform key store.
+  Future<bool> writeBackupKey(String userId, BackupKey value) async {
+    _memoryBackupKeys[userId] = value;
+    try {
+      await _storage.write(
+        key: _backupKeyPrefix + userId,
+        value: jsonEncode(value.toJson()),
+      );
+      _volatileBackupKeys.remove(userId);
+      return true;
+    } catch (_) {
+      _volatileBackupKeys.add(userId);
+      return false;
+    }
+  }
 
   Future<String?> readUserId() async {
     try {
@@ -91,8 +174,10 @@ final class SecureSessionStore {
         key: _dataKeyPrefix + userId,
         value: base64Encode(created),
       );
+      _volatileDataKeys.remove(userId);
     } catch (_) {
       // Never place encryption keys in the unencrypted preferences fallback.
+      _volatileDataKeys.add(userId);
     }
     return created;
   }

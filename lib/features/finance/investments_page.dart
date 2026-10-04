@@ -169,7 +169,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                             (account) => DropdownMenuItem(
                               value: account.id,
                               child: Text(
-                                '${account.label} · ${money(account.balance)} Cash',
+                                '${account.label} · ${money(account.balance, currency: account.currency)} Cash',
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),

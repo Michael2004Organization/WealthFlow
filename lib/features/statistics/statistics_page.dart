@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/finance/budget_period.dart';
+import '../../core/finance/currency_conversion.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -62,7 +63,10 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
         key: 'accounts',
         title: 'Kontostände',
         height: 430,
-        child: _AccountsChart(accounts: accounts),
+        child: _AccountsChart(
+          accounts: accounts,
+          converter: ref.watch(currencyConverterProvider),
+        ),
       ),
       (
         key: 'portfolio',
@@ -588,8 +592,9 @@ class _ChartCard extends StatelessWidget {
 }
 
 class _AccountsChart extends StatelessWidget {
-  const _AccountsChart({required this.accounts});
+  const _AccountsChart({required this.accounts, required this.converter});
   final List<Account> accounts;
+  final CurrencyConverter converter;
   @override
   Widget build(BuildContext context) => _ChartCard(
     title: 'Kontostände',
@@ -604,7 +609,7 @@ class _AccountsChart extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
               title: Text(account.label),
               trailing: Text(
-                money(account.balance),
+                money(account.balance, currency: account.currency),
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
@@ -619,9 +624,14 @@ class _AccountsChart extends StatelessWidget {
               sections: [
                 for (var index = 0; index < accounts.length; index++)
                   PieChartSectionData(
-                    value: accounts[index].balance.abs(),
+                    value: converter
+                        .toBase(
+                          accounts[index].balance,
+                          accounts[index].currency,
+                        )
+                        .abs(),
                     title:
-                        '${accounts[index].label}\n${money(accounts[index].balance)}',
+                        '${accounts[index].label}\n${money(accounts[index].balance, currency: accounts[index].currency)}',
                     radius: 62,
                     color: Colors.primaries[index % Colors.primaries.length],
                     titleStyle: const TextStyle(

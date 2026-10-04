@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/providers.dart';
 import '../features/auth/auth_controller.dart';
 import '../features/auth/auth_page.dart';
+import 'app_lifecycle_guard.dart';
 import 'app_shell.dart';
 import 'app_theme.dart';
 
@@ -25,7 +26,10 @@ class WealthFlowApp extends ConsumerWidget {
         child: switch (auth.status) {
           AuthStatus.loading => const _AppLoading(key: ValueKey('loading')),
           AuthStatus.signedOut => const AuthPage(key: ValueKey('auth')),
-          AuthStatus.signedIn => const AppShell(key: ValueKey('shell')),
+          AuthStatus.signedIn => const AppLifecycleGuard(
+            key: ValueKey('shell'),
+            child: AppShell(),
+          ),
         },
       ),
     );

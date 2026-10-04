@@ -1,14 +1,20 @@
 import 'dart:convert';
 
+import 'package:cryptography/cryptography.dart'
+    show SecretBoxAuthenticationError;
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/database/app_database.dart';
+import '../auth/auth_controller.dart';
 import '../../core/finance/currencies.dart';
 import '../../core/providers.dart';
+import '../../core/security/data_cipher.dart';
 import '../../core/storage/data_export.dart';
+import '../../core/storage/import_preview.dart';
 import '../../core/widgets/common_widgets.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -18,9 +24,20 @@ class SettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final preference = ref.watch(preferencesProvider).valueOrNull;
     final user = ref.watch(authControllerProvider).user;
+    final backupStatus = ref.watch(backupStatusProvider).valueOrNull;
+    final appPinSet = ref.watch(appPinProvider).valueOrNull != null;
     if (preference == null || user == null) {
       return const Center(child: CircularProgressIndicator());
     }
+    final hasBackupPassword = ref.read(databaseProvider).hasBackupKey(user.id);
+    final sessionStore = ref.read(secureSessionStoreProvider);
+    final backupWarning = hasBackupPassword
+        ? (sessionStore.isBackupKeyPersistent(user.id)
+              ? null
+              : 'Der Schlüsselspeicher dieses Geräts ist nicht verfügbar. Nach einem Neustart muss das Backup-Passwort erneut eingegeben werden.')
+        : (sessionStore.isDataKeyPersistent(user.id)
+              ? null
+              : 'Der Schlüsselspeicher dieses Geräts ist nicht verfügbar. Ohne Backup-Passwort ist die Datendatei nach einem Neustart nicht mehr lesbar.');
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -29,10 +46,7 @@ class SettingsPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const PageHeader(
-                title: 'Einstellungen',
-                subtitle: '',
-              ),
+              const PageHeader(title: 'Einstellungen', subtitle: ''),
               _Section(
                 title: 'Profil',
                 icon: Icons.person_rounded,
@@ -53,6 +67,16 @@ class SettingsPage extends ConsumerWidget {
                     title: const Text('Passwort ändern'),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _changePassword(context, ref),
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.lock_outline_rounded),
+                    title: const Text('App-Sperre mit PIN'),
+                    subtitle: const Text(
+                      'Beim Öffnen und nach 30 Sekunden im Hintergrund wird die PIN abgefragt.',
+                    ),
+                    value: appPinSet,
+                    onChanged: (enable) =>
+                        _toggleAppLock(context, ref, user.id, enable),
                   ),
                 ],
               ),
@@ -182,8 +206,23 @@ class SettingsPage extends ConsumerWidget {
                     leading: Icon(Icons.shield_rounded),
                     title: Text('Sichere lokale Speicherung'),
                     subtitle: Text(
-                      'Die App-Datenbank liegt im privaten App-Speicher. Die optionale .wflow-Datei wird zusätzlich mit AES-256-GCM verschlüsselt; Sitzung und Dateischlüssel nutzen den Plattform-Schlüsselspeicher.',
+                      'Die App-Datenbank liegt im privaten App-Speicher. Die optionale .wflow-Datei wird zusätzlich mit AES-256-GCM verschlüsselt.',
                     ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.key_rounded),
+                    title: Text(
+                      hasBackupPassword
+                          ? 'Backup-Passwort ändern'
+                          : 'Backup-Passwort festlegen',
+                    ),
+                    subtitle: Text(
+                      hasBackupPassword
+                          ? 'Mit diesem Passwort lässt sich die Datendatei auf jedem Gerät wiederherstellen.'
+                          : 'Ohne Backup-Passwort kann die Datendatei nur auf diesem Gerät geöffnet werden.',
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _setBackupPassword(context, ref, user.id),
                   ),
                   ListTile(
                     leading: const Icon(Icons.folder_open_rounded),
@@ -196,6 +235,11 @@ class SettingsPage extends ConsumerWidget {
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _chooseDataFile(context, ref, preference),
                   ),
+                  if (preference.dataFilePath.isNotEmpty)
+                    _BackupStatusTile(
+                      status: backupStatus,
+                      warning: backupWarning,
+                    ),
                   ListTile(
                     leading: const Icon(Icons.merge_type_rounded),
                     title: const Text('Datendatei zusammenführen'),
@@ -510,6 +554,10 @@ class SettingsPage extends ConsumerWidget {
       }
       return;
     }
+    final userId = preference.userId;
+    if (!ref.read(databaseProvider).hasBackupKey(userId) && context.mounted) {
+      await _setBackupPassword(context, ref, userId, persist: false);
+    }
     await _savePreference(ref, preference, dataFilePath: path);
     final saved = await ref
         .read(databaseProvider)
@@ -532,36 +580,329 @@ class SettingsPage extends ConsumerWidget {
     WidgetRef ref,
     UserPreference preference,
   ) async {
+    final database = ref.read(databaseProvider);
+    final userId = preference.userId;
+    final String? content;
     try {
-      final content = await chooseDataImport();
-      if (content == null) return;
-      final decoded = await ref
-          .read(databaseProvider)
-          .decodeUserDataFile(preference.userId, content);
-      await ref
-          .read(databaseProvider)
-          .mergeUserData(preference.userId, decoded);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Datendatei wurde verlustarm mit den lokalen Daten zusammengeführt.',
-            ),
-          ),
-        );
-      }
+      content = await chooseDataImport();
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Die gewählte Datei ist kein gültiger WealthFlow-Export.',
-            ),
-          ),
+        _showSnack(context, 'Die Datei konnte nicht gelesen werden.');
+      }
+      return;
+    }
+    if (content == null || !context.mounted) return;
+    Map<String, dynamic>? decoded;
+    String? password;
+    while (decoded == null) {
+      try {
+        decoded = await database.decodeUserDataFile(
+          userId,
+          content,
+          password: password,
         );
+      } on BackupPasswordRequired {
+        if (!context.mounted) return;
+        password = await _askPassword(
+          context,
+          title: 'Backup-Passwort eingeben',
+          message: password == null
+              ? 'Die Datei ist mit einem Backup-Passwort geschützt.'
+              : 'Das Passwort passt nicht zu dieser Datei.',
+        );
+        if (password == null) return;
+      } on SecretBoxAuthenticationError {
+        if (!context.mounted) return;
+        if (password == null) {
+          _showSnack(
+            context,
+            'Die Datei wurde auf einem anderen Gerät ohne Backup-Passwort verschlüsselt und kann hier nicht geöffnet werden.',
+          );
+          return;
+        }
+        password = await _askPassword(
+          context,
+          title: 'Backup-Passwort eingeben',
+          message: 'Das Passwort passt nicht zu dieser Datei.',
+        );
+        if (password == null) return;
+      } catch (_) {
+        if (context.mounted) {
+          _showSnack(
+            context,
+            'Die gewählte Datei ist kein gültiger WealthFlow-Export.',
+          );
+        }
+        return;
+      }
+    }
+    if (!context.mounted) return;
+    final preview = ImportPreview.fromData(decoded);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Datendatei übernehmen?'),
+        content: SizedBox(width: 440, child: Text(preview.describe())),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Übernehmen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await database.mergeUserData(userId, decoded);
+      await _rescheduleReminders(ref, userId);
+      if (context.mounted) {
+        _showSnack(
+          context,
+          'Datendatei übernommen: ${preview.ledgerEntries} Buchungen, ${preview.accounts} Konten.',
+        );
+      }
+    } catch (error, stackTrace) {
+      await database.logError(
+        userId: userId,
+        source: 'Datendatei importieren',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (context.mounted) {
+        _showSnack(context, 'Die Datei konnte nicht übernommen werden.');
       }
     }
   }
+
+  /// Imported reminders only exist in the database until they are planned
+  /// with the notification service of this device.
+  Future<void> _rescheduleReminders(WidgetRef ref, String userId) async {
+    final reminders = await ref
+        .read(databaseProvider)
+        .watchReminders(userId)
+        .first;
+    final notifications = ref.read(notificationServiceProvider);
+    final now = DateTime.now();
+    for (final reminder in reminders) {
+      if (!reminder.scheduledAt.toLocal().isAfter(now)) {
+        continue;
+      }
+      await notifications.schedule(
+        id: reminder.id,
+        title: reminder.title,
+        scheduledAt: reminder.scheduledAt.toLocal(),
+      );
+    }
+  }
+
+  Future<void> _toggleAppLock(
+    BuildContext context,
+    WidgetRef ref,
+    String userId,
+    bool enable,
+  ) async {
+    final store = ref.read(secureSessionStoreProvider);
+    if (enable) {
+      final pin = await _askPin(context, confirm: true);
+      if (pin == null) return;
+      final saved = await store.writeAppPin(userId, await hashAppPin(pin));
+      ref.invalidate(appPinProvider);
+      if (context.mounted) {
+        _showSnack(
+          context,
+          saved
+              ? 'App-Sperre ist eingeschaltet.'
+              : 'Auf diesem Gerät gibt es keinen sicheren Schlüsselspeicher. Die App-Sperre ist hier nicht verfügbar.',
+        );
+      }
+      return;
+    }
+    final stored = await store.readAppPin(userId);
+    if (stored == null || !context.mounted) return;
+    final pin = await _askPin(context, confirm: false);
+    if (pin == null) return;
+    if (!await verifyAppPin(pin, stored)) {
+      if (context.mounted) _showSnack(context, 'Die PIN ist nicht korrekt.');
+      return;
+    }
+    await store.writeAppPin(userId, null);
+    ref.invalidate(appPinProvider);
+    if (context.mounted) _showSnack(context, 'App-Sperre ist ausgeschaltet.');
+  }
+
+  Future<String?> _askPin(BuildContext context, {required bool confirm}) async {
+    final pin = TextEditingController();
+    final repeat = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    InputDecoration decoration(String label) =>
+        InputDecoration(labelText: label, counterText: '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(confirm ? 'PIN festlegen' : 'PIN eingeben'),
+        content: SizedBox(
+          width: 360,
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: pin,
+                  autofocus: true,
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 8,
+                  decoration: decoration('PIN (4 bis 8 Ziffern)'),
+                  validator: (value) =>
+                      (value?.length ?? 0) < 4 ? 'Mindestens 4 Ziffern' : null,
+                ),
+                if (confirm)
+                  TextFormField(
+                    controller: repeat,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    maxLength: 8,
+                    decoration: decoration('PIN wiederholen'),
+                    validator: (value) =>
+                        value != pin.text ? 'PINs stimmen nicht überein' : null,
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(dialogContext, pin.text);
+              }
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    pin.dispose();
+    repeat.dispose();
+    return result;
+  }
+
+  Future<void> _setBackupPassword(
+    BuildContext context,
+    WidgetRef ref,
+    String userId, {
+    bool persist = true,
+  }) async {
+    final password = await _askPassword(
+      context,
+      title: 'Backup-Passwort',
+      message:
+          'Mit diesem Passwort wird die Datendatei verschlüsselt. Du brauchst es, um deine Daten auf einem neuen Gerät wiederherzustellen. Ohne das Passwort lässt sich die Datei nicht öffnen.',
+      confirm: true,
+    );
+    if (password == null) return;
+    final key = await DataCipher.deriveBackupKey(password);
+    final stored = await ref
+        .read(secureSessionStoreProvider)
+        .writeBackupKey(userId, key);
+    final database = ref.read(databaseProvider)..setBackupKey(userId, key);
+    if (persist) await database.persistUserFile(userId);
+    if (context.mounted) {
+      _showSnack(
+        context,
+        stored
+            ? 'Backup-Passwort gespeichert.'
+            : 'Backup-Passwort gilt bis zum nächsten Neustart, da der Schlüsselspeicher nicht verfügbar ist.',
+      );
+    }
+  }
+
+  Future<String?> _askPassword(
+    BuildContext context, {
+    required String title,
+    required String message,
+    bool confirm = false,
+  }) async {
+    final password = TextEditingController();
+    final repeat = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: SizedBox(
+          width: 440,
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(message),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: password,
+                  obscureText: true,
+                  autofocus: true,
+                  decoration: const InputDecoration(labelText: 'Passwort'),
+                  validator: (value) => !confirm
+                      ? ((value?.isEmpty ?? true) ? 'Pflichtfeld' : null)
+                      : (value?.length ?? 0) < 8
+                      ? 'Mindestens 8 Zeichen'
+                      : null,
+                ),
+                if (confirm) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: repeat,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Passwort wiederholen',
+                    ),
+                    validator: (value) => value != password.text
+                        ? 'Passwörter stimmen nicht überein'
+                        : null,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(dialogContext, password.text);
+              }
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    password.dispose();
+    repeat.dispose();
+    return result;
+  }
+
+  void _showSnack(BuildContext context, String message) => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(message)));
 
   Future<void> _changePassword(BuildContext context, WidgetRef ref) async {
     final current = TextEditingController();
@@ -728,4 +1069,36 @@ class _DropdownTile extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _BackupStatusTile extends StatelessWidget {
+  const _BackupStatusTile({required this.status, required this.warning});
+
+  final BackupStatus? status;
+  final String? warning;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final failed = status != null && !status!.succeeded;
+    final text = warning != null
+        ? warning!
+        : status == null
+        ? 'Die Datendatei wird nach Änderungen automatisch aktualisiert.'
+        : failed
+        ? status!.error!
+        : 'Zuletzt gesichert um ${DateFormat.Hm('de_DE').format(status!.writtenAt!)} Uhr';
+    final problem = failed || warning != null;
+    return ListTile(
+      leading: Icon(
+        problem ? Icons.warning_amber_rounded : Icons.cloud_done_outlined,
+        color: problem ? colors.error : null,
+      ),
+      title: Text(problem ? 'Sicherung prüfen' : 'Sicherung'),
+      subtitle: Text(
+        text,
+        style: problem ? TextStyle(color: colors.error) : null,
+      ),
+    );
+  }
 }
