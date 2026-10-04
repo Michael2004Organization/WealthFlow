@@ -12,6 +12,7 @@ import '../finance/currencies.dart';
 import '../finance/currency_conversion.dart';
 import '../finance/dividend_math.dart';
 import '../finance/portfolio_master_data.dart';
+import '../finance/sale_tax.dart';
 
 part 'app_database.g.dart';
 
@@ -2310,16 +2311,37 @@ final class AppDatabase extends _$AppDatabase {
     final allowanceAvailable = (preference.taxAllowance - alreadyUsed).clamp(
       0,
       double.infinity,
+    ).toDouble();
+    final soldInvestments = {
+      for (final row in await (select(
+        investments,
+      )..where((row) => row.userId.equals(userId))).get())
+        row.id: row,
+    };
+    final earlierSales =
+        priorSales
+            .where(
+              (row) =>
+                  row.assetKind == 'security' && !row.soldAt.isAfter(soldAt),
+            )
+            .toList()
+          ..sort((a, b) => a.soldAt.compareTo(b.soldAt));
+    final tax = saleTax(
+      assetType: investment.assetType,
+      name: investment.name,
+      realizedGain: realizedGain,
+      allowanceAvailable: allowanceAvailable,
+      priorSales: [
+        for (final sale in earlierSales)
+          PriorSale(
+            assetType: soldInvestments[sale.investmentId]?.assetType ?? '',
+            name: soldInvestments[sale.investmentId]?.name ?? sale.assetName,
+            realizedGain: sale.realizedGain,
+          ),
+      ],
     );
-    final allowanceUsed = realizedGain <= 0
-        ? 0.0
-        : realizedGain.clamp(0, allowanceAvailable).toDouble();
-    final taxableGain = (realizedGain - allowanceUsed).clamp(
-      0,
-      double.infinity,
-    );
-    final capitalTax = taxableGain * .25;
-    final taxPaid = ((capitalTax + capitalTax * .055) * 100).round() / 100;
+    final allowanceUsed = tax.allowanceUsed;
+    final taxPaid = tax.taxPaid;
     final proceeds = ((proceedsBeforeTax - taxPaid) * 100).round() / 100;
     final remainingQuantity =
         ((investment.quantity - quantity) * 1000000).round() / 1000000;
@@ -2361,19 +2383,18 @@ final class AppDatabase extends _$AppDatabase {
           updatedAt: Value(DateTime.now().toUtc()),
         ),
       );
+      final cashAccount = await (select(
+        accounts,
+      )..where((row) => row.id.equals(investment.accountId))).getSingle();
       await (update(accounts)..where(
             (row) =>
                 row.id.equals(investment.accountId) & row.userId.equals(userId),
           ))
           .write(
             AccountsCompanion(
-              balance: Value(
-                (await (select(accounts)..where(
-                              (row) => row.id.equals(investment.accountId),
-                            ))
-                            .getSingle())
-                        .balance +
-                    proceeds,
+              balance: Value(cashAccount.balance + proceeds),
+              availableBalance: Value(
+                cashAccount.availableBalance + proceeds,
               ),
               updatedAt: Value(DateTime.now().toUtc()),
             ),
