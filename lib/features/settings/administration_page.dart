@@ -11,6 +11,7 @@ import '../../core/finance/currencies.dart';
 import '../../core/finance/portfolio_master_data.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/finance/amount_input.dart';
 
 class AdministrationPage extends ConsumerWidget {
   const AdministrationPage({super.key});
@@ -807,9 +808,7 @@ Future<void> _editAdminCountryExchange(
             onPressed: hasApiKey && !allowManual
                 ? () => Navigator.pop(dialogContext, true)
                 : () {
-                    final parsed = double.tryParse(
-                      rate.text.replaceAll(',', '.'),
-                    );
+                    final parsed = parseAmount(rate.text);
                     if (currency.text.trim().length == 3 &&
                         parsed != null &&
                         parsed > 0) {
@@ -829,10 +828,7 @@ Future<void> _editAdminCountryExchange(
           actorUserId: userId,
           country: country,
           currency: currency.text.trim().toUpperCase(),
-          exchangeRate:
-              double.tryParse(rate.text.replaceAll(',', '.')) ??
-              current?.exchangeRate ??
-              1,
+          exchangeRate: parseAmount(rate.text) ?? current?.exchangeRate ?? 1,
           allowManualExchangeRate: allowManual,
         );
   }
@@ -873,9 +869,7 @@ Future<void> _editCountryTax(
                   suffixText: '%',
                 ),
                 validator: (value) {
-                  final parsed = double.tryParse(
-                    (value ?? '').replaceAll(',', '.'),
-                  );
+                  final parsed = parseAmount(value);
                   return parsed == null || parsed < 0 || parsed > 100
                       ? 'Wert zwischen 0 und 100 eingeben.'
                       : null;
@@ -926,7 +920,7 @@ Future<void> _editCountryTax(
           .saveCountryTaxRate(
             actorUserId: actor,
             country: country,
-            rate: double.parse(controller.text.replaceAll(',', '.')),
+            rate: parseAmount(controller.text)!,
             currency: currency,
           );
     }
@@ -984,9 +978,7 @@ Future<void> _addCountryTax(BuildContext context, WidgetRef ref) async {
                   suffixText: '%',
                 ),
                 validator: (value) {
-                  final parsed = double.tryParse(
-                    (value ?? '').replaceAll(',', '.'),
-                  );
+                  final parsed = parseAmount(value);
                   return parsed == null || parsed < 0 || parsed > 100
                       ? 'Wert zwischen 0 und 100 eingeben.'
                       : null;
@@ -1020,7 +1012,7 @@ Future<void> _addCountryTax(BuildContext context, WidgetRef ref) async {
           .saveCountryTaxRate(
             actorUserId: actor,
             country: country.text.trim(),
-            rate: double.parse(rate.text.replaceAll(',', '.')),
+            rate: parseAmount(rate.text)!,
             currency: currency,
           );
     }
@@ -1051,7 +1043,7 @@ Future<void> _editMaximumAllowance(
             suffixText: '€',
           ),
           validator: (value) {
-            final parsed = double.tryParse((value ?? '').replaceAll(',', '.'));
+            final parsed = parseAmount(value);
             return parsed == null || parsed < 0 ? 'Ungültiger Betrag' : null;
           },
         ),
@@ -1079,7 +1071,7 @@ Future<void> _editMaximumAllowance(
           .read(databaseProvider)
           .setMaximumTaxAllowance(
             actorUserId: actor,
-            amount: double.parse(controller.text.replaceAll(',', '.')),
+            amount: parseAmount(controller.text)!,
           );
     }
   }
@@ -1395,7 +1387,7 @@ Future<void> _editStock(
               }
               if (number &&
                   value?.trim().isNotEmpty == true &&
-                  double.tryParse(value!.replaceAll(',', '.')) == null) {
+                  parseAmount(value) == null) {
                 return 'Ungültige Zahl';
               }
               return null;
@@ -1742,25 +1734,14 @@ Future<void> _editStock(
               instrumentCurrency: Value(
                 instrumentCurrency.text.trim().toUpperCase(),
               ),
-              nominalValue: Value(
-                double.tryParse(nominalValue.text.replaceAll(',', '.')) ?? 0,
-              ),
-              couponRate: Value(
-                double.tryParse(couponRate.text.replaceAll(',', '.')) ?? 0,
-              ),
+              nominalValue: Value(parseAmount(nominalValue.text) ?? 0),
+              couponRate: Value(parseAmount(couponRate.text) ?? 0),
               maturityDate: Value(maturityDate),
-              strikePrice: Value(
-                double.tryParse(strikePrice.text.replaceAll(',', '.')) ?? 0,
-              ),
-              knockOutBarrier: Value(
-                double.tryParse(knockOutBarrier.text.replaceAll(',', '.')) ?? 0,
-              ),
-              leverage: Value(
-                double.tryParse(leverage.text.replaceAll(',', '.')) ?? 0,
-              ),
+              strikePrice: Value(parseAmount(strikePrice.text) ?? 0),
+              knockOutBarrier: Value(parseAmount(knockOutBarrier.text) ?? 0),
+              leverage: Value(parseAmount(leverage.text) ?? 0),
               subscriptionRatio: Value(
-                double.tryParse(subscriptionRatio.text.replaceAll(',', '.')) ??
-                    0,
+                parseAmount(subscriptionRatio.text) ?? 0,
               ),
               currency: Value(currency.text.trim().toUpperCase()),
               dividendCurrency: Value(
@@ -1772,10 +1753,7 @@ Future<void> _editStock(
               sector: Value(sector.text.trim()),
               dividendFrequency: Value(dividendFrequency),
               dividendStartMonth: Value(dividendStartMonth),
-              dividendPerShare: Value(
-                double.tryParse(dividendPerShare.text.replaceAll(',', '.')) ??
-                    0,
-              ),
+              dividendPerShare: Value(parseAmount(dividendPerShare.text) ?? 0),
               companyData: Value(companyData.text.trim()),
               createdAt: stock?.createdAt ?? now,
               updatedAt: now,
