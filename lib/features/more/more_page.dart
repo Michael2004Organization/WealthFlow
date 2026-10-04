@@ -19,6 +19,8 @@ class MorePage extends ConsumerStatefulWidget {
 class _MorePageState extends ConsumerState<MorePage> {
   String _sortMode = 'default';
   final List<String> _customOrder = const [
+    'calculators',
+    'vehicles',
     'reminders',
     'search',
     'masterData',
@@ -28,6 +30,26 @@ class _MorePageState extends ConsumerState<MorePage> {
   String? _loadedForUser;
 
   static const _destinations = [
+    _MoreDestination(
+      'calculators',
+      'Rechner',
+      'Sparplan, Entnahme und Preisvergleich',
+      Icons.calculate_rounded,
+      Colors.teal,
+      null,
+      shellIndex: 4,
+      phoneOnly: true,
+    ),
+    _MoreDestination(
+      'vehicles',
+      'Fahrzeuge',
+      'Fahrzeuge und ihre Kosten',
+      Icons.directions_car_rounded,
+      Colors.blueGrey,
+      null,
+      shellIndex: 5,
+      phoneOnly: true,
+    ),
     _MoreDestination(
       'reminders',
       'Erinnerungen',
@@ -79,10 +101,14 @@ class _MorePageState extends ConsumerState<MorePage> {
       _loadedForUser = userId;
       Future<void>.microtask(() => _loadLayout(userId));
     }
+    final phone = MediaQuery.sizeOf(context).width < 900;
+    bool visible(_MoreDestination destination) =>
+        (!destination.adminOnly || isAdmin) &&
+        (!destination.phoneOnly || phone);
     final selectedKey = ref.watch(moreDestinationProvider);
     _MoreDestination? selected;
     for (final destination in _destinations.where(
-      (destination) => !destination.adminOnly || isAdmin,
+      (destination) => destination.page != null && visible(destination),
     )) {
       if (destination.key == selectedKey) selected = destination;
     }
@@ -107,13 +133,11 @@ class _MorePageState extends ConsumerState<MorePage> {
               ),
             ),
           ),
-          Expanded(child: selected.page),
+          Expanded(child: selected.page!),
         ],
       );
     }
-    final destinations = _destinations
-        .where((destination) => !destination.adminOnly || isAdmin)
-        .toList();
+    final destinations = _destinations.where(visible).toList();
     if (_sortMode == 'name') {
       destinations.sort(
         (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()),
@@ -132,10 +156,7 @@ class _MorePageState extends ConsumerState<MorePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const PageHeader(
-                title: 'Mehr',
-                subtitle: 'Werkzeuge und Einstellungen für WealthFlow.',
-              ),
+              const PageHeader(title: 'Mehr', subtitle: ''),
               Align(
                 alignment: Alignment.centerRight,
                 child: SizedBox(
@@ -181,12 +202,7 @@ class _MorePageState extends ConsumerState<MorePage> {
                           child: Card(
                             child: InkWell(
                               borderRadius: BorderRadius.circular(22),
-                              onTap: () =>
-                                  ref
-                                      .read(moreDestinationProvider.notifier)
-                                      .state = indexed
-                                      .$2
-                                      .key,
+                              onTap: () => _open(indexed.$2),
                               child: Padding(
                                 padding: const EdgeInsets.all(22),
                                 child: Row(
@@ -278,6 +294,15 @@ class _MorePageState extends ConsumerState<MorePage> {
     );
   }
 
+  void _open(_MoreDestination destination) {
+    final shellIndex = destination.shellIndex;
+    if (shellIndex != null) {
+      selectShellDestination(ref, shellIndex);
+    } else {
+      ref.read(moreDestinationProvider.notifier).state = destination.key;
+    }
+  }
+
   void _moveDestination(String key, String targetKey) {
     setState(() {
       final oldIndex = _customOrder.indexOf(key);
@@ -315,6 +340,8 @@ class _MorePageState extends ConsumerState<MorePage> {
   }
 
   static const _customOrderDefaults = [
+    'calculators',
+    'vehicles',
     'reminders',
     'search',
     'masterData',
@@ -332,12 +359,18 @@ class _MoreDestination {
     this.color,
     this.page, {
     this.adminOnly = false,
+    this.shellIndex,
+    this.phoneOnly = false,
   });
   final String key;
   final String label;
   final String subtitle;
   final IconData icon;
   final Color color;
-  final Widget page;
+  final Widget? page;
   final bool adminOnly;
+
+  /// Opens this shell page instead of a nested [page].
+  final int? shellIndex;
+  final bool phoneOnly;
 }

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/finance/account_balance_math.dart';
+import '../../core/finance/amount_input.dart';
 import '../../core/finance/budget_period.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -58,26 +59,47 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
       return !investments.any((item) => item.accountId == account.id) &&
           !physicalAssets.any((item) => item.accountId == account.id);
     }).toList();
+    final monthEnd = DateTime(
+      _selectedMonth.year,
+      _selectedMonth.month + 1,
+    ).subtract(const Duration(microseconds: 1));
+    double balanceAtMonthEnd(Account account) => accountBalanceAt(
+      account: account,
+      date: monthEnd,
+      histories: balanceHistories,
+      entries: entries,
+      investments: investments,
+      purchases: purchases,
+      sales: sales,
+    );
     final selectedAccountId = _effectiveAccountId(
       householdAccounts,
       preference,
     );
-    return Padding(
-      padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 600 ? 16 : 24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1220),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              PageHeader(
-                title: 'Haushaltsbuch',
-                subtitle: 'Einnahmen, Ausgaben und Monatsserien planen.',
-                action: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
+    final padding = MediaQuery.sizeOf(context).width < 600 ? 16.0 : 24.0;
+    final newEntry = selectedAccountId == null
+        ? null
+        : () => showEntryEditor(
+            context,
+            ref,
+            initialDate: _initialBookingDate,
+            defaultAccountId: selectedAccountId,
+          );
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1220),
+        child: ListView(
+          padding: EdgeInsets.all(padding),
+          children: [
+            PageHeader(
+              title: 'Haushaltsbuch',
+              subtitle: '',
+              action: Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (householdAccounts.isNotEmpty)
                     SizedBox(
                       width: 270,
                       child: SearchableDropdownButtonFormField<String>(
@@ -93,23 +115,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                               (account) => DropdownMenuItem(
                                 value: account.id,
                                 child: Text(
-                                  '${account.label} · ${money(
-                                        accountBalanceAt(
-                                          account: account,
-                                          date:
-                                              DateTime(
-                                                _selectedMonth.year,
-                                                _selectedMonth.month + 1,
-                                              ).subtract(
-                                                const Duration(microseconds: 1),
-                                              ),
-                                          histories: balanceHistories,
-                                          entries: entries,
-                                          investments: investments,
-                                          purchases: purchases,
-                                          sales: sales,
-                                        ),
-                                      )}',
+                                  '${account.label} · ${money(balanceAtMonthEnd(account))}',
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -118,154 +124,143 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                         onChanged: _selectAccount,
                       ),
                     ),
-                    FilledButton.icon(
-                      onPressed: selectedAccountId == null
-                          ? null
-                          : () => showEntryEditor(
-                              context,
-                              ref,
-                              initialDate: _initialBookingDate,
-                              defaultAccountId: selectedAccountId,
-                            ),
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Buchung'),
-                    ),
-                  ],
-                ),
-              ),
-              _MonthNavigation(
-                selected: _selectedMonth,
-                onSelected: (value) => setState(() => _selectedMonth = value),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 280,
-                    child: TextField(
-                      onChanged: (value) =>
-                          setState(() => _query = value.toLowerCase()),
-                      decoration: const InputDecoration(
-                        labelText: 'Quelle oder Beschreibung',
-                        prefixIcon: Icon(Icons.search_rounded),
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 210,
-                    child: SearchableDropdownButtonFormField<String>(
-                      initialValue: _category,
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Kategorie'),
-                      items: ['Alle', ...categories]
-                          .map(
-                            (value) => DropdownMenuItem(
-                              value: value,
-                              child: Text(value),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) =>
-                          setState(() => _category = value ?? 'Alle'),
-                    ),
+                  FilledButton.icon(
+                    onPressed: newEntry,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Buchung'),
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
-              Expanded(
-                child: asyncEntries.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (error, _) => Center(
-                    child: Text(
-                      'Buchungen konnten nicht geladen werden: $error',
+            ),
+            if (householdAccounts.isEmpty) ...[
+              const _MissingAccountHint(),
+              const SizedBox(height: 14),
+            ],
+            _MonthNavigation(
+              selected: _selectedMonth,
+              onSelected: (value) => setState(() => _selectedMonth = value),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                SizedBox(
+                  width: 280,
+                  child: TextField(
+                    onChanged: (value) =>
+                        setState(() => _query = value.toLowerCase()),
+                    decoration: const InputDecoration(
+                      labelText: 'Quelle oder Beschreibung',
+                      prefixIcon: Icon(Icons.search_rounded),
                     ),
                   ),
-                  data: (allEntries) {
-                    final entries = allEntries
-                        .where((entry) => _matches(entry, selectedAccountId))
-                        .toList();
-                    final income = entries
-                        .where(
-                          (entry) =>
-                              entry.isIncome &&
-                              entry.sourceType != 'transfer' &&
-                              entry.sourceType != 'saving',
-                        )
-                        .fold<double>(0, (sum, entry) => sum + entry.amount);
-                    final expense = entries
-                        .where(
-                          (entry) =>
-                              !entry.isIncome &&
-                              entry.sourceType != 'transfer' &&
-                              entry.sourceType != 'saving',
-                        )
-                        .fold<double>(0, (sum, entry) => sum + entry.amount);
-                    final saved = entries
-                        .where(
-                          (entry) =>
-                              !entry.isIncome && entry.sourceType == 'saving',
-                        )
-                        .fold<double>(0, (sum, entry) => sum + entry.amount);
-                    return ListView(
-                      children: [
-                        _MonthSummary(
-                          income: income,
-                          expense: expense,
-                          saved: saved,
-                        ),
-                        const SizedBox(height: 16),
-                        if (entries.isEmpty)
-                          SizedBox(
-                            height: 300,
-                            child: EmptyState(
-                              icon: Icons.receipt_long_rounded,
-                              title:
-                                  'Keine Buchungen im ${_monthLabel(_selectedMonth)}',
-                              message: allEntries.isEmpty
-                                  ? 'Erfasse eine einzelne Buchung oder plane eine monatliche Serie.'
-                                  : 'Lege eine Buchung an oder passe die Filter an.',
-                              action: FilledButton.icon(
-                                onPressed: selectedAccountId == null
-                                    ? null
-                                    : () => showEntryEditor(
-                                        context,
-                                        ref,
-                                        initialDate: _initialBookingDate,
-                                        defaultAccountId: selectedAccountId,
-                                      ),
-                                icon: const Icon(Icons.add_rounded),
-                                label: const Text('Buchung erfassen'),
-                              ),
-                            ),
-                          )
-                        else
-                          Card(
-                            clipBehavior: Clip.antiAlias,
-                            child: Column(
-                              children: [
-                                for (
-                                  var index = 0;
-                                  index < entries.length;
-                                  index++
-                                ) ...[
-                                  _EntryTile(entry: entries[index]),
-                                  if (index < entries.length - 1)
-                                    const Divider(height: 1, indent: 72),
-                                ],
-                              ],
-                            ),
-                          ),
-                      ],
-                    );
-                  },
                 ),
-              ),
-            ],
-          ),
+                SizedBox(
+                  width: 210,
+                  child: SearchableDropdownButtonFormField<String>(
+                    initialValue: _category,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Kategorie'),
+                    items: ['Alle', ...categories]
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => _category = value ?? 'Alle'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            ...asyncEntries.when<List<Widget>>(
+              loading: () => const [
+                Padding(
+                  padding: EdgeInsets.all(48),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ],
+              error: (error, _) => [
+                SizedBox(
+                  height: 200,
+                  child: LoadErrorMessage(
+                    'Buchungen konnten nicht geladen werden',
+                    error: error,
+                  ),
+                ),
+              ],
+              data: (allEntries) {
+                final entries = allEntries
+                    .where((entry) => _matches(entry, selectedAccountId))
+                    .toList();
+                final income = entries
+                    .where(
+                      (entry) =>
+                          entry.isIncome &&
+                          entry.sourceType != 'transfer' &&
+                          entry.sourceType != 'saving',
+                    )
+                    .fold<double>(0, (sum, entry) => sum + entry.amount);
+                final expense = entries
+                    .where(
+                      (entry) =>
+                          !entry.isIncome &&
+                          entry.sourceType != 'transfer' &&
+                          entry.sourceType != 'saving',
+                    )
+                    .fold<double>(0, (sum, entry) => sum + entry.amount);
+                final saved = entries
+                    .where(
+                      (entry) =>
+                          !entry.isIncome && entry.sourceType == 'saving',
+                    )
+                    .fold<double>(0, (sum, entry) => sum + entry.amount);
+                return [
+                  _MonthSummary(income: income, expense: expense, saved: saved),
+                  const SizedBox(height: 16),
+                  if (entries.isEmpty)
+                    SizedBox(
+                      height: 300,
+                      child: EmptyState(
+                        icon: Icons.receipt_long_rounded,
+                        title:
+                            'Keine Buchungen im ${_monthLabel(_selectedMonth)}',
+                        message: allEntries.isEmpty
+                            ? 'Erfasse eine einzelne Buchung oder plane eine monatliche Serie.'
+                            : 'Lege eine Buchung an oder passe die Filter an.',
+                        action: FilledButton.icon(
+                          onPressed: newEntry,
+                          icon: const Icon(Icons.add_rounded),
+                          label: const Text('Buchung erfassen'),
+                        ),
+                      ),
+                    )
+                  else
+                    Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        children: [
+                          for (
+                            var index = 0;
+                            index < entries.length;
+                            index++
+                          ) ...[
+                            _EntryTile(entry: entries[index]),
+                            if (index < entries.length - 1)
+                              const Divider(height: 1, indent: 72),
+                          ],
+                        ],
+                      ),
+                    ),
+                ];
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -332,6 +327,31 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
         text.contains(_query) &&
         (_category == 'Alle' || entry.category == _category);
   }
+}
+
+class _MissingAccountHint extends ConsumerWidget {
+  const _MissingAccountHint();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          const Icon(Icons.info_outline_rounded),
+          const Text('Für Buchungen wird ein Haushaltskonto benötigt.'),
+          FilledButton.tonalIcon(
+            onPressed: () => selectShellDestination(ref, 1),
+            icon: const Icon(Icons.account_balance_rounded),
+            label: const Text('Konto anlegen'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _MonthNavigation extends StatelessWidget {
@@ -438,7 +458,7 @@ class _MonthSummary extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final width = constraints.maxWidth < 700
-          ? constraints.maxWidth
+          ? (constraints.maxWidth - 16) / 2
           : (constraints.maxWidth - 48) / 4;
       final savingsRate = income <= 0
           ? 0
@@ -639,19 +659,41 @@ class _EntryTile extends ConsumerWidget {
     if (!confirmed || !context.mounted) return;
     final userId = ref.read(currentUserIdProvider);
     if (userId == null) return;
+    final database = ref.read(databaseProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    final allEntries =
+        ref.read(ledgerEntriesProvider).valueOrNull ?? const <LedgerEntry>[];
+    final linked =
+        (entry.sourceType == 'transfer' || entry.sourceType == 'saving') &&
+        entry.sourceId.isNotEmpty;
+    final removed = series
+        ? allEntries.where((item) => item.recurrenceId == entry.recurrenceId)
+        : linked
+        ? allEntries.where((item) => item.sourceId == entry.sourceId)
+        : [entry];
+    final restorable = removed.toList();
     if (series) {
-      await ref
-          .read(databaseProvider)
-          .deleteLedgerSeries(entry.recurrenceId, userId);
-    } else if ((entry.sourceType == 'transfer' ||
-            entry.sourceType == 'saving') &&
-        entry.sourceId.isNotEmpty) {
-      await ref
-          .read(databaseProvider)
-          .deleteLinkedLedgerEntries(entry.sourceId, userId);
+      await database.deleteLedgerSeries(entry.recurrenceId, userId);
+    } else if (linked) {
+      await database.deleteLinkedLedgerEntries(entry.sourceId, userId);
     } else {
-      await ref.read(databaseProvider).deleteLedgerEntry(entry.id, userId);
+      await database.deleteLedgerEntry(entry.id, userId);
     }
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(series ? 'Serie gelöscht' : 'Buchung gelöscht'),
+          persist: false,
+          duration: const Duration(seconds: 6),
+          action: restorable.isEmpty
+              ? null
+              : SnackBarAction(
+                  label: 'Rückgängig',
+                  onPressed: () => database.restoreLedgerEntries(restorable),
+                ),
+        ),
+      );
   }
 }
 
@@ -667,6 +709,10 @@ Future<void> showEntryEditor(
   final accounts = ref.read(accountsProvider).valueOrNull ?? const <Account>[];
   final masterData =
       ref.read(masterDataProvider).valueOrNull ?? const <MasterDataData>[];
+  final ledgerEntries =
+      ref.read(ledgerEntriesProvider).valueOrNull ?? const <LedgerEntry>[];
+  Future<void> persist(_EntrySubmission result) =>
+      _persistSubmission(ref, result, entry: entry, editSeries: editSeries);
   final result = await showDialog<_EntrySubmission>(
     context: context,
     builder: (_) => _EntryEditor(
@@ -676,61 +722,69 @@ Future<void> showEntryEditor(
       accounts: accounts,
       defaultAccountId: defaultAccountId,
       masterData: masterData,
+      ledgerEntries: ledgerEntries,
       editSeries: editSeries,
+      fullscreen: MediaQuery.sizeOf(context).width < 600,
+      onSaveAndNext: entry == null ? persist : null,
     ),
   );
-  if (result != null) {
-    final database = ref.read(databaseProvider);
-    final userId = ref.read(currentUserIdProvider);
-    if (editSeries && entry != null && userId != null) {
-      await database.updateLedgerSeries(
-        entry.recurrenceId,
-        userId,
-        result.entries.first,
-      );
-    } else {
-      await database.saveLedgerEntries(result.entries);
-    }
-    if (userId != null) {
-      if (result.reminderTitle != null && result.reminderAt != null) {
-        final reminderId = const Uuid().v4();
-        final now = DateTime.now().toUtc();
-        await database.saveReminder(
-          RemindersCompanion.insert(
-            id: reminderId,
-            userId: userId,
-            title: result.reminderTitle!,
-            scheduledAt: result.reminderAt!.toUtc(),
-            ledgerEntryId: Value(result.entries.first.id.value),
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
-        final notifications = ref.read(notificationServiceProvider);
-        await notifications.requestPermissions();
-        await notifications.schedule(
-          id: reminderId,
-          title: result.reminderTitle!,
-          scheduledAt: result.reminderAt!,
-        );
-      }
-      for (final item in {
-        if (result.merchant.isNotEmpty) 'merchant': result.merchant,
-        if (result.paymentMethod.isNotEmpty)
-          'paymentMethod': result.paymentMethod,
-        if (result.category.isNotEmpty) 'category': result.category,
-      }.entries) {
-        await database.saveMasterDatum(
-          MasterDataCompanion.insert(
-            id: const Uuid().v4(),
-            userId: userId,
-            kind: item.key,
-            value: item.value,
-            createdAt: DateTime.now().toUtc(),
-          ),
-        );
-      }
-    }
+  if (result != null) await persist(result);
+}
+
+Future<void> _persistSubmission(
+  WidgetRef ref,
+  _EntrySubmission result, {
+  required LedgerEntry? entry,
+  required bool editSeries,
+}) async {
+  final database = ref.read(databaseProvider);
+  final userId = ref.read(currentUserIdProvider);
+  if (editSeries && entry != null && userId != null) {
+    await database.updateLedgerSeries(
+      entry.recurrenceId,
+      userId,
+      result.entries.first,
+    );
+  } else {
+    await database.saveLedgerEntries(result.entries);
+  }
+  if (userId == null) return;
+  if (result.reminderTitle != null && result.reminderAt != null) {
+    final reminderId = const Uuid().v4();
+    final now = DateTime.now().toUtc();
+    await database.saveReminder(
+      RemindersCompanion.insert(
+        id: reminderId,
+        userId: userId,
+        title: result.reminderTitle!,
+        scheduledAt: result.reminderAt!.toUtc(),
+        ledgerEntryId: Value(result.entries.first.id.value),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final notifications = ref.read(notificationServiceProvider);
+    await notifications.requestPermissions();
+    await notifications.schedule(
+      id: reminderId,
+      title: result.reminderTitle!,
+      scheduledAt: result.reminderAt!,
+    );
+  }
+  for (final item in {
+    if (result.merchant.isNotEmpty) 'merchant': result.merchant,
+    if (result.paymentMethod.isNotEmpty) 'paymentMethod': result.paymentMethod,
+    if (result.category.isNotEmpty) 'category': result.category,
+  }.entries) {
+    await database.saveMasterDatum(
+      MasterDataCompanion.insert(
+        id: const Uuid().v4(),
+        userId: userId,
+        kind: item.key,
+        value: item.value,
+        createdAt: DateTime.now().toUtc(),
+      ),
+    );
   }
 }
 
@@ -757,9 +811,12 @@ class _EntryEditor extends StatefulWidget {
     required this.accounts,
     required this.defaultAccountId,
     required this.masterData,
+    required this.ledgerEntries,
     required this.editSeries,
+    required this.fullscreen,
     this.entry,
     this.initialDate,
+    this.onSaveAndNext,
   });
 
   final LedgerEntry? entry;
@@ -768,7 +825,12 @@ class _EntryEditor extends StatefulWidget {
   final List<Account> accounts;
   final String? defaultAccountId;
   final List<MasterDataData> masterData;
+  final List<LedgerEntry> ledgerEntries;
   final bool editSeries;
+  final bool fullscreen;
+
+  /// Saves without closing the editor; only offered for new entries.
+  final Future<void> Function(_EntrySubmission)? onSaveAndNext;
 
   @override
   State<_EntryEditor> createState() => _EntryEditorState();
@@ -776,8 +838,9 @@ class _EntryEditor extends StatefulWidget {
 
 class _EntryEditorState extends State<_EntryEditor> {
   final _formKey = GlobalKey<FormState>();
+  final _amountFocus = FocusNode();
   late final _amount = TextEditingController(
-    text: widget.entry?.amount.toString(),
+    text: widget.entry == null ? '' : formatAmountInput(widget.entry!.amount),
   );
   late final _merchant = TextEditingController(text: widget.entry?.merchant);
   late final _description = TextEditingController(
@@ -790,437 +853,461 @@ class _EntryEditorState extends State<_EntryEditor> {
     text: widget.entry?.category ?? '',
   );
   final _reminderTitle = TextEditingController();
-  late bool _income = widget.entry?.isIncome ?? false;
+  final _months = TextEditingController(text: '12');
+
+  /// One of `expense`, `income`, `transfer` or `saving`.
+  late String _kind = switch (widget.entry?.sourceType) {
+    'transfer' => 'transfer',
+    'saving' => 'saving',
+    _ => (widget.entry?.isIncome ?? false) ? 'income' : 'expense',
+  };
   late DateTime _date =
       widget.entry?.bookingDate ?? widget.initialDate ?? DateTime.now();
   late String _vehicleId = widget.entry?.vehicleId ?? '';
   late final String _accountId =
       widget.entry?.accountId ?? widget.defaultAccountId ?? '';
-  late String _bookingKind = switch (widget.entry?.sourceType) {
-    'transfer' => 'transfer',
-    'saving' => 'saving',
-    _ => 'standard',
-  };
   String _targetAccountId = '';
   late int _budgetOffset = _initialBudgetOffset();
   bool _repeatMonthly = false;
   String _timing = 'selected';
-  int _months = 2;
   bool _addReminder = false;
+  bool _categoryEdited = false;
+  bool _saving = false;
+  String? _notice;
   DateTime _reminderAt = DateTime.now().add(const Duration(days: 1));
+
+  bool get _isNew => widget.entry == null;
+  bool get _income => _kind == 'income';
+  String get _bookingKind => switch (_kind) {
+    'transfer' => 'transfer',
+    'saving' => 'saving',
+    _ => 'standard',
+  };
+  int get _monthCount => int.tryParse(_months.text.trim()) ?? 0;
 
   @override
   void dispose() {
+    _amountFocus.dispose();
     _amount.dispose();
     _merchant.dispose();
     _description.dispose();
     _payment.dispose();
     _category.dispose();
     _reminderTitle.dispose();
+    _months.dispose();
     super.dispose();
   }
 
+  String get _title => _isNew
+      ? 'Buchung erfassen'
+      : widget.editSeries
+      ? 'Ganze Serie bearbeiten'
+      : 'Buchung bearbeiten';
+
+  String get _accountLine {
+    final account = _selectedAccount;
+    if (account == null) return 'Kein Haushaltskonto ausgewählt';
+    return '${account.label} · ${money(account.balance, currency: account.currency)}';
+  }
+
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-    title: Text(
-      widget.entry == null
-          ? 'Buchung erfassen'
-          : widget.editSeries
-          ? 'Ganze Serie bearbeiten'
-          : 'Buchung bearbeiten',
-    ),
-    content: SizedBox(
-      width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 560.0),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(
-                    value: false,
-                    icon: Icon(Icons.north_east_rounded),
-                    label: Text('Ausgabe'),
-                  ),
-                  ButtonSegment(
-                    value: true,
-                    icon: Icon(Icons.south_west_rounded),
-                    label: Text('Einnahme'),
-                  ),
-                ],
-                selected: {_income},
-                onSelectionChanged: (value) =>
-                    setState(() => _income = value.first),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _description,
-                decoration: const InputDecoration(
-                  labelText: 'Beschreibung',
-                  prefixIcon: Icon(Icons.notes_rounded),
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 12),
-              _responsiveFields([
-                if (widget.entry == null)
-                  SearchableDropdownButtonFormField<String>(
-                    initialValue: _bookingKind,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Buchungsart *',
-                      prefixIcon: Icon(Icons.swap_horiz_rounded),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'standard',
-                        child: Text('Einnahme oder Ausgabe'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'transfer',
-                        child: Text('Auf eigenes Konto verschieben'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'saving',
-                        child: Text('Sparen / Investieren'),
-                      ),
-                    ],
-                    onChanged: (value) => setState(() {
-                      _bookingKind = value ?? 'standard';
-                      if (_bookingKind != 'standard') _income = false;
-                    }),
-                  ),
-                TextFormField(
-                  controller: _amount,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Betrag *',
-                    prefixText: '${_selectedAccount?.currency ?? 'EUR'} ',
-                    prefixIcon: const Icon(Icons.payments_outlined),
-                  ),
-                  validator: (value) => (_parse(value) ?? 0) <= 0
-                      ? 'Bitte einen positiven Betrag eingeben.'
-                      : null,
-                ),
-              ]),
-              const SizedBox(height: 12),
-              _responsiveFields([
-                _EditableSuggestionField(
-                  controller: _category,
-                  label: 'Kategorie',
-                  suggestions: {
-                    ..._categories.skip(1),
-                    ...widget.masterData
-                        .where((item) => item.kind == 'category')
-                        .map((item) => item.value),
-                  }.toList(),
-                ),
-                SearchableDropdownButtonFormField<String>(
-                  initialValue: _vehicleId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Fahrzeug (optional)',
-                    prefixIcon: Icon(Icons.directions_car_rounded),
-                  ),
-                  items: [
-                    const DropdownMenuItem(
-                      value: '',
-                      child: Text('Kein Fahrzeug'),
-                    ),
-                    for (final vehicle in widget.vehicles)
-                      DropdownMenuItem(
-                        value: vehicle.id,
-                        child: Text('${vehicle.make} ${vehicle.model}'),
-                      ),
-                  ],
-                  onChanged: (value) => _vehicleId = value ?? '',
-                ),
-              ]),
-              const SizedBox(height: 12),
-              Card(
-                margin: EdgeInsets.zero,
-                child: ListTile(
-                  dense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                  leading: const Icon(Icons.account_balance_rounded),
-                  title: Text(_selectedAccount?.label ?? 'Kein Haushaltskonto'),
-                  subtitle: Text(
-                    _selectedAccount == null
-                        ? 'Bitte zuerst ein Haushaltskonto auswählen.'
-                        : 'Kontostand: ${money(_selectedAccount!.balance, currency: _selectedAccount!.currency)}',
-                  ),
-                ),
-              ),
-              if (widget.entry == null && _bookingKind != 'standard') ...[
-                const SizedBox(height: 4),
-                SearchableDropdownButtonFormField<String>(
-                  initialValue: _targetAccountId.isEmpty
-                      ? null
-                      : _targetAccountId,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: _bookingKind == 'saving'
-                        ? 'Zielkonto / Investkonto *'
-                        : 'Zielkonto *',
-                    prefixIcon: const Icon(Icons.redo_rounded),
-                  ),
-                  items: widget.accounts
-                      .where((account) => account.id != _accountId)
-                      .map(
-                        (account) => DropdownMenuItem(
-                          value: account.id,
-                          child: Text(
-                            '${account.label} · ${money(
-                                  account.balance,
-                                  currency: account.currency,
-                                )}',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  validator: (value) =>
-                      _bookingKind != 'standard' &&
-                          (value == null || value.isEmpty)
-                      ? 'Bitte ein Zielkonto auswählen.'
-                      : null,
-                  onChanged: (value) => _targetAccountId = value ?? '',
+  Widget build(BuildContext context) {
+    final form = Form(key: _formKey, child: _formFields(context));
+    if (widget.fullscreen) {
+      return Dialog.fullscreen(
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              tooltip: 'Abbrechen',
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.close_rounded),
+            ),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_title),
+                Text(
+                  _accountLine,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
-              const SizedBox(height: 12),
-              _responsiveFields([
-                _EditableSuggestionField(
-                  controller: _merchant,
-                  label: 'Händler / Quelle',
-                  suggestions: _masterEntries('merchant'),
-                ),
-                _EditableSuggestionField(
-                  controller: _payment,
-                  label: 'Zahlungsmethode',
-                  suggestions: _masterEntries('paymentMethod'),
-                ),
-              ]),
-              const SizedBox(height: 12),
-              Card(
-                margin: EdgeInsets.zero,
-                clipBehavior: Clip.antiAlias,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                  child: Column(
-                    children: [
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        secondary: const Icon(Icons.notifications_outlined),
-                        title: const Text('Erinnerung'),
-                        subtitle: const Text(
-                          'Optional eine Benachrichtigung planen',
-                        ),
-                        value: _addReminder,
-                        onChanged: (value) =>
-                            setState(() => _addReminder = value),
-                      ),
-                      if (_addReminder) ...[
-                        TextFormField(
-                          controller: _reminderTitle,
-                          decoration: const InputDecoration(
-                            labelText: 'Erinnerung *',
-                            hintText: 'z. B. Abo kündigen',
-                          ),
-                          validator: (value) =>
-                              _addReminder && (value?.trim().isEmpty ?? true)
-                              ? 'Bitte einen Erinnerungstext eingeben.'
-                              : null,
-                        ),
-                        const SizedBox(height: 10),
-                        _responsiveFields([
-                          OutlinedButton.icon(
-                            onPressed: _pickReminderDate,
-                            icon: const Icon(Icons.event_rounded),
-                            label: Text(
-                              DateFormat('dd.MM.yyyy').format(_reminderAt),
-                            ),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: _pickReminderTime,
-                            icon: const Icon(Icons.schedule_rounded),
-                            label: Text(
-                              '${DateFormat('HH:mm').format(_reminderAt)} Uhr',
-                            ),
-                          ),
-                        ]),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Row(
-                  children: [
-                    const Icon(Icons.auto_awesome_rounded, size: 20),
-                    const SizedBox(width: 8),
+            ),
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: form,
+          ),
+          bottomNavigationBar: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Row(
+                children: [
+                  if (widget.onSaveAndNext != null) ...[
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Buchungsmonat und Automatik',
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                          Text(
-                            'Datum, Auswertungsmonat und Wiederholung kompakt festlegen',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
+                      child: OutlinedButton(
+                        onPressed: _saving ? null : _saveAndNext,
+                        child: const Text('Speichern & nächste'),
                       ),
                     ),
+                    const SizedBox(width: 12),
                   ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              SearchableDropdownButtonFormField<String>(
-                key: ValueKey(_timing),
-                initialValue: _timing,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Buchungstag'),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'selected',
-                    child: Text('Gewählter Tag'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'start',
-                    child: Text('Erster Werktag'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'middle',
-                    child: Text('Monatsmitte (15.)'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'end',
-                    child: Text('Letzter Werktag des Monats'),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _saving ? null : _save,
+                      child: const Text('Speichern'),
+                    ),
                   ),
                 ],
-                onChanged: (value) =>
-                    setState(() => _timing = value ?? 'selected'),
               ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  onPressed: _timing == 'selected' ? _pickDate : _pickMonth,
-                  icon: Icon(
-                    _timing == 'selected'
-                        ? Icons.event_rounded
-                        : Icons.calendar_month_rounded,
-                  ),
-                  label: Text(
-                    _timing == 'selected'
-                        ? 'Datum: ${DateFormat('dd.MM.yyyy').format(_date)}'
-                        : 'Monat: ${_monthLabel(_date)}',
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SearchableDropdownButtonFormField<int>(
-                key: ValueKey('budget-$_budgetOffset-$_timing'),
-                initialValue: _budgetOffset,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Wirtschaftlicher Buchungsmonat',
-                  helperText:
-                      'Steuert Monatsübersichten, Statistiken und Auswertungen.',
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 0,
-                    child: Text('Tatsächlicher Buchungsmonat'),
-                  ),
-                  DropdownMenuItem(value: 1, child: Text('Nächster Monat')),
-                ],
-                onChanged: (value) =>
-                    setState(() => _budgetOffset = value ?? 0),
-              ),
-              if (widget.entry == null) ...[
-                const SizedBox(height: 8),
-                SwitchListTile.adaptive(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Mehrere Monate buchen'),
-                  subtitle: const Text(
-                    'Ohne Auswahl wird genau ein Monat angelegt.',
-                  ),
-                  value: _repeatMonthly,
-                  onChanged: (value) => setState(() {
-                    _repeatMonthly = value;
-                    if (value && _months < 2) _months = 2;
-                  }),
-                ),
-                if (_repeatMonthly) ...[
-                  Row(
-                    children: [
-                      const Text('Laufzeit'),
-                      Expanded(
-                        child: Slider(
-                          min: 2,
-                          max: 60,
-                          divisions: 58,
-                          value: _months.toDouble(),
-                          label: '$_months Monate',
-                          onChanged: (value) =>
-                              setState(() => _months = value.round()),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 132,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '$_months Monate',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              'bis ${_monthLabel(DateTime(_date.year, _date.month + _months - 1))}',
-                              textAlign: TextAlign.end,
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    _seriesPreview(),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_title),
+          const SizedBox(height: 2),
+          Text(_accountLine, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+      content: SizedBox(
+        width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 560.0),
+        child: SingleChildScrollView(child: form),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Abbrechen'),
+        ),
+        if (widget.onSaveAndNext != null)
+          OutlinedButton(
+            onPressed: _saving ? null : _saveAndNext,
+            child: const Text('Speichern & nächste'),
+          ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: const Text('Speichern'),
+        ),
+      ],
+    );
+  }
+
+  Widget _formFields(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      if (_notice != null) ...[
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, size: 18),
+              const SizedBox(width: 8),
+              Expanded(child: Text(_notice!)),
             ],
           ),
         ),
+        const SizedBox(height: 12),
+      ],
+      _kindSelector(),
+      const SizedBox(height: 12),
+      _responsiveFields([
+        TextFormField(
+          controller: _amount,
+          focusNode: _amountFocus,
+          autofocus: _isNew,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          textInputAction: TextInputAction.next,
+          decoration: InputDecoration(
+            labelText: 'Betrag *',
+            hintText: '0,00',
+            suffixText: _selectedAccount?.currency ?? 'EUR',
+            prefixIcon: const Icon(Icons.payments_outlined),
+          ),
+          validator: (value) => (parseAmount(value) ?? 0) <= 0
+              ? 'Bitte einen positiven Betrag eingeben.'
+              : null,
+        ),
+        _DateField(
+          label: 'Datum',
+          value: DateFormat('dd.MM.yyyy').format(_date),
+          onTap: _pickDate,
+        ),
+      ]),
+      if (_isNew && _bookingKind != 'standard') ...[
+        const SizedBox(height: 12),
+        SearchableDropdownButtonFormField<String>(
+          initialValue: _targetAccountId.isEmpty ? null : _targetAccountId,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: _bookingKind == 'saving'
+                ? 'Zielkonto / Investkonto *'
+                : 'Zielkonto *',
+            prefixIcon: const Icon(Icons.redo_rounded),
+          ),
+          items: widget.accounts
+              .where((account) => account.id != _accountId)
+              .map(
+                (account) => DropdownMenuItem(
+                  value: account.id,
+                  child: Text(
+                    '${account.label} · ${money(account.balance, currency: account.currency)}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
+          validator: (value) =>
+              _bookingKind != 'standard' && (value == null || value.isEmpty)
+              ? 'Bitte ein Zielkonto auswählen.'
+              : null,
+          onChanged: (value) => _targetAccountId = value ?? '',
+        ),
+      ],
+      const SizedBox(height: 12),
+      _responsiveFields([
+        _EditableSuggestionField(
+          controller: _merchant,
+          label: 'Händler / Quelle',
+          suggestions: _masterEntries('merchant'),
+          onChanged: _suggestCategory,
+        ),
+        _EditableSuggestionField(
+          controller: _category,
+          label: 'Kategorie',
+          suggestions: {
+            ..._categories.skip(1),
+            ...widget.masterData
+                .where((item) => item.kind == 'category')
+                .map((item) => item.value),
+          }.toList(),
+          onChanged: (_) => _categoryEdited = true,
+        ),
+      ]),
+      const SizedBox(height: 12),
+      TextFormField(
+        controller: _description,
+        decoration: const InputDecoration(
+          labelText: 'Beschreibung',
+          prefixIcon: Icon(Icons.notes_rounded),
+        ),
+        minLines: 1,
+        maxLines: 3,
       ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Abbrechen'),
+      const SizedBox(height: 4),
+      Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: const EdgeInsets.only(bottom: 4),
+          initiallyExpanded: _hasExtraOptions,
+          title: const Text('Weitere Optionen'),
+          children: _extraOptions(context),
+        ),
       ),
-      FilledButton(onPressed: _save, child: const Text('Speichern')),
     ],
   );
+
+  bool get _hasExtraOptions =>
+      _vehicleId.isNotEmpty ||
+      _payment.text.trim().isNotEmpty ||
+      _budgetOffset != 0;
+
+  Widget _kindSelector() {
+    final segments = [
+      const ButtonSegment(
+        value: 'expense',
+        icon: Icon(Icons.north_east_rounded),
+        label: _SegmentLabel('Ausgabe'),
+      ),
+      const ButtonSegment(
+        value: 'income',
+        icon: Icon(Icons.south_west_rounded),
+        label: _SegmentLabel('Einnahme'),
+      ),
+      if (_isNew) ...[
+        const ButtonSegment(
+          value: 'transfer',
+          icon: Icon(Icons.swap_horiz_rounded),
+          label: _SegmentLabel('Umbuchung'),
+        ),
+        const ButtonSegment(
+          value: 'saving',
+          icon: Icon(Icons.savings_rounded),
+          label: _SegmentLabel('Sparen'),
+        ),
+      ],
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 480;
+        return SegmentedButton<String>(
+          showSelectedIcon: false,
+          style: compact
+              ? const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  padding: WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: 4),
+                  ),
+                )
+              : null,
+          segments: [
+            for (final segment in segments)
+              ButtonSegment(
+                value: segment.value,
+                icon: compact ? null : segment.icon,
+                label: segment.label,
+                tooltip: compact && segment.label is _SegmentLabel
+                    ? (segment.label! as _SegmentLabel).text
+                    : null,
+              ),
+          ],
+          selected: {_kind},
+          onSelectionChanged: (value) => setState(() => _kind = value.first),
+        );
+      },
+    );
+  }
+
+  List<Widget> _extraOptions(BuildContext context) => [
+    _responsiveFields([
+      _EditableSuggestionField(
+        controller: _payment,
+        label: 'Zahlungsmethode',
+        suggestions: _masterEntries('paymentMethod'),
+      ),
+      SearchableDropdownButtonFormField<String>(
+        initialValue: _vehicleId,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'Fahrzeug',
+          prefixIcon: Icon(Icons.directions_car_rounded),
+        ),
+        items: [
+          const DropdownMenuItem(value: '', child: Text('Kein Fahrzeug')),
+          for (final vehicle in widget.vehicles)
+            DropdownMenuItem(
+              value: vehicle.id,
+              child: Text('${vehicle.make} ${vehicle.model}'),
+            ),
+        ],
+        onChanged: (value) => _vehicleId = value ?? '',
+      ),
+    ]),
+    const SizedBox(height: 12),
+    SearchableDropdownButtonFormField<int>(
+      key: ValueKey('budget-$_budgetOffset'),
+      initialValue: _budgetOffset,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Wirtschaftlicher Buchungsmonat',
+      ),
+      items: const [
+        DropdownMenuItem(value: 0, child: Text('Monat des Datums')),
+        DropdownMenuItem(value: 1, child: Text('Nächster Monat')),
+      ],
+      onChanged: (value) => setState(() => _budgetOffset = value ?? 0),
+    ),
+    const SizedBox(height: 4),
+    SwitchListTile.adaptive(
+      contentPadding: EdgeInsets.zero,
+      secondary: const Icon(Icons.notifications_outlined),
+      title: const Text('Erinnerung'),
+      value: _addReminder,
+      onChanged: (value) => setState(() => _addReminder = value),
+    ),
+    if (_addReminder) ...[
+      TextFormField(
+        controller: _reminderTitle,
+        decoration: const InputDecoration(
+          labelText: 'Erinnerung *',
+          hintText: 'z. B. Abo kündigen',
+        ),
+        validator: (value) => _addReminder && (value?.trim().isEmpty ?? true)
+            ? 'Bitte einen Erinnerungstext eingeben.'
+            : null,
+      ),
+      const SizedBox(height: 10),
+      _responsiveFields([
+        OutlinedButton.icon(
+          onPressed: _pickReminderDate,
+          icon: const Icon(Icons.event_rounded),
+          label: Text(DateFormat('dd.MM.yyyy').format(_reminderAt)),
+        ),
+        OutlinedButton.icon(
+          onPressed: _pickReminderTime,
+          icon: const Icon(Icons.schedule_rounded),
+          label: Text('${DateFormat('HH:mm').format(_reminderAt)} Uhr'),
+        ),
+      ]),
+      const SizedBox(height: 8),
+    ],
+    if (_isNew) ...[
+      SwitchListTile.adaptive(
+        contentPadding: EdgeInsets.zero,
+        secondary: const Icon(Icons.repeat_rounded),
+        title: const Text('Mehrere Monate buchen'),
+        value: _repeatMonthly,
+        onChanged: (value) => setState(() => _repeatMonthly = value),
+      ),
+      if (_repeatMonthly) ...[
+        _responsiveFields([
+          SearchableDropdownButtonFormField<String>(
+            key: ValueKey(_timing),
+            initialValue: _timing,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Buchungstag'),
+            items: [
+              DropdownMenuItem(
+                value: 'selected',
+                child: Text('Am ${_date.day}. jedes Monats'),
+              ),
+              const DropdownMenuItem(
+                value: 'start',
+                child: Text('Erster Werktag'),
+              ),
+              const DropdownMenuItem(
+                value: 'middle',
+                child: Text('Monatsmitte (15.)'),
+              ),
+              const DropdownMenuItem(
+                value: 'end',
+                child: Text('Letzter Werktag'),
+              ),
+            ],
+            onChanged: (value) => setState(() => _timing = value ?? 'selected'),
+          ),
+          TextFormField(
+            controller: _months,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Laufzeit (Monate)'),
+            onChanged: (_) => setState(() {}),
+            validator: (_) =>
+                _repeatMonthly && (_monthCount < 2 || _monthCount > 120)
+                ? 'Bitte 2 bis 120 Monate eingeben.'
+                : null,
+          ),
+        ]),
+        const SizedBox(height: 8),
+        Text(_seriesPreview(), style: Theme.of(context).textTheme.bodySmall),
+      ],
+    ],
+  ];
 
   Widget _responsiveFields(List<Widget> fields) => LayoutBuilder(
     builder: (context, constraints) {
       if (constraints.maxWidth < 440) {
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (var index = 0; index < fields.length; index++) ...[
               fields[index],
@@ -1230,6 +1317,7 @@ class _EntryEditorState extends State<_EntryEditor> {
         );
       }
       return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (var index = 0; index < fields.length; index++) ...[
             Expanded(child: fields[index]),
@@ -1243,8 +1331,25 @@ class _EntryEditorState extends State<_EntryEditor> {
   Account? get _selectedAccount =>
       widget.accounts.where((account) => account.id == _accountId).firstOrNull;
 
-  double? _parse(String? value) =>
-      double.tryParse((value ?? '').replaceAll(',', '.'));
+  void _suggestCategory(String merchant) {
+    if (!_isNew || _categoryEdited) return;
+    final key = merchant.trim().toLowerCase();
+    if (key.isEmpty) return;
+    final previous = widget.ledgerEntries
+        .where(
+          (entry) =>
+              entry.merchant.trim().toLowerCase() == key &&
+              entry.category.isNotEmpty &&
+              entry.sourceType != 'transfer' &&
+              entry.sourceType != 'saving',
+        )
+        .firstOrNull;
+    if (previous == null) return;
+    _category.text = previous.category;
+    if (_payment.text.trim().isEmpty && previous.paymentMethod.isNotEmpty) {
+      _payment.text = previous.paymentMethod;
+    }
+  }
 
   Future<void> _pickDate() async {
     final value = await showDatePicker(
@@ -1256,91 +1361,30 @@ class _EntryEditorState extends State<_EntryEditor> {
     if (value != null) setState(() => _date = value);
   }
 
-  Future<void> _pickMonth() async {
-    var selectedYear = _date.year;
-    var selectedMonth = _date.month;
-    final value = await showDialog<DateTime>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Buchungsmonat wählen'),
-          content: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      onPressed: () => setDialogState(() => selectedYear--),
-                      icon: const Icon(Icons.chevron_left_rounded),
-                    ),
-                    Text(
-                      '$selectedYear',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    IconButton(
-                      onPressed: () => setDialogState(() => selectedYear++),
-                      icon: const Icon(Icons.chevron_right_rounded),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (var month = 1; month <= 12; month++)
-                      ChoiceChip(
-                        label: Text(_shortMonths[month - 1]),
-                        selected: selectedMonth == month,
-                        onSelected: (_) =>
-                            setDialogState(() => selectedMonth = month),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Abbrechen'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(
-                dialogContext,
-                DateTime(selectedYear, selectedMonth),
-              ),
-              child: const Text('Übernehmen'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (value != null) setState(() => _date = value);
-  }
-
-  void _save() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+  _EntrySubmission? _submission() {
+    if (!(_formKey.currentState?.validate() ?? false)) return null;
     final userId = ProviderScope.containerOf(
       context,
       listen: false,
     ).read(currentUserIdProvider);
-    if (userId == null) return;
+    if (userId == null) return null;
     final now = DateTime.now().toUtc();
-    final repeatCount = widget.entry == null && _repeatMonthly ? _months : 1;
+    final amount = parseAmount(_amount.text) ?? 0;
+    final category = _category.text.trim().isEmpty
+        ? 'Sonstiges'
+        : _category.text.trim();
+    final repeatCount = _isNew && _repeatMonthly ? _monthCount : 1;
+    final timing = _repeatMonthly ? _timing : 'selected';
     final recurrenceId = repeatCount > 1 ? const Uuid().v4() : '';
     final entries = <LedgerEntriesCompanion>[];
     for (var index = 0; index < repeatCount; index++) {
       final transferId = _bookingKind == 'standard' ? '' : const Uuid().v4();
       final seriesMonth = DateTime(_date.year, _date.month + index);
-      final date = widget.entry != null
+      final date = !_isNew
           ? _date
           : paymentDateForBudgetMonth(
               budgetMonth: seriesMonth,
-              timing: _timing,
+              timing: timing,
               selectedDay: _date.day,
             );
       final budgetMonth = DateTime(date.year, date.month + _budgetOffset);
@@ -1350,11 +1394,9 @@ class _EntryEditorState extends State<_EntryEditor> {
           userId: userId,
           bookingDate: date,
           budgetMonth: Value(budgetMonth),
-          amount: _parse(_amount.text) ?? 0,
+          amount: amount,
           isIncome: Value(_income),
-          category: _category.text.trim().isEmpty
-              ? 'Sonstiges'
-              : _category.text.trim(),
+          category: category,
           merchant: Value(_merchant.text.trim()),
           description: Value(_description.text.trim()),
           paymentMethod: Value(_payment.text.trim()),
@@ -1370,14 +1412,14 @@ class _EntryEditorState extends State<_EntryEditor> {
           updatedAt: now,
         ),
       );
-      if (widget.entry == null && _bookingKind != 'standard') {
+      if (_isNew && _bookingKind != 'standard') {
         entries.add(
           LedgerEntriesCompanion.insert(
             id: const Uuid().v4(),
             userId: userId,
             bookingDate: date,
             budgetMonth: Value(budgetMonth),
-            amount: _parse(_amount.text) ?? 0,
+            amount: amount,
             isIncome: const Value(true),
             category: _bookingKind == 'saving'
                 ? 'Sparen / Investieren'
@@ -1395,19 +1437,56 @@ class _EntryEditorState extends State<_EntryEditor> {
         );
       }
     }
-    Navigator.pop(
-      context,
-      _EntrySubmission(
-        entries,
-        merchant: _merchant.text.trim(),
-        paymentMethod: _payment.text.trim(),
-        category: _category.text.trim().isEmpty
-            ? 'Sonstiges'
-            : _category.text.trim(),
-        reminderTitle: _addReminder ? _reminderTitle.text.trim() : null,
-        reminderAt: _addReminder ? _reminderAt : null,
-      ),
+    return _EntrySubmission(
+      entries,
+      merchant: _merchant.text.trim(),
+      paymentMethod: _payment.text.trim(),
+      category: category,
+      reminderTitle: _addReminder ? _reminderTitle.text.trim() : null,
+      reminderAt: _addReminder ? _reminderAt : null,
     );
+  }
+
+  void _save() {
+    final submission = _submission();
+    if (submission != null) Navigator.pop(context, submission);
+  }
+
+  Future<void> _saveAndNext() async {
+    final submission = _submission();
+    if (submission == null) return;
+    setState(() => _saving = true);
+    try {
+      await widget.onSaveAndNext!(submission);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _notice = error.toString().replaceFirst('Bad state: ', '');
+      });
+      return;
+    }
+    if (!mounted) return;
+    final label = submission.merchant.isNotEmpty
+        ? submission.merchant
+        : submission.category;
+    final amount = money(
+      parseAmount(_amount.text) ?? 0,
+      currency: _selectedAccount?.currency ?? 'EUR',
+    );
+    setState(() {
+      _saving = false;
+      _notice = 'Gespeichert: $label · $amount';
+      _amount.clear();
+      _merchant.clear();
+      _category.clear();
+      _description.clear();
+      _reminderTitle.clear();
+      _categoryEdited = false;
+      _addReminder = false;
+      _repeatMonthly = false;
+    });
+    _amountFocus.requestFocus();
   }
 
   List<String> _masterEntries(String kind) => widget.masterData
@@ -1426,19 +1505,15 @@ class _EntryEditorState extends State<_EntryEditor> {
   }
 
   String _seriesPreview() {
-    final seriesMonth = DateTime(_date.year, _date.month);
-    final bookingDate = paymentDateForBudgetMonth(
-      budgetMonth: seriesMonth,
+    final first = paymentDateForBudgetMonth(
+      budgetMonth: DateTime(_date.year, _date.month),
       timing: _timing,
       selectedDay: _date.day,
     );
-    final budgetMonth = DateTime(
-      bookingDate.year,
-      bookingDate.month + _budgetOffset,
-    );
-    return 'Erste Kontobuchung: '
-        '${DateFormat('dd.MM.yyyy').format(bookingDate)}'
-        ' · zählt wirtschaftlich für ${_monthLabel(budgetMonth)}';
+    final count = _monthCount.clamp(2, 120);
+    final last = DateTime(_date.year, _date.month + count - 1);
+    return 'Erste Buchung am ${DateFormat('dd.MM.yyyy').format(first)}, '
+        'letzte im ${_monthLabel(last)}.';
   }
 
   Future<void> _pickReminderDate() async {
@@ -1480,20 +1555,60 @@ class _EntryEditorState extends State<_EntryEditor> {
   }
 }
 
+class _SegmentLabel extends StatelessWidget {
+  const _SegmentLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => FittedBox(
+    fit: BoxFit.scaleDown,
+    child: Text(text, maxLines: 1, softWrap: false),
+  );
+}
+
+class _DateField extends StatelessWidget {
+  const _DateField({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(12),
+    child: InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: const Icon(Icons.event_rounded),
+      ),
+      child: Text(value),
+    ),
+  );
+}
+
 class _EditableSuggestionField extends StatelessWidget {
   const _EditableSuggestionField({
     required this.controller,
     required this.label,
     required this.suggestions,
+    this.onChanged,
   });
 
   final TextEditingController controller;
   final String label;
   final List<String> suggestions;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) => TextFormField(
     controller: controller,
+    onChanged: onChanged,
     decoration: InputDecoration(
       labelText: label,
       suffixIcon: suggestions.isEmpty
@@ -1505,6 +1620,7 @@ class _EditableSuggestionField extends StatelessWidget {
                 controller
                   ..text = value
                   ..selection = TextSelection.collapsed(offset: value.length);
+                onChanged?.call(value);
               },
               itemBuilder: (context) => suggestions
                   .map(

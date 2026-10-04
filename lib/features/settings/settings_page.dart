@@ -31,7 +31,7 @@ class SettingsPage extends ConsumerWidget {
             children: [
               const PageHeader(
                 title: 'Einstellungen',
-                subtitle: 'Darstellung, Konto, Sicherheit und Datenmodus.',
+                subtitle: '',
               ),
               _Section(
                 title: 'Profil',

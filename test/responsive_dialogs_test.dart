@@ -282,65 +282,78 @@ void main() {
     }
   });
 
-  testWidgets('monthly household booking fits a narrow dialog', (tester) async {
-    final now = DateTime.now();
-    final account = Account(
-      id: 'giro',
-      userId: 'responsive-user',
-      bankName: 'Testbank',
-      label: 'Haushaltskonto mit langem Namen',
-      holder: '',
-      iban: '',
-      bic: '',
-      accountNumber: '',
-      currency: 'EUR',
-      balance: 1234.56,
-      availableBalance: 1234.56,
-      usageType: 'household',
-      notes: '',
-      displayOrder: 0,
-      createdAt: now,
-      updatedAt: now,
-    );
-    await pumpPage(
+  for (final size in [const Size(360, 800), const Size(1920, 1080)]) {
+    testWidgets('monthly household booking fits the entry editor at $size', (
       tester,
-      const HouseholdPage(),
-      overrides: [
-        accountsProvider.overrideWith((_) => Stream.value([account])),
-        accountBalanceHistoriesProvider.overrideWith(
-          (_) => Stream.value(const <AccountBalanceHistory>[]),
-        ),
-        ledgerEntriesProvider.overrideWith(
-          (_) => Stream.value(const <LedgerEntry>[]),
-        ),
-        allInvestmentsProvider.overrideWith(
-          (_) => Stream.value(const <Investment>[]),
-        ),
-        investmentPurchasesProvider.overrideWith(
-          (_) => Stream.value(const <InvestmentPurchase>[]),
-        ),
-        portfolioSalesProvider.overrideWith(
-          (_) => Stream.value(const <PortfolioSale>[]),
-        ),
-        physicalAssetsProvider.overrideWith(
-          (_) => Stream.value(const <PhysicalAsset>[]),
-        ),
-        vehiclesProvider.overrideWith((_) => Stream.value(const <Vehicle>[])),
-        masterDataProvider.overrideWith(
-          (_) => Stream.value(const <MasterDataData>[]),
-        ),
-        preferencesProvider.overrideWith((_) => const Stream.empty()),
-      ],
-    );
+    ) async {
+      final now = DateTime.now();
+      final account = Account(
+        id: 'giro',
+        userId: 'responsive-user',
+        bankName: 'Testbank',
+        label: 'Haushaltskonto mit langem Namen',
+        holder: '',
+        iban: '',
+        bic: '',
+        accountNumber: '',
+        currency: 'EUR',
+        balance: 1234.56,
+        availableBalance: 1234.56,
+        usageType: 'household',
+        notes: '',
+        displayOrder: 0,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await pumpPage(
+        tester,
+        const HouseholdPage(),
+        overrides: [
+          accountsProvider.overrideWith((_) => Stream.value([account])),
+          accountBalanceHistoriesProvider.overrideWith(
+            (_) => Stream.value(const <AccountBalanceHistory>[]),
+          ),
+          ledgerEntriesProvider.overrideWith(
+            (_) => Stream.value(const <LedgerEntry>[]),
+          ),
+          allInvestmentsProvider.overrideWith(
+            (_) => Stream.value(const <Investment>[]),
+          ),
+          investmentPurchasesProvider.overrideWith(
+            (_) => Stream.value(const <InvestmentPurchase>[]),
+          ),
+          portfolioSalesProvider.overrideWith(
+            (_) => Stream.value(const <PortfolioSale>[]),
+          ),
+          physicalAssetsProvider.overrideWith(
+            (_) => Stream.value(const <PhysicalAsset>[]),
+          ),
+          vehiclesProvider.overrideWith((_) => Stream.value(const <Vehicle>[])),
+          masterDataProvider.overrideWith(
+            (_) => Stream.value(const <MasterDataData>[]),
+          ),
+          preferencesProvider.overrideWith((_) => const Stream.empty()),
+        ],
+        size: size,
+      );
 
-    await tester.tap(find.text('Buchung').first);
-    await tester.pumpAndSettle();
-    final recurring = find.text('Mehrere Monate buchen');
-    await tester.ensureVisible(recurring);
-    await tester.tap(recurring);
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Buchung').first);
+      await tester.pumpAndSettle();
+      for (final kind in ['Ausgabe', 'Einnahme', 'Umbuchung', 'Sparen']) {
+        expect(find.text(kind), findsOneWidget);
+      }
+      final options = find.text('Weitere Optionen');
+      await tester.ensureVisible(options);
+      await tester.tap(options);
+      await tester.pumpAndSettle();
+      final recurring = find.text('Mehrere Monate buchen');
+      await tester.ensureVisible(recurring);
+      await tester.tap(recurring);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Laufzeit'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.text('Laufzeit (Monate)'), findsOneWidget);
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 }
