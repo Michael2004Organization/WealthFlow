@@ -9,6 +9,7 @@ import '../storage/data_export.dart';
 import '../security/data_cipher.dart';
 import '../finance/budget_period.dart';
 import '../finance/currencies.dart';
+import '../finance/currency_conversion.dart';
 import '../finance/dividend_math.dart';
 import '../finance/portfolio_master_data.dart';
 
@@ -3707,9 +3708,13 @@ final class AppDatabase extends _$AppDatabase {
               (row) => row.userId.equals(userId) & row.deletedAt.isNull(),
             ))
             .get();
+    final converter = CurrencyConverter.fromRates(
+      (await preferencesFor(userId)).currency,
+      await select(countryTaxRates).get(),
+    );
     final accountBalance = accountRows.fold<double>(
       0,
-      (sum, row) => sum + row.balance,
+      (sum, row) => sum + converter.toBase(row.balance, row.currency),
     );
     final portfolioValue =
         investmentRows.fold<double>(

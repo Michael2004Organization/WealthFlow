@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-String money(num value, {String currency = 'EUR'}) =>
-    NumberFormat.simpleCurrency(locale: 'de_DE', name: currency).format(value);
+/// Standard currency of the signed-in user, used when [money] gets none.
+String moneyCurrency = 'EUR';
+
+String money(num value, {String? currency}) => NumberFormat.simpleCurrency(
+  locale: 'de_DE',
+  name: currency ?? moneyCurrency,
+).format(value);
 
 /// A form-compatible dropdown whose options are filtered while the user types.
 ///

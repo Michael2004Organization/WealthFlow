@@ -76,18 +76,22 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                         ),
                       );
                     }
+                    final converter = ref.watch(currencyConverterProvider);
                     final total = items.fold<double>(
                       0,
                       (sum, item) =>
                           sum +
-                          accountBalanceAt(
-                            account: item,
-                            date: DateTime.now(),
-                            histories: histories,
-                            entries: entries,
-                            investments: investments,
-                            purchases: purchases,
-                            sales: sales,
+                          converter.toBase(
+                            accountBalanceAt(
+                              account: item,
+                              date: DateTime.now(),
+                              histories: histories,
+                              entries: entries,
+                              investments: investments,
+                              purchases: purchases,
+                              sales: sales,
+                            ),
+                            item.currency,
                           ),
                     );
                     final sorted = _sortedAccounts(items);

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/auth_controller.dart';
 import 'database/app_database.dart';
+import 'finance/currency_conversion.dart';
 import 'notifications/notification_service.dart';
 import 'security/secure_session_store.dart';
 
@@ -261,4 +262,13 @@ final backupStatusProvider = StreamProvider<BackupStatus?>((ref) {
   return userId == null
       ? Stream.value(null)
       : ref.watch(databaseProvider).watchBackupStatus(userId);
+});
+
+/// Converts account balances in foreign currencies into the standard currency.
+final currencyConverterProvider = Provider<CurrencyConverter>((ref) {
+  final base = ref.watch(preferencesProvider).valueOrNull?.currency ?? 'EUR';
+  final rates =
+      ref.watch(countryTaxRatesProvider).valueOrNull ??
+      const <CountryTaxRate>[];
+  return CurrencyConverter.fromRates(base, rates);
 });

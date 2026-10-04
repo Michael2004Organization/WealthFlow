@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/providers.dart';
+import '../core/widgets/common_widgets.dart';
 
 /// Reacts to the app leaving and returning to the foreground while a user is
 /// signed in.
@@ -40,5 +41,13 @@ class _AppLifecycleGuardState extends ConsumerState<AppLifecycleGuard> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    final currency =
+        ref.watch(preferencesProvider).valueOrNull?.currency.toUpperCase() ??
+        'EUR';
+    moneyCurrency = currency;
+    // Amounts are formatted with the standard currency; rebuild everything
+    // below when it changes.
+    return KeyedSubtree(key: ValueKey(currency), child: widget.child);
+  }
 }

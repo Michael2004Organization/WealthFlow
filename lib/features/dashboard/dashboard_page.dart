@@ -75,18 +75,22 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       _selectedMonth.year,
       _selectedMonth.month + 1,
     ).subtract(const Duration(microseconds: 1));
+    final converter = ref.watch(currencyConverterProvider);
     final derivedAccountBalance = accounts.fold<double>(
       0,
       (sum, account) =>
           sum +
-          accountBalanceAt(
-            account: account,
-            date: monthEnd,
-            histories: balanceHistories,
-            entries: entries,
-            investments: investments,
-            purchases: purchases,
-            sales: sales,
+          converter.toBase(
+            accountBalanceAt(
+              account: account,
+              date: monthEnd,
+              histories: balanceHistories,
+              entries: entries,
+              investments: investments,
+              purchases: purchases,
+              sales: sales,
+            ),
+            account.currency,
           ),
     );
     final derivedPortfolio =
