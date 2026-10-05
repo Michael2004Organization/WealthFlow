@@ -10,6 +10,7 @@ Future<void> main(List<String> arguments) async {
   final parser = ArgParser()
     ..addOption('port', defaultsTo: '8443', help: 'HTTPS-Port im Heimnetz.')
     ..addOption('daten', help: 'Datenordner (Standard: daten neben start.cmd).')
+    ..addOption('web', help: 'Ordner der Web-Version (Standard: web).')
     ..addMultiOption(
       'name',
       help: 'Zusätzlicher Rechnername für das Zertifikat.',
@@ -67,11 +68,17 @@ Future<void> main(List<String> arguments) async {
   final console = ServerConsole(access);
   if (!await access.hasUsers()) await console.createFirstUser();
 
+  final webOption = options.option('web');
+  final webApp = WebApp(
+    webOption == null ? ServerPaths.defaultWebRoot() : Directory(webOption),
+  );
+
   final server = await shelf_io.serve(
     buildHandler(
       database: database,
       access: access,
       sync: ServerSync(database, settings: settings),
+      webApp: webApp,
     ),
     InternetAddress.anyIPv4,
     port,
@@ -84,6 +91,7 @@ Future<void> main(List<String> arguments) async {
     certificate: certificate,
     paths: paths,
     settings: settings,
+    webApp: webApp,
   );
 
   console.start();
@@ -131,6 +139,7 @@ Future<void> _printBanner({
   required ServerCertificate certificate,
   required ServerPaths paths,
   required ServerSettings settings,
+  required WebApp webApp,
 }) async {
   final addresses = await NetworkInterface.list(type: InternetAddressType.IPv4);
   stdout
@@ -155,5 +164,10 @@ Future<void> _printBanner({
     ..writeln('Datenbank: ${paths.database.path}')
     ..writeln(
       'Datendatei: ${settings.dataFileDirectory.isEmpty ? 'keine' : settings.dataFileDirectory}',
+    )
+    ..writeln(
+      webApp.isAvailable
+          ? 'Web-Version: eine der Adressen oben im Browser öffnen.'
+          : 'Web-Version: keine (Ordner ${webApp.directory.path} fehlt).',
     );
 }
