@@ -39,9 +39,14 @@ final class ServerSyncState {
     this.lastSyncAt,
     this.error,
     this.dataFile,
+    this.awaitingFirstSync = false,
   });
 
   final bool isRunning;
+
+  /// Connected, but the data of this device has not been transferred yet;
+  /// nothing is sent before the person confirmed it.
+  final bool awaitingFirstSync;
   final DateTime? lastSyncAt;
   final String? error;
   final ServerDataFile? dataFile;
@@ -51,11 +56,13 @@ final class ServerSyncState {
     DateTime? lastSyncAt,
     String? error,
     ServerDataFile? dataFile,
+    bool? awaitingFirstSync,
   }) => ServerSyncState(
     isRunning: isRunning ?? this.isRunning,
     lastSyncAt: lastSyncAt ?? this.lastSyncAt,
     error: error ?? this.error,
     dataFile: dataFile ?? this.dataFile,
+    awaitingFirstSync: awaitingFirstSync ?? this.awaitingFirstSync,
   );
 }
 
@@ -95,11 +102,30 @@ final class ServerSyncController extends StateNotifier<ServerSyncState> {
 
   Future<void> start() async {
     final preference = await database.preferencesFor(userId);
-    if (!mounted) return;
+    // A transfer confirmed in the meantime already started everything.
+    if (!mounted || _changes != null) return;
+    if (preference.lastSyncAt == null) {
+      state = state.copyWith(awaitingFirstSync: true);
+      return;
+    }
     state = state.copyWith(lastSyncAt: preference.lastSyncAt);
-    _changes = database.tableUpdates().listen((_) => _scheduleOnChange());
-    _periodic = Timer.periodic(interval, (_) => unawaited(syncNow()));
+    _startAutomatic();
     unawaited(syncNow());
+  }
+
+  void _startAutomatic() {
+    _changes ??= database.tableUpdates().listen((_) => _scheduleOnChange());
+    _periodic ??= Timer.periodic(interval, (_) => unawaited(syncNow()));
+  }
+
+  /// First sync after connecting, once the person confirmed the transfer:
+  /// sends all data of this device and fetches what the server has. Running
+  /// it twice creates no duplicates, entries are matched by their id.
+  Future<bool> transfer() async {
+    if (!active) return false;
+    final ok = await _join();
+    if (ok && mounted) _startAutomatic();
+    return ok;
   }
 
   void _scheduleOnChange() {
@@ -115,7 +141,11 @@ final class ServerSyncController extends StateNotifier<ServerSyncState> {
   /// Syncs now; returns whether it succeeded. A call during a running sync
   /// joins it; changes made meanwhile are picked up by the change check.
   Future<bool> syncNow() async {
-    if (!active) return false;
+    if (!active || state.awaitingFirstSync) return false;
+    return _join();
+  }
+
+  Future<bool> _join() async {
     final running = _running;
     if (running != null) return running;
     final current = _running = _sync();
