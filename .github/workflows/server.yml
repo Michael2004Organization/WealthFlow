@@ -1,0 +1,50 @@
+name: Server
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - working-directory: server
+        run: dart pub get
+      - working-directory: server
+        run: dart analyze --fatal-infos
+      - working-directory: server
+        run: dart test
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - working-directory: server
+        run: dart pub get
+      - working-directory: server
+        run: dart build cli -o build/windows
+      - name: Ordner für die ZIP-Datei zusammenstellen
+        working-directory: server
+        shell: pwsh
+        run: |
+          $out = "build/WealthFlowServer"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item -Recurse build/windows/bundle/* $out
+          Copy-Item windows/start.cmd, windows/LIESMICH.txt $out
+          Get-ChildItem -Recurse $out | Select-Object FullName, Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wealthflow-server-windows
+          path: server/build/WealthFlowServer

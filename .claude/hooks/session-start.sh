@@ -42,3 +42,4 @@ dart --disable-analytics >/dev/null 2>&1 || true
 export FLUTTER_SUPPRESS_ANALYTICS=true
 cd "${CLAUDE_PROJECT_DIR:-$(dirname "$0")/../..}"
 flutter pub get
+dart pub get --directory server

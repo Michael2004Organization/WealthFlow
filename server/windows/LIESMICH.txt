@@ -1,0 +1,34 @@
+﻿WealthFlow-Server
+=================
+
+Inhalt dieses Ordners
+  start.cmd                 Startet den Server (Doppelklick).
+  bin\wealthflow_server.exe Das Server-Programm.
+  lib\sqlite3.dll           Die Datenbank-Bibliothek (SQLite).
+  daten\                    Entsteht beim ersten Start: Datenbank,
+                            Zertifikat und Einstellungen.
+
+Einrichten (einmalig)
+  1. Im Router dem PC eine feste IP-Adresse geben.
+  2. Diesen Ordner z. B. nach C:\WealthFlowServer kopieren.
+  3. start.cmd doppelklicken.
+     Beim ersten Start fragt der Server nach dem Ordner für die
+     zusätzliche Datendatei (leer lassen = keine).
+     Windows fragt einmal "Zugriff zulassen?": nur "Private Netzwerke"
+     anhaken. Ohne diese Freigabe erreichen Handy und andere PCs den
+     Server nicht.
+
+Benutzen
+  Das Fenster zeigt die Adressen und den Fingerabdruck des Zertifikats.
+  Solange das Fenster offen ist, läuft der Server.
+  Fenster schließen oder Strg+C beendet ihn.
+
+Entfernen
+  Ordner löschen. Die von Windows gespeicherte Firewall-Freigabe kann
+  unter "Windows-Sicherheit > Firewall- & Netzwerkschutz > Zugriff von
+  Apps durch die Firewall zulassen" gelöscht werden; ohne das Programm
+  ist sie wirkungslos.
+
+Sicherheit
+  Der Server spricht nur HTTPS mit eigenem Zertifikat. Im Router keine
+  Portfreigabe einrichten, damit er nur im Heimnetz erreichbar bleibt.
