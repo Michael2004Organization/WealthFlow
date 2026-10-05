@@ -33,8 +33,10 @@ Für Web werden `web/sqlite3.wasm` und `web/drift_worker.js` mitgeliefert. Eine 
 cd server
 dart pub get
 dart test
-dart run bin/wealthflow_server.dart --daten ./daten
+dart run bin/wealthflow_server.dart --daten ./daten --web ../build/web
 ```
+
+Die App gleicht über `/api/sync` ab (ganzer Export, Zusammenführung mit `mergeUserData` auf beiden Seiten). Die Web-Version liefert der Server aus dem Ordner `web` neben `start.cmd` aus; gebaut wird sie mit `flutter build web --no-web-resources-cdn`, damit der Browser nichts von fremden Servern lädt.
 
 ## Qualität
 

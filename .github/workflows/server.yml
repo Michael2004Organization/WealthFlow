@@ -35,6 +35,8 @@ jobs:
         run: dart pub get
       - working-directory: server
         run: dart build cli -o build/windows
+      - name: Web-Version bauen
+        run: flutter build web --release --no-web-resources-cdn
       - name: Ordner für die ZIP-Datei zusammenstellen
         working-directory: server
         shell: pwsh
@@ -43,6 +45,7 @@ jobs:
           New-Item -ItemType Directory -Force $out | Out-Null
           Copy-Item -Recurse build/windows/bundle/* $out
           Copy-Item windows/start.cmd, windows/LIESMICH.txt $out
+          Copy-Item -Recurse ../build/web "$out/web"
           Get-ChildItem -Recurse $out | Select-Object FullName, Length
       - uses: actions/upload-artifact@v4
         with:

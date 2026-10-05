@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -69,7 +70,10 @@ class ServerConnectionTiles extends ConsumerWidget {
   }
 
   Future<void> _pair(BuildContext context, WidgetRef ref) async {
-    final address = TextEditingController();
+    // Opened from the server itself: the browser already knows the address.
+    final address = TextEditingController(
+      text: kIsWeb && Uri.base.scheme == 'https' ? Uri.base.authority : '',
+    );
     final code = TextEditingController();
     final email = TextEditingController(text: accountEmail);
     final password = TextEditingController();
