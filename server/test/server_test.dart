@@ -57,7 +57,11 @@ void main() {
       );
       await access.initialize();
       server = await shelf_io.serve(
-        buildHandler(database: database, access: access),
+        buildHandler(
+          database: database,
+          access: access,
+          sync: ServerSync(database, settings: const ServerSettings()),
+        ),
         InternetAddress.loopbackIPv4,
         0,
         securityContext: certificate.securityContext(),

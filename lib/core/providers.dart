@@ -8,6 +8,7 @@ import 'database/app_connection.dart';
 import 'notifications/notification_service.dart';
 import 'security/secure_session_store.dart';
 import 'server/server_connection.dart';
+import 'server/server_sync.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
   final database = openAppDatabase();
@@ -45,6 +46,23 @@ final serverConnectionProvider =
         sessionStore: ref.watch(secureSessionStoreProvider),
       ),
     );
+
+/// Runs while this device is connected to the home server and signed in.
+final serverSyncProvider =
+    StateNotifierProvider<ServerSyncController, ServerSyncState>((ref) {
+      final userId = ref.watch(currentUserIdProvider);
+      final active = ref.watch(
+        serverConnectionProvider.select(
+          (state) => state.isConnected && !state.needsLogin,
+        ),
+      );
+      return ServerSyncController(
+        database: ref.watch(databaseProvider),
+        userId: userId ?? '',
+        connection: ref.watch(serverConnectionProvider.notifier),
+        active: userId != null && active,
+      );
+    });
 
 final accountsProvider = StreamProvider<List<Account>>((ref) {
   final userId = ref.watch(currentUserIdProvider);

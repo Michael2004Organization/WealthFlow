@@ -62,6 +62,8 @@ class _AppLifecycleGuardState extends ConsumerState<AppLifecycleGuard> {
     }
     _applyDueEntries();
     _scheduleMidnight();
+    // Fetch what other devices changed in the meantime.
+    unawaited(ref.read(serverSyncProvider.notifier).syncNow());
   }
 
   /// Bookings dated today only reach the account balance once their day has
@@ -89,10 +91,13 @@ class _AppLifecycleGuardState extends ConsumerState<AppLifecycleGuard> {
     // The app may be closed in the background; write the data file now
     // instead of waiting for the bundled update.
     unawaited(ref.read(databaseProvider).flushPendingPersist(userId));
+    unawaited(ref.read(serverSyncProvider.notifier).syncNow());
   }
 
   @override
   Widget build(BuildContext context) {
+    // Keeps the sync with the home server running while someone is signed in.
+    ref.listen(serverSyncProvider, (_, _) {});
     final currency =
         ref.watch(preferencesProvider).valueOrNull?.currency.toUpperCase() ??
         'EUR';

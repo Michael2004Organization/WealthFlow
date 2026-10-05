@@ -262,7 +262,11 @@ void main() {
         hasher: fastHasher,
       );
       server = await shelf_io.serve(
-        buildHandler(database: database, access: httpsAccess),
+        buildHandler(
+          database: database,
+          access: httpsAccess,
+          sync: ServerSync(database, settings: const ServerSettings()),
+        ),
         InternetAddress.loopbackIPv4,
         0,
         securityContext: certificate.securityContext(),

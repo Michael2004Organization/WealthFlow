@@ -3,7 +3,10 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:wealthflow_core/database/app_database.dart';
 
+import 'package:wealthflow_core/security/data_cipher.dart';
+
 import 'access.dart';
+import 'sync.dart';
 
 /// Version shown by `/api/health`; the app compares it before syncing.
 const serverVersion = '1.0.0';
@@ -15,16 +18,18 @@ const maxRequestBytes = 32 * 1024 * 1024;
 Handler buildHandler({
   required AppDatabase database,
   required ServerAccess access,
+  required ServerSync sync,
 }) {
   return const Pipeline()
       .addMiddleware(_securityHeaders())
-      .addHandler((request) => _route(request, database, access));
+      .addHandler((request) => _route(request, database, access, sync));
 }
 
 Future<Response> _route(
   Request request,
   AppDatabase database,
   ServerAccess access,
+  ServerSync sync,
 ) async {
   final path = '/${request.url.path}';
   final method = request.method;
@@ -85,6 +90,27 @@ Future<Response> _route(
           'displayName': user.displayName,
           'role': user.role,
           'deviceId': context.deviceId,
+        });
+      case ('POST', '/api/sync'):
+        final body = await _jsonBody(request);
+        if (body['schemaVersion'] != database.schemaVersion) {
+          throw const _BadRequest(
+            'App und Server haben unterschiedliche Versionen. Bitte beide '
+            'auf den neuesten Stand bringen.',
+            status: 409,
+          );
+        }
+        final data = body['data'];
+        if (data is! Map) throw const _BadRequest('Feld "data" fehlt.');
+        final result = await sync.sync(
+          context!,
+          Map<String, Object?>.from(data),
+          backupKey: BackupKey.fromJson(body['backupKey']),
+        );
+        return jsonResponse({
+          'data': result.data,
+          'dataFile': result.dataFile.name,
+          'syncedAt': DateTime.now().toUtc().toIso8601String(),
         });
     }
     return jsonResponse({'error': 'Nicht gefunden'}, status: 404);

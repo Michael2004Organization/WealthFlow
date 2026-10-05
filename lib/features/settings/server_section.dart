@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/providers.dart';
+import '../../core/server/server_sync.dart';
 
 /// Settings tiles for the connection to the home server.
 class ServerConnectionTiles extends ConsumerWidget {
@@ -42,6 +44,7 @@ class ServerConnectionTiles extends ConsumerWidget {
                       'akzeptiert (Zertifikat ${link.fingerprint.isEmpty ? 'vom Browser geprüft' : link.fingerprint.substring(0, 8)}…).',
           ),
         ),
+        if (!connection.needsLogin) const _SyncStatusTile(),
         if (connection.needsLogin)
           ListTile(
             leading: const Icon(Icons.login_rounded),
@@ -268,6 +271,51 @@ class ServerConnectionTiles extends ConsumerWidget {
     );
     if (confirmed == true) {
       await ref.read(serverConnectionProvider.notifier).disconnect();
+      final userId = ref.read(currentUserIdProvider);
+      if (userId != null) {
+        await ref
+            .read(databaseProvider)
+            .saveServerState(userId, connected: false);
+      }
     }
+  }
+}
+
+/// Last sync with the server, the state of the data file on the PC and a
+/// button to sync right away.
+class _SyncStatusTile extends ConsumerWidget {
+  const _SyncStatusTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sync = ref.watch(serverSyncProvider);
+    final last = sync.lastSyncAt;
+    final lines = [
+      if (sync.isRunning)
+        'Gleicht gerade ab …'
+      else if (last == null)
+        'Noch nicht abgeglichen.'
+      else
+        'Zuletzt abgeglichen: ${DateFormat('dd.MM.yyyy, HH:mm').format(last.toLocal())} Uhr.',
+      if (sync.error != null) sync.error!,
+      if (sync.error == null &&
+          sync.dataFile != null &&
+          sync.dataFile != ServerDataFile.unknown)
+        sync.dataFile!.description,
+    ];
+    return ListTile(
+      leading: Icon(
+        sync.error == null ? Icons.sync_rounded : Icons.sync_problem_rounded,
+        color: sync.error == null ? null : Theme.of(context).colorScheme.error,
+      ),
+      title: const Text('Abgleich'),
+      subtitle: Text(lines.join('\n')),
+      trailing: TextButton(
+        onPressed: sync.isRunning
+            ? null
+            : () => ref.read(serverSyncProvider.notifier).syncNow(),
+        child: const Text('Jetzt abgleichen'),
+      ),
+    );
   }
 }

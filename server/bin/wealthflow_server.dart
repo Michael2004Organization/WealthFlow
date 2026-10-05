@@ -68,7 +68,11 @@ Future<void> main(List<String> arguments) async {
   if (!await access.hasUsers()) await console.createFirstUser();
 
   final server = await shelf_io.serve(
-    buildHandler(database: database, access: access),
+    buildHandler(
+      database: database,
+      access: access,
+      sync: ServerSync(database, settings: settings),
+    ),
     InternetAddress.anyIPv4,
     port,
     securityContext: certificate.securityContext(),
