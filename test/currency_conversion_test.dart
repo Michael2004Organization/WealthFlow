@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wealthflow/core/database/app_database.dart';
-import 'package:wealthflow/core/finance/currency_conversion.dart';
+import 'package:wealthflow_core/database/app_database.dart';
+import 'package:wealthflow_core/finance/currency_conversion.dart';
 
 void main() {
   test('converts foreign amounts into the standard currency', () {

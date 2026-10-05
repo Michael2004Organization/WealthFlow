@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wealthflow/core/database/app_database.dart';
-import 'package:wealthflow/core/finance/portfolio_tax_summary.dart';
+import 'package:wealthflow_core/database/app_database.dart';
+import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 
 void main() {
   test('physical gains are excluded from the allowance by default', () {

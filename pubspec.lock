@@ -66,7 +66,7 @@ packages:
     source: hosted
     version: "4.1.2"
   build_runner:
-    dependency: "direct dev"
+    dependency: transitive
     description:
       name: build_runner
       sha256: "5367e521935b102bdf1e735d2aab461e36b2edca6517662d088dd04cc39f8d16"
@@ -210,7 +210,7 @@ packages:
     source: hosted
     version: "2.34.2"
   drift_dev:
-    dependency: "direct dev"
+    dependency: transitive
     description:
       name: drift_dev
       sha256: "735aad3c34215805c66bd518c8812fa4f83b5534b2c13c4092c970c04a7e9983"

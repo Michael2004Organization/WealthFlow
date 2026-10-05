@@ -1,4 +1,4 @@
-import '../database/app_database.dart';
+import 'package:wealthflow_core/database/app_database.dart';
 
 /// Provider-neutral request plan. The concrete HTTP adapter is intentionally
 /// left out until the final market-data endpoint is selected.

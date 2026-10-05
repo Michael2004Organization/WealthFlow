@@ -1,9 +1,8 @@
 import 'package:drift/native.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wealthflow/core/database/app_database.dart';
 import 'package:wealthflow/core/providers.dart';
 import 'package:wealthflow/features/auth/auth_page.dart';
 import 'package:wealthflow/features/calculators/calculators_page.dart';
@@ -12,6 +11,7 @@ import 'package:wealthflow/features/finance/investments_page.dart';
 import 'package:wealthflow/features/household/household_page.dart';
 import 'package:wealthflow/features/settings/administration_page.dart';
 import 'package:wealthflow/features/vehicles/vehicles_page.dart';
+import 'package:wealthflow_core/database/app_database.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

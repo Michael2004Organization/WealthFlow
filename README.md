@@ -17,9 +17,11 @@ WealthFlow ist eine lokale, plattformübergreifende Finanzverwaltung für Androi
 
 ```bash
 flutter pub get
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build --workspace
 flutter run
 ```
+
+Datenbank-Schema, Datendatei-Verschlüsselung und Finanzlogik liegen im Paket `packages/wealthflow_core`, damit App und Server denselben Code nutzen. `--workspace` erzeugt den Drift-Code dort mit.
 
 Für Web werden `web/sqlite3.wasm` und `web/drift_worker.js` mitgeliefert. Eine Web-Auslieferung muss HTTPS und geeignete Security-Header verwenden.
 
@@ -37,7 +39,7 @@ Vor dem ersten Build beziehungsweise nach Änderungen an Abhängigkeiten:
 
 ```bash
 flutter pub get
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build --workspace
 ```
 
 ### Android

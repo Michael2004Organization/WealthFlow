@@ -2,11 +2,11 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wealthflow/app/app_lock_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:wealthflow/core/database/app_database.dart';
+import 'package:wealthflow/app/app_lock_screen.dart';
 import 'package:wealthflow/core/providers.dart';
 import 'package:wealthflow/features/auth/auth_controller.dart';
+import 'package:wealthflow_core/database/app_database.dart';
 
 void main() {
   testWidgets('unlocks only with the right PIN', (tester) async {

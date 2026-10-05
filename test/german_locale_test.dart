@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
-import 'package:wealthflow/core/database/app_database.dart';
 import 'package:wealthflow/core/providers.dart';
 import 'package:wealthflow/core/storage/import_preview.dart';
+import 'package:wealthflow_core/database/app_database.dart';
 
 void main() {
   setUpAll(() => initializeDateFormatting('de_DE'));

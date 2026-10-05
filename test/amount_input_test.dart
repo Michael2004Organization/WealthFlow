@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wealthflow/core/finance/amount_input.dart';
+import 'package:wealthflow_core/finance/amount_input.dart';
 
 void main() {
   test('parses German amounts with thousands separators', () {

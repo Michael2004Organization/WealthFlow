@@ -5,12 +5,12 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:wealthflow_core/database/app_database.dart';
+import 'package:wealthflow_core/finance/amount_input.dart';
+import 'package:wealthflow_core/finance/budget_period.dart';
 
 import '../../core/providers.dart';
-import '../../core/database/app_database.dart';
-import '../../core/finance/budget_period.dart';
 import '../../core/widgets/common_widgets.dart';
-import '../../core/finance/amount_input.dart';
 
 class CalculatorsPage extends StatelessWidget {
   const CalculatorsPage({super.key});

@@ -4,9 +4,9 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wealthflow/core/database/app_database.dart';
-import 'package:wealthflow/core/security/data_cipher.dart';
 import 'package:wealthflow/core/storage/data_export_native.dart';
+import 'package:wealthflow_core/database/app_database.dart';
+import 'package:wealthflow_core/security/data_cipher.dart';
 
 final _now = DateTime.utc(2026, 9, 1);
 

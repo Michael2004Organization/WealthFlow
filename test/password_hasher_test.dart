@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wealthflow/core/security/data_cipher.dart';
 import 'package:wealthflow/core/security/password_hasher.dart';
+import 'package:wealthflow_core/security/data_cipher.dart';
 
 void main() {
   group('PasswordHasher', () {

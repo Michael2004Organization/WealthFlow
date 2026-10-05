@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wealthflow/core/finance/currencies.dart';
-import 'package:wealthflow/core/finance/portfolio_master_data.dart';
+import 'package:wealthflow_core/finance/currencies.dart';
+import 'package:wealthflow_core/finance/portfolio_master_data.dart';
 
 void main() {
   test('country defaults provide meaningful ISO currencies', () {
