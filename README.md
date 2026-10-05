@@ -25,6 +25,17 @@ Datenbank-Schema, Datendatei-Verschlüsselung und Finanzlogik liegen im Paket `p
 
 Für Web werden `web/sqlite3.wasm` und `web/drift_worker.js` mitgeliefert. Eine Web-Auslieferung muss HTTPS und geeignete Security-Header verwenden.
 
+## Server im Heimnetz
+
+`server/` enthält den WealthFlow-Server: ein Programm mit eigener SQLite-Datenbank, das nur über HTTPS mit eigenem Zertifikat erreichbar ist. Die fertige Windows-Version baut GitHub Actions (Workflow „Server“, Artefakt `wealthflow-server-windows`). Bedienung siehe `server/windows/LIESMICH.txt`.
+
+```bash
+cd server
+dart pub get
+dart test
+dart run bin/wealthflow_server.dart --daten ./daten
+```
+
 ## Qualität
 
 ```bash

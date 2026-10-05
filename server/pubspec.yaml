@@ -1,0 +1,21 @@
+name: wealthflow_server
+description: WealthFlow-Server für das Heimnetz – ein Programm mit eigener SQLite-Datenbank.
+publish_to: 'none'
+version: 1.0.0
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  args: ^2.7.0
+  basic_utils: ^5.8.2
+  drift: ^2.34.2
+  shelf: ^1.4.2
+  sqlite3: ^3.5.0
+  wealthflow_core:
+    path: ../packages/wealthflow_core
+
+
+dev_dependencies:
+  lints: ^6.1.0
+  test: ^1.25.0
