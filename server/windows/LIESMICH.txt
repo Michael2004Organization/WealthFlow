@@ -13,7 +13,8 @@ Einrichten (einmalig)
   2. Diesen Ordner z. B. nach C:\WealthFlowServer kopieren.
   3. start.cmd doppelklicken.
      Beim ersten Start fragt der Server nach dem Ordner für die
-     zusätzliche Datendatei (leer lassen = keine).
+     zusätzliche Datendatei (leer lassen = keine) und legt dein Konto
+     an (E-Mail, Name, Passwort mit mindestens 10 Zeichen).
      Windows fragt einmal "Zugriff zulassen?": nur "Private Netzwerke"
      anhaken. Ohne diese Freigabe erreichen Handy und andere PCs den
      Server nicht.
@@ -22,6 +23,22 @@ Benutzen
   Das Fenster zeigt die Adressen und den Fingerabdruck des Zertifikats.
   Solange das Fenster offen ist, läuft der Server.
   Fenster schließen oder Strg+C beendet ihn.
+
+Gerät verbinden
+  1. Im Server-Fenster Enter drücken. Es erscheint ein Kopplungscode
+     (z. B. ABCD-EFGH-JKMN), 10 Minuten gültig für ein Gerät.
+  2. In der App: Einstellungen > Server im Heimnetz > Mit Server
+     verbinden. Adresse aus dem Fenster, Code, E-Mail und Passwort
+     eingeben.
+  Die App prüft dabei, dass sie wirklich mit diesem PC spricht, und
+  akzeptiert danach nur noch dessen Zertifikat.
+
+Befehle im Fenster
+  Enter     neuer Kopplungscode
+  b         weiteres Benutzerkonto anlegen (z. B. für Tobias)
+  g         gekoppelte Geräte anzeigen
+  e <Nr>    Gerät entfernen
+  h         Hilfe
 
 Entfernen
   Ordner löschen. Die von Windows gespeicherte Firewall-Freigabe kann

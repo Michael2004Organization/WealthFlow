@@ -1,3 +1,5 @@
+export 'src/access.dart';
+export 'src/passwords.dart';
 export 'src/server_app.dart';
 export 'src/server_database.dart';
 export 'src/server_paths.dart';

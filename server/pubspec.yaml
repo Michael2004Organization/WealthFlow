@@ -9,9 +9,11 @@ environment:
 dependencies:
   args: ^2.7.0
   basic_utils: ^5.8.2
+  cryptography: ^2.9.0
   drift: ^2.34.2
   shelf: ^1.4.2
   sqlite3: ^3.5.0
+  uuid: ^4.6.0
   wealthflow_core:
     path: ../packages/wealthflow_core
 
