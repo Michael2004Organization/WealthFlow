@@ -12,6 +12,7 @@ import 'package:wealthflow_core/finance/currencies.dart';
 import 'package:wealthflow_core/security/data_cipher.dart';
 
 import '../auth/auth_controller.dart';
+import 'server_section.dart';
 import '../../core/providers.dart';
 import '../../core/storage/data_export.dart';
 import '../../core/storage/import_preview.dart';
@@ -189,6 +190,12 @@ class SettingsPage extends ConsumerWidget {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 16),
+              _Section(
+                title: 'Server im Heimnetz',
+                icon: Icons.dns_rounded,
+                children: [ServerConnectionTiles(accountEmail: user.email)],
               ),
               const SizedBox(height: 16),
               _Section(

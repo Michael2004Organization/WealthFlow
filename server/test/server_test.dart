@@ -51,8 +51,13 @@ void main() {
     setUp(() async {
       certificate = ServerCertificate.create(hostNames: ['localhost']);
       database = AppDatabase(NativeDatabase.memory());
+      final access = ServerAccess(
+        database,
+        certificateFingerprint: certificate.fingerprint,
+      );
+      await access.initialize();
       server = await shelf_io.serve(
-        buildHandler(database: database),
+        buildHandler(database: database, access: access),
         InternetAddress.loopbackIPv4,
         0,
         securityContext: certificate.securityContext(),

@@ -7,6 +7,7 @@ import '../features/auth/auth_controller.dart';
 import 'database/app_connection.dart';
 import 'notifications/notification_service.dart';
 import 'security/secure_session_store.dart';
+import 'server/server_connection.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
   final database = openAppDatabase();
@@ -36,6 +37,14 @@ final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
 final currentUserIdProvider = Provider<String?>((ref) {
   return ref.watch(authControllerProvider).user?.id;
 });
+
+final serverConnectionProvider =
+    StateNotifierProvider<ServerConnectionController, ServerConnectionState>(
+      (ref) => ServerConnectionController(
+        userId: ref.watch(currentUserIdProvider),
+        sessionStore: ref.watch(secureSessionStoreProvider),
+      ),
+    );
 
 final accountsProvider = StreamProvider<List<Account>>((ref) {
   final userId = ref.watch(currentUserIdProvider);

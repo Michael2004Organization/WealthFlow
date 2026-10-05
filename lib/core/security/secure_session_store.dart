@@ -5,6 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wealthflow_core/security/data_cipher.dart';
 
+import '../server/server_link.dart';
+
 final class SecureSessionStore {
   SecureSessionStore({FlutterSecureStorage? storage})
     : _storage =
@@ -19,6 +21,9 @@ final class SecureSessionStore {
   static const _exchangeApiKeyPrefix = 'wealthflow.exchange_api_key.';
   static const _backupKeyPrefix = 'wealthflow.backup_key.';
   static const _appPinPrefix = 'wealthflow.app_pin.';
+  static const _serverLinkPrefix = 'wealthflow.server_link.';
+  static const _serverRefreshPrefix = 'wealthflow.server_refresh.';
+  static final Map<String, String> _memoryServerValues = {};
   final FlutterSecureStorage _storage;
   static String? _memoryUserId;
   static final Map<String, List<int>> _memoryDataKeys = {};
@@ -224,6 +229,60 @@ final class SecureSessionStore {
       return true;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Server connection of [userId] (address, certificate fingerprint,
+  /// device id), or null when this account is not connected.
+  Future<ServerLink?> readServerLink(String userId) async {
+    final encoded = await _readServerValue(_serverLinkPrefix + userId);
+    if (encoded == null) return null;
+    try {
+      return ServerLink.fromJson(jsonDecode(encoded));
+    } on FormatException {
+      return null;
+    }
+  }
+
+  Future<void> writeServerLink(String userId, ServerLink? link) =>
+      _writeServerValue(
+        _serverLinkPrefix + userId,
+        link == null ? null : jsonEncode(link.toJson()),
+      );
+
+  /// Refresh token of the server session; only in the platform key store.
+  Future<String?> readServerRefreshToken(String userId) =>
+      _readServerValue(_serverRefreshPrefix + userId);
+
+  Future<void> writeServerRefreshToken(String userId, String? token) =>
+      _writeServerValue(_serverRefreshPrefix + userId, token);
+
+  Future<String?> _readServerValue(String key) async {
+    final memory = _memoryServerValues[key];
+    if (memory != null) return memory;
+    try {
+      final stored = await _storage.read(key: key);
+      if (stored != null) _memoryServerValues[key] = stored;
+      return stored;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _writeServerValue(String key, String? value) async {
+    if (value == null) {
+      _memoryServerValues.remove(key);
+    } else {
+      _memoryServerValues[key] = value;
+    }
+    try {
+      if (value == null) {
+        await _storage.delete(key: key);
+      } else {
+        await _storage.write(key: key, value: value);
+      }
+    } catch (_) {
+      // Without a key store the connection lasts until the app closes.
     }
   }
 }

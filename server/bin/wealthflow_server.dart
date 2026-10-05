@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
+import 'package:wealthflow_server/src/server_console.dart';
 import 'package:wealthflow_server/wealthflow_server.dart';
 
 Future<void> main(List<String> arguments) async {
@@ -58,9 +59,16 @@ Future<void> main(List<String> arguments) async {
   final database = openServerDatabase(paths.database);
   // Opens the file and runs migrations before the first request arrives.
   await database.customSelect('SELECT 1').get();
+  final access = ServerAccess(
+    database,
+    certificateFingerprint: certificate.fingerprint,
+  );
+  await access.initialize();
+  final console = ServerConsole(access);
+  if (!await access.hasUsers()) await console.createFirstUser();
 
   final server = await shelf_io.serve(
-    buildHandler(database: database),
+    buildHandler(database: database, access: access),
     InternetAddress.anyIPv4,
     port,
     securityContext: certificate.securityContext(),
@@ -74,10 +82,13 @@ Future<void> main(List<String> arguments) async {
     settings: settings,
   );
 
+  console.start();
+
   final stopped = Completer<void>();
   Future<void> stop() async {
     if (stopped.isCompleted) return;
     stdout.writeln('\nServer wird beendet ...');
+    await console.stop();
     await server.close(force: true);
     await database.close();
     stopped.complete();
