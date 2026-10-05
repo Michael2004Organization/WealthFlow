@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNotNull, isNull;
@@ -132,9 +133,9 @@ void main() {
     ]);
 
     final phoneSync = await connect(phone, 'phone');
-    expect(await phoneSync.syncNow(), isTrue, reason: phoneSync.state.error);
+    expect(await phoneSync.transfer(), isTrue, reason: phoneSync.state.error);
     final laptopSync = await connect(laptop, 'laptop');
-    expect(await laptopSync.syncNow(), isTrue);
+    expect(await laptopSync.transfer(), isTrue);
 
     expect(await _balance(serverDatabase), 900);
     expect(await _balance(laptop), 900);
@@ -151,7 +152,7 @@ void main() {
       await DataCipher.deriveBackupKey('pw', iterations: 1000),
     );
     final sync = await connect(phone, 'phone');
-    expect(await sync.syncNow(), isTrue);
+    expect(await sync.transfer(), isTrue);
     expect(server.received['/api/sync']!['backupKey'], isA<Map>());
     expect(sync.state.dataFile, ServerDataFile.written);
   });
@@ -162,7 +163,14 @@ void main() {
       'phone',
       debounce: const Duration(milliseconds: 50),
     );
-    await _waitFor(() => server.syncCalls == 1 && !sync.state.isRunning);
+    // Nothing leaves the device before the transfer was confirmed.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    expect(server.syncCalls, 0);
+    expect(sync.state.awaitingFirstSync, isTrue);
+    expect(await sync.syncNow(), isFalse);
+
+    expect(await sync.transfer(), isTrue);
+    expect(sync.state.awaitingFirstSync, isFalse);
     // The sync's own writes (merge, sync time) do not start another one.
     await Future<void>.delayed(const Duration(milliseconds: 400));
     expect(server.syncCalls, 1);
@@ -178,7 +186,7 @@ void main() {
 
   test('PC aus: Meldung, lokale Daten bleiben', () async {
     final sync = await connect(phone, 'phone');
-    await sync.syncNow();
+    await sync.transfer();
     await server.close();
     await _createAccount(phone, 'phone');
 
@@ -186,4 +194,47 @@ void main() {
     expect(sync.state.error, contains('start.cmd'));
     expect(await _balance(phone), 1000);
   });
+
+  test(
+    'Übertragen einer Datendatei zweimal ergibt keine Doppelungen',
+    () async {
+      // A data file from before the server existed, restored on two devices.
+      final old = await _device('old');
+      await _createAccount(old, 'old');
+      await old.saveLedgerEntries([
+        for (var i = 0; i < 3; i++)
+          LedgerEntriesCompanion.insert(
+            id: 'entry-$i',
+            userId: 'old',
+            bookingDate: DateTime(2026, 9, 1 + i),
+            amount: 10,
+            category: 'Lebensmittel',
+            accountId: const Value('giro'),
+            createdAt: _now,
+            updatedAt: _now,
+          ),
+      ]);
+      final file = jsonDecode(jsonEncode(await old.exportUserData('old')));
+      await old.close();
+      await phone.mergeUserData(
+        'phone',
+        Map<String, dynamic>.from(file as Map),
+      );
+      await laptop.mergeUserData('laptop', Map<String, dynamic>.from(file));
+
+      final phoneSync = await connect(phone, 'phone');
+      expect(await phoneSync.transfer(), isTrue);
+      expect(await phoneSync.transfer(), isTrue);
+      final laptopSync = await connect(laptop, 'laptop');
+      expect(await laptopSync.transfer(), isTrue);
+      expect(await phoneSync.syncNow(), isTrue);
+
+      for (final database in [serverDatabase, phone, laptop]) {
+        final entries = await database.select(database.ledgerEntries).get();
+        expect(entries, hasLength(3));
+        expect(await database.select(database.accounts).get(), hasLength(1));
+        expect(await _balance(database), 970);
+      }
+    },
+  );
 }

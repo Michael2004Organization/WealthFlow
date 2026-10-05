@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/providers.dart';
 import '../../core/server/server_sync.dart';
+import '../../core/storage/import_preview.dart';
 
 /// Settings tiles for the connection to the home server.
 class ServerConnectionTiles extends ConsumerWidget {
@@ -95,6 +96,7 @@ class ServerConnectionTiles extends ConsumerWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Mit dem Server verbunden.')),
               );
+              await transferToServer(context, ref);
             } else {
               setDialogState(
                 () => error = ref.read(serverConnectionProvider).error,
@@ -289,6 +291,23 @@ class _SyncStatusTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sync = ref.watch(serverSyncProvider);
+    if (sync.awaitingFirstSync) {
+      return ListTile(
+        leading: const Icon(Icons.cloud_upload_rounded),
+        title: const Text('Daten auf Server übertragen'),
+        subtitle: Text(
+          sync.error ??
+              'Noch nicht abgeglichen. Vorher siehst du, was übertragen wird.',
+        ),
+        trailing: sync.isRunning
+            ? const SizedBox.square(
+                dimension: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.chevron_right_rounded),
+        onTap: sync.isRunning ? null : () => transferToServer(context, ref),
+      );
+    }
     final last = sync.lastSyncAt;
     final lines = [
       if (sync.isRunning)
@@ -318,4 +337,65 @@ class _SyncStatusTile extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Shows what this device sends and starts the first sync on confirmation.
+Future<void> transferToServer(BuildContext context, WidgetRef ref) async {
+  final userId = ref.read(currentUserIdProvider);
+  if (userId == null) return;
+  final preview = ImportPreview.fromData(
+    await ref.read(databaseProvider).exportUserData(userId),
+  );
+  if (!context.mounted) return;
+  final empty =
+      preview.accounts +
+          preview.ledgerEntries +
+          preview.investments +
+          preview.vehicles +
+          preview.reminders ==
+      0;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Daten auf Server übertragen?'),
+      content: Text(
+        empty
+            ? 'Auf diesem Gerät gibt es noch keine Daten. Es holt die Daten, '
+                  'die schon auf dem Server liegen.'
+            : 'Von diesem Gerät gehen an den Server:\n\n'
+                  '${preview.accounts} Konten\n'
+                  '${preview.ledgerEntries} Buchungen\n'
+                  '${preview.investments} Depotpositionen\n'
+                  '${preview.vehicles} Fahrzeuge\n'
+                  '${preview.reminders} Erinnerungen\n\n'
+                  'Sie werden mit den Daten auf dem Server zusammengeführt. '
+                  'Gleiche Einträge entstehen nicht doppelt, bei Unterschieden '
+                  'gilt die neuere Fassung. Danach gleicht dieses Gerät '
+                  'automatisch ab.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Später'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: Text(empty ? 'Daten holen' : 'Übertragen'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  final ok = await ref.read(serverSyncProvider.notifier).transfer();
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        ok
+            ? 'Daten mit dem Server abgeglichen.'
+            : ref.read(serverSyncProvider).error ??
+                  'Übertragung fehlgeschlagen.',
+      ),
+    ),
+  );
 }
