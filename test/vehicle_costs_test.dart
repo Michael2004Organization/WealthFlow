@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wealthflow/core/database/app_database.dart';
+import 'package:wealthflow_core/database/app_database.dart';
 
 const _userId = 'driver';
 final _now = DateTime.utc(2026, 10, 1);

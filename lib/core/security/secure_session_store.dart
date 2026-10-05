@@ -3,8 +3,7 @@ import 'dart:math';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'data_cipher.dart';
+import 'package:wealthflow_core/security/data_cipher.dart';
 
 final class SecureSessionStore {
   SecureSessionStore({FlutterSecureStorage? storage})

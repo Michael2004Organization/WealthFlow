@@ -2,10 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:drift_flutter/drift_flutter.dart';
 import 'package:uuid/uuid.dart';
 
-import '../storage/data_export.dart';
 import '../security/data_cipher.dart';
 import '../finance/budget_period.dart';
 import '../finance/currencies.dart';
@@ -504,6 +502,10 @@ class NetWorthSnapshots extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Writes [content] to the data file at [path]; returns false when the
+/// location is not writable.
+typedef DataFileWriter = Future<bool> Function(String content, String path);
+
 @DriftDatabase(
   tables: [
     Users,
@@ -543,19 +545,17 @@ final class AppDatabase extends _$AppDatabase {
 
   /// Delay that bundles several quick changes into one data file write.
   static const persistDelay = Duration(seconds: 3);
-  AppDatabase()
-    : super(
-        driftDatabase(
-          name: 'wealthflow',
-          web: DriftWebOptions(
-            sqlite3Wasm: Uri.parse('sqlite3.wasm'),
-            driftWorker: Uri.parse('drift_worker.js'),
-          ),
-          native: const DriftNativeOptions(shareAcrossIsolates: true),
-        ),
-      );
 
-  AppDatabase.forTesting(super.executor);
+  /// Opens the database on [executor]. The app passes its platform
+  /// connection, the server its own SQLite file.
+  ///
+  /// [writeDataFile] stores the encrypted data file at a path; without it
+  /// the data file is reported as not writable.
+  AppDatabase(super.executor, {this.writeDataFile});
+
+  AppDatabase.forTesting(super.executor, {this.writeDataFile});
+
+  final DataFileWriter? writeDataFile;
 
   void setDataFileKey(String userId, List<int> key) {
     _dataFileKeys[userId] = List<int>.unmodifiable(key);
@@ -2327,10 +2327,9 @@ final class AppDatabase extends _$AppDatabase {
             ? 0
             : investment.fees * quantity / investment.quantity);
     final realizedGain = proceedsBeforeTax - costBasis;
-    final allowanceAvailable = (preference.taxAllowance - alreadyUsed).clamp(
-      0,
-      double.infinity,
-    ).toDouble();
+    final allowanceAvailable = (preference.taxAllowance - alreadyUsed)
+        .clamp(0, double.infinity)
+        .toDouble();
     final soldInvestments = {
       for (final row in await (select(
         investments,
@@ -2412,9 +2411,7 @@ final class AppDatabase extends _$AppDatabase {
           .write(
             AccountsCompanion(
               balance: Value(cashAccount.balance + proceeds),
-              availableBalance: Value(
-                cashAccount.availableBalance + proceeds,
-              ),
+              availableBalance: Value(cashAccount.availableBalance + proceeds),
               updatedAt: Value(DateTime.now().toUtc()),
             ),
           );
@@ -3817,7 +3814,8 @@ final class AppDatabase extends _$AppDatabase {
         key,
         backupKey: _backupKeys[userId],
       );
-      final written = await writeDataFile(encrypted, path);
+      final writer = writeDataFile;
+      final written = writer != null && await writer(encrypted, path);
       _setBackupStatus(
         userId,
         written

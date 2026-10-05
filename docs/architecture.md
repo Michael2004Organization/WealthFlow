@@ -52,9 +52,13 @@ Geldbeträge werden in der ersten lokalen Version als SQLite `REAL` gespeichert.
 ## 4. Ordnerstruktur
 
 ```text
+packages/wealthflow_core/
+  database/             Drift-Schema und Abfragen (App und Server)
+  finance/              Finanzlogik ohne Flutter
+  security/             Verschlüsselung der Datendatei
 lib/
   app/                  App, Theme, responsive Shell
-  core/database/        Drift-Schema und Abfragen
+  core/database/        Verbindung zur lokalen Datenbank des Geräts
   core/security/        Hashing und sichere Sitzung
   core/widgets/         wiederverwendbare UI-Bausteine
   features/             vertikale Fachmodule

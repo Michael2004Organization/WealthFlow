@@ -5,13 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:wealthflow_core/database/app_database.dart';
+import 'package:wealthflow_core/finance/amount_input.dart';
+import 'package:wealthflow_core/finance/currencies.dart';
+import 'package:wealthflow_core/finance/portfolio_master_data.dart';
 
-import '../../core/database/app_database.dart';
-import '../../core/finance/currencies.dart';
-import '../../core/finance/portfolio_master_data.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
-import '../../core/finance/amount_input.dart';
 
 class AdministrationPage extends ConsumerWidget {
   const AdministrationPage({super.key});

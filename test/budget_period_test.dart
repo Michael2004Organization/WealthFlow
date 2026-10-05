@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wealthflow/core/finance/budget_period.dart';
+import 'package:wealthflow_core/finance/budget_period.dart';
 
 void main() {
   group('budget payment dates', () {

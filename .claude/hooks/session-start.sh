@@ -1,6 +1,6 @@
 #!/bin/bash
 # Richtet Flutter in Claude Code Cloud-Sessions ein, damit
-# `flutter pub get`, `dart run build_runner`, `flutter analyze` und
+# `flutter pub get`, `dart run build_runner build --workspace`, `flutter analyze` und
 # `flutter test` sofort funktionieren. Das SDK liegt außerhalb des Repos und
 # wird nach dem ersten Lauf aus dem Container-Cache wiederverwendet.
 set -euo pipefail

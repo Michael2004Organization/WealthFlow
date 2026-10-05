@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wealthflow/core/finance/dividend_math.dart';
+import 'package:wealthflow_core/finance/dividend_math.dart';
 
 void main() {
   test('dividend projections respect the payout frequency', () {

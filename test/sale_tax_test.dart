@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wealthflow/core/finance/sale_tax.dart';
+import 'package:wealthflow_core/finance/sale_tax.dart';
 
 void main() {
   test('share gain without losses uses the allowance first', () {

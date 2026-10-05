@@ -21,6 +21,9 @@ version: 1.0.0+1
 environment:
   sdk: ^3.12.2
 
+workspace:
+  - packages/wealthflow_core
+
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
 # consider running `flutter pub upgrade --major-versions`. Alternatively,
@@ -39,6 +42,8 @@ dependencies:
   flutter_riverpod: ^2.6.1
   drift: ^2.34.2
   drift_flutter: ^0.3.1
+  wealthflow_core:
+    path: packages/wealthflow_core
   crypto: ^3.0.7
   cryptography: ^2.9.0
   flutter_secure_storage: ^10.3.1
@@ -60,8 +65,6 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-  drift_dev: ^2.34.5
-  build_runner: ^2.15.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

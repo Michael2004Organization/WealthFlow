@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wealthflow_core/database/app_database.dart';
+import 'package:wealthflow_core/finance/currency_conversion.dart';
 
 import '../features/auth/auth_controller.dart';
-import 'database/app_database.dart';
-import 'finance/currency_conversion.dart';
+import 'database/app_connection.dart';
 import 'notifications/notification_service.dart';
 import 'security/secure_session_store.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
-  final database = AppDatabase();
+  final database = openAppDatabase();
   ref.onDispose(database.close);
   return database;
 });
