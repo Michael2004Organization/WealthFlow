@@ -7,6 +7,7 @@ import 'package:wealthflow_core/security/data_cipher.dart';
 
 import 'access.dart';
 import 'sync.dart';
+import 'web_app.dart';
 
 /// Version shown by `/api/health`; the app compares it before syncing.
 const serverVersion = '1.0.0';
@@ -19,10 +20,11 @@ Handler buildHandler({
   required AppDatabase database,
   required ServerAccess access,
   required ServerSync sync,
+  WebApp? webApp,
 }) {
   return const Pipeline()
       .addMiddleware(_securityHeaders())
-      .addHandler((request) => _route(request, database, access, sync));
+      .addHandler((request) => _route(request, database, access, sync, webApp));
 }
 
 Future<Response> _route(
@@ -30,6 +32,7 @@ Future<Response> _route(
   AppDatabase database,
   ServerAccess access,
   ServerSync sync,
+  WebApp? webApp,
 ) async {
   final path = '/${request.url.path}';
   final method = request.method;
@@ -72,6 +75,13 @@ Future<Response> _route(
         final body = await _jsonBody(request);
         final session = await access.refresh(_string(body, 'refreshToken'));
         return jsonResponse(session.toJson());
+    }
+
+    if (!path.startsWith('/api/') && (method == 'GET' || method == 'HEAD')) {
+      if (webApp != null && webApp.isAvailable) return webApp.serve(request);
+      return Response.notFound(
+        'Die Web-Version liegt nicht im Ordner "web" neben start.cmd.',
+      );
     }
 
     final context = await access.authenticate(request.headers['authorization']);

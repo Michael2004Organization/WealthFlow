@@ -6,3 +6,4 @@ export 'src/server_paths.dart';
 export 'src/server_settings.dart';
 export 'src/sync.dart';
 export 'src/tls.dart';
+export 'src/web_app.dart';

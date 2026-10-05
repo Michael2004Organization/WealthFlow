@@ -5,6 +5,7 @@ Inhalt dieses Ordners
   start.cmd                 Startet den Server (Doppelklick).
   bin\wealthflow_server.exe Das Server-Programm.
   lib\sqlite3.dll           Die Datenbank-Bibliothek (SQLite).
+  web\                      Die Web-Version für den Browser.
   daten\                    Entsteht beim ersten Start: Datenbank,
                             Zertifikat und Einstellungen.
 
@@ -32,6 +33,17 @@ Gerät verbinden
      eingeben.
   Die App prüft dabei, dass sie wirklich mit diesem PC spricht, und
   akzeptiert danach nur noch dessen Zertifikat.
+  3. Die App zeigt, welche Daten sie überträgt. Nach "Übertragen"
+     gleicht sie automatisch ab: beim Start, nach Änderungen und alle
+     5 Minuten. Ist der PC aus, arbeitet sie normal weiter.
+
+Im Browser
+  Eine Adresse aus dem Fenster im Browser öffnen, z. B.
+  https://192.168.178.20:8443
+  Der Browser warnt beim ersten Mal, weil das Zertifikat vom Server
+  selbst stammt. Vorher den Fingerabdruck vergleichen (im Browser beim
+  Schloss/Warnsymbol > Zertifikat > SHA-256), dann "Weiter" wählen.
+  Danach wie in der App mit einem Kopplungscode verbinden.
 
 Befehle im Fenster
   Enter     neuer Kopplungscode
