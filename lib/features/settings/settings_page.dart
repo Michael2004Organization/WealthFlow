@@ -27,6 +27,9 @@ class SettingsPage extends ConsumerWidget {
     final user = ref.watch(authControllerProvider).user;
     final backupStatus = ref.watch(backupStatusProvider).valueOrNull;
     final appPinSet = ref.watch(appPinProvider).valueOrNull != null;
+    final serverConnected = ref.watch(
+      serverConnectionProvider.select((state) => state.isConnected),
+    );
     if (preference == null || user == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -202,12 +205,9 @@ class SettingsPage extends ConsumerWidget {
                 title: 'Datenspeicherung',
                 icon: Icons.storage_rounded,
                 children: [
-                  const ListTile(
-                    leading: Icon(Icons.smartphone_rounded),
-                    title: Text('Lokale Datenbank'),
-                    subtitle: Text(
-                      'Es findet keine Remote-Übertragung statt. SQLite und die optionale Datendatei bleiben unter deiner Kontrolle.',
-                    ),
+                  _StorageModeTile(
+                    serverConnected: serverConnected,
+                    dataFile: preference.dataFilePath.isNotEmpty,
                   ),
                   const ListTile(
                     leading: Icon(Icons.shield_rounded),
@@ -246,6 +246,16 @@ class SettingsPage extends ConsumerWidget {
                     _BackupStatusTile(
                       status: backupStatus,
                       warning: backupWarning,
+                    ),
+                  if (preference.dataFilePath.isNotEmpty)
+                    ListTile(
+                      leading: const Icon(Icons.folder_off_rounded),
+                      title: const Text('Datendatei nicht mehr schreiben'),
+                      subtitle: const Text(
+                        'Die vorhandene Datei bleibt im Ordner liegen.',
+                      ),
+                      onTap: () =>
+                          _savePreference(ref, preference, dataFilePath: ''),
                     ),
                   ListTile(
                     leading: const Icon(Icons.merge_type_rounded),
@@ -1105,6 +1115,57 @@ class _BackupStatusTile extends StatelessWidget {
       subtitle: Text(
         text,
         style: problem ? TextStyle(color: colors.error) : null,
+      ),
+    );
+  }
+}
+
+/// Shows where the data of this device lives: only in the local database,
+/// additionally in the data file, and/or in step with the home server.
+class _StorageModeTile extends StatelessWidget {
+  const _StorageModeTile({
+    required this.serverConnected,
+    required this.dataFile,
+  });
+
+  final bool serverConnected;
+  final bool dataFile;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, title, text) = switch ((serverConnected, dataFile)) {
+      (true, true) => (
+        Icons.dns_rounded,
+        'Server + Datendatei',
+        'Die Daten liegen in der lokalen Datenbank, werden mit dem Server im '
+            'Heimnetz abgeglichen und zusätzlich als Datendatei geschrieben.',
+      ),
+      (true, false) => (
+        Icons.dns_rounded,
+        'Server',
+        'Die Daten liegen in der lokalen Datenbank und werden verschlüsselt '
+            'mit dem Server im Heimnetz abgeglichen. Ohne Verbindung arbeitet '
+            'die App weiter und gleicht später ab.',
+      ),
+      (false, true) => (
+        Icons.save_rounded,
+        'Lokal + Datendatei',
+        'Die Daten liegen in der lokalen Datenbank und zusätzlich in der '
+            'verschlüsselten Datendatei im gewählten Ordner.',
+      ),
+      (false, false) => (
+        Icons.smartphone_rounded,
+        'Nur lokal',
+        'Die Daten liegen nur in der lokalen Datenbank dieses Geräts. Es '
+            'findet keine Übertragung statt.',
+      ),
+    };
+    return ListTile(
+      leading: Icon(icon),
+      title: Text('Speicherart: $title'),
+      subtitle: Text(
+        '$text Umschalten: Server oben verbinden oder trennen, Datendatei '
+        'über den Ordner unten.',
       ),
     );
   }

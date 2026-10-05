@@ -579,6 +579,10 @@ final class AppDatabase extends _$AppDatabase {
 
   bool hasBackupKey(String userId) => _backupKeys.containsKey(userId);
 
+  /// The password-derived key, sent to the own home server so it can write
+  /// a data file that opens on every device.
+  BackupKey? backupKeyFor(String userId) => _backupKeys[userId];
+
   @override
   Future<void> close() async {
     for (final timer in _pendingPersists.values) {
@@ -3456,6 +3460,12 @@ final class AppDatabase extends _$AppDatabase {
       for (final json in rows('accountBalanceHistories')) {
         final remote = AccountBalanceHistory.fromJson(json);
         if (remote.userId != userId) continue;
+        final local = await (select(
+          accountBalanceHistories,
+        )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+        // History rows carry no change time; a deletion on either side wins
+        // so an older copy cannot bring a deleted entry back.
+        if (local?.deletedAt != null && remote.deletedAt == null) continue;
         await into(
           accountBalanceHistories,
         ).insertOnConflictUpdate(remote.toCompanion(false));
@@ -3495,9 +3505,21 @@ final class AppDatabase extends _$AppDatabase {
         });
         if (remote.userId != userId) continue;
         remotePurchases[remote.id] = remote;
-        await into(
+        final local = await (select(
           investmentPurchases,
-        ).insertOnConflictUpdate(remote.toCompanion(false));
+        )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+        // Without a change time (older files) the incoming row wins, as
+        // before; otherwise the newer change is kept.
+        final remoteChanged = remote.updatedAt;
+        final localChanged = local?.updatedAt;
+        if (local == null ||
+            remoteChanged == null ||
+            localChanged == null ||
+            remoteChanged.isAfter(localChanged)) {
+          await into(
+            investmentPurchases,
+          ).insertOnConflictUpdate(remote.toCompanion(false));
+        }
       }
       for (final json in rows('portfolioSales')) {
         final remote = PortfolioSale.fromJson({
@@ -3550,8 +3572,35 @@ final class AppDatabase extends _$AppDatabase {
           masterData,
         )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
         final remoteChanged = remote.updatedAt ?? remote.createdAt;
-        final localChanged = local?.updatedAt ?? local?.createdAt;
-        if (local == null || remoteChanged.isAfter(localChanged!)) {
+        if (local == null) {
+          // Every device seeds the same default values under its own ids.
+          // Values are referenced by text, so the existing row with the same
+          // kind and value takes over the newer deletion state instead of a
+          // second row that would break the unique key.
+          final twin =
+              await (select(masterData)..where(
+                    (row) =>
+                        row.userId.equals(userId) &
+                        row.kind.equals(remote.kind) &
+                        row.value.equals(remote.value),
+                  ))
+                  .getSingleOrNull();
+          if (twin == null) {
+            await into(masterData).insert(remote.toCompanion(false));
+          } else if (remoteChanged.isAfter(twin.updatedAt ?? twin.createdAt)) {
+            await (update(
+              masterData,
+            )..where((row) => row.id.equals(twin.id))).write(
+              MasterDataCompanion(
+                deletedAt: Value(remote.deletedAt),
+                updatedAt: Value(remoteChanged),
+              ),
+            );
+          }
+          continue;
+        }
+        final localChanged = local.updatedAt ?? local.createdAt;
+        if (remoteChanged.isAfter(localChanged)) {
           await into(
             masterData,
           ).insertOnConflictUpdate(remote.toCompanion(false));
@@ -4069,6 +4118,43 @@ final class AppDatabase extends _$AppDatabase {
     return (select(
       userPreferences,
     )..where((row) => row.userId.equals(userId))).getSingle();
+  }
+
+  /// Keys of [exportUserData] that describe the moment or the device rather
+  /// than the data itself.
+  static const volatileExportKeys = {
+    'format',
+    'exportedAt',
+    'user',
+    'preferences',
+  };
+
+  /// Stores the server connection state shown in the settings.
+  Future<void> saveServerState(
+    String userId, {
+    required bool connected,
+    String serverUrl = '',
+    String serverUsername = '',
+    DateTime? lastSyncAt,
+  }) async {
+    await preferencesFor(userId);
+    await (update(
+      userPreferences,
+    )..where((row) => row.userId.equals(userId))).write(
+      UserPreferencesCompanion(
+        serverMode: Value(connected),
+        serverUrl: Value(serverUrl),
+        serverUsername: Value(serverUsername),
+        lastSyncAt: Value(lastSyncAt),
+      ),
+    );
+  }
+
+  /// Sets where the data file of [userId] is written; empty turns it off.
+  Future<void> setDataFilePath(String userId, String path) async {
+    await preferencesFor(userId);
+    await (update(userPreferences)..where((row) => row.userId.equals(userId)))
+        .write(UserPreferencesCompanion(dataFilePath: Value(path)));
   }
 
   Future<void> savePreferences(UserPreferencesCompanion value) async {
