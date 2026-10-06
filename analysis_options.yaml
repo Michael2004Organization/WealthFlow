@@ -14,6 +14,13 @@ analyzer:
   # (`dart pub get --directory server`); it is analyzed in server/.
   exclude:
     - server/**
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   # The lint rules applied to this project can be customized in the
