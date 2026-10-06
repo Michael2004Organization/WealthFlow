@@ -78,7 +78,9 @@ Future<Response> _route(
     }
 
     if (!path.startsWith('/api/') && (method == 'GET' || method == 'HEAD')) {
-      if (webApp != null && webApp.isAvailable) return webApp.serve(request);
+      if (webApp != null && webApp.isAvailable) {
+        return await webApp.serve(request);
+      }
       return Response.notFound(
         'Die Web-Version liegt nicht im Ordner "web" neben start.cmd.',
       );
