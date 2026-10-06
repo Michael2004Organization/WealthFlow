@@ -17,8 +17,18 @@ WealthFlow ist eine lokale, plattformübergreifende Finanzverwaltung für Androi
 
 ```bash
 flutter pub get
-dart run build_runner build --workspace
+dart pub get --directory server
 flutter run
+```
+
+`dart pub get --directory server` holt die Abhängigkeiten des Servers (eigenes Paket in `server/`). Ohne diesen Schritt meldet der Editor im Ordner `server` viele Fehler wie „Target of URI doesn't exist“. Den Drift-Code neu erzeugen ist nur nach Änderungen am Datenbank-Schema nötig: `dart run build_runner build --workspace`.
+
+Nach einem `git pull` mit vielen Änderungen hilft bei hartnäckigen Abhängigkeitsfehlern:
+
+```bash
+flutter clean
+flutter pub get
+dart pub get --directory server
 ```
 
 Datenbank-Schema, Datendatei-Verschlüsselung und Finanzlogik liegen im Paket `packages/wealthflow_core`, damit App und Server denselben Code nutzen. `--workspace` erzeugt den Drift-Code dort mit.
