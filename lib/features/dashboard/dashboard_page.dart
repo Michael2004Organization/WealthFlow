@@ -1,7 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wealthflow_core/database/app_database.dart';
 import 'package:wealthflow_core/finance/account_balance_math.dart';
@@ -452,8 +451,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 },
               ),
               const SizedBox(height: 16),
-              _NetWorthChart(snapshots: snapshots),
-              const SizedBox(height: 16),
               _MonthlyChart(entries: entries),
             ],
           ),
@@ -763,217 +760,6 @@ class _MonthlyChartState extends State<_MonthlyChart> {
   }
 }
 
-class _NetWorthChart extends StatefulWidget {
-  const _NetWorthChart({required this.snapshots});
-
-  final List<NetWorthSnapshot> snapshots;
-
-  @override
-  State<_NetWorthChart> createState() => _NetWorthChartState();
-}
-
-class _NetWorthChartState extends State<_NetWorthChart> {
-  bool _includeVehicles = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final snapshots = widget.snapshots;
-    final visible = snapshots.length > 60
-        ? snapshots.sublist(snapshots.length - 60)
-        : snapshots;
-    double totalValue(NetWorthSnapshot snapshot) =>
-        snapshot.totalNetWorth + (_includeVehicles ? snapshot.vehicleValue : 0);
-    final totalSpots = visible.indexed
-        .map((item) => FlSpot(item.$1.toDouble(), totalValue(item.$2)))
-        .toList();
-    final accountSpots = visible.indexed
-        .map((item) => FlSpot(item.$1.toDouble(), item.$2.accountBalance))
-        .toList();
-    final maximum = visible.fold<double>(
-      0,
-      (value, item) => totalValue(item) > value ? totalValue(item) : value,
-    );
-    final leftInterval = maximum <= 0 ? 1.0 : maximum / 4;
-    final bottomInterval = visible.length <= 4
-        ? 1.0
-        : (visible.length / 4).ceilToDouble();
-    final totalColor = Theme.of(context).colorScheme.primary;
-    final accountColor = WealthColors.of(context).chart[1];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Vermögensverlauf',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                Tooltip(
-                  message: _includeVehicles
-                      ? 'Fahrzeugwert ausblenden'
-                      : 'Fahrzeugwert einblenden',
-                  child: Switch.adaptive(
-                    value: _includeVehicles,
-                    onChanged: (value) =>
-                        setState(() => _includeVehicles = value),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _includeVehicles
-                  ? 'Gesamtvermögen mit Fahrzeugen und Kontostand'
-                  : 'Gesamtvermögen ohne Fahrzeuge und Kontostand',
-            ),
-            if (visible.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 18,
-                runSpacing: 8,
-                children: [
-                  Text(
-                    'Gesamt  ${money(totalValue(visible.last))}',
-                    style: TextStyle(
-                      color: totalColor,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(
-                    'Konten  ${money(visible.last.accountBalance)}',
-                    style: TextStyle(
-                      color: accountColor,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(
-                    'Stand  ${DateFormat('dd.MM.yyyy').format(visible.last.capturedAt)}',
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 260,
-              child: visible.length < 2
-                  ? const Center(
-                      child: Text(
-                        'Der Verlauf erscheint nach der nächsten Wertänderung.',
-                      ),
-                    )
-                  : LineChart(
-                      LineChartData(
-                        borderData: FlBorderData(show: false),
-                        gridData: FlGridData(
-                          drawVerticalLine: false,
-                          getDrawingHorizontalLine: (_) => FlLine(
-                            color: Theme.of(
-                              context,
-                            ).dividerColor.withValues(alpha: .22),
-                          ),
-                        ),
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 70,
-                              interval: leftInterval,
-                              getTitlesWidget: (value, meta) => Text(
-                                NumberFormat.compactCurrency(
-                                  locale: 'de_DE',
-                                  symbol: '€',
-                                  decimalDigits: 0,
-                                ).format(value),
-                                style: Theme.of(context).textTheme.labelSmall,
-                              ),
-                            ),
-                          ),
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 34,
-                              interval: bottomInterval,
-                              getTitlesWidget: (value, meta) {
-                                final index = value.round();
-                                if (index < 0 || index >= visible.length) {
-                                  return const SizedBox.shrink();
-                                }
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    DateFormat(
-                                      'dd.MM.',
-                                    ).format(visible[index].capturedAt),
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.labelSmall,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                        lineTouchData: LineTouchData(
-                          touchTooltipData: LineTouchTooltipData(
-                            getTooltipItems: (spots) => spots
-                                .map(
-                                  (spot) => LineTooltipItem(
-                                    (spot.barIndex == 0
-                                            ? 'Gesamt: '
-                                            : 'Konten: ') +
-                                        money(spot.y),
-                                    const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ),
-                        lineBarsData: [
-                          LineChartBarData(
-                            spots: totalSpots,
-                            isCurved: true,
-                            barWidth: 4,
-                            color: totalColor,
-                            dotData: const FlDotData(show: false),
-                            belowBarData: BarAreaData(
-                              show: true,
-                              color: totalColor.withValues(alpha: .12),
-                            ),
-                          ),
-                          LineChartBarData(
-                            spots: accountSpots,
-                            isCurved: true,
-                            barWidth: 3,
-                            color: accountColor,
-                            dotData: const FlDotData(show: false),
-                          ),
-                        ],
-                      ),
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 String _greeting(DateTime now) => now.hour < 11
     ? 'Guten Morgen'
     : now.hour < 18
@@ -1047,7 +833,7 @@ class _MonthSwitcher extends StatelessWidget {
   }
 }
 
-class _NetWorthHero extends StatelessWidget {
+class _NetWorthHero extends StatefulWidget {
   const _NetWorthHero({
     required this.netWorth,
     required this.change,
@@ -1067,14 +853,39 @@ class _NetWorthHero extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_NetWorthHero> createState() => _NetWorthHeroState();
+}
+
+/// Ranges of the net worth line; null months shows everything.
+const _heroRanges = {'1M': 1, '6M': 6, '1J': 12, 'Alles': null};
+
+class _NetWorthHeroState extends State<_NetWorthHero> {
+  String _range = '6M';
+
+  @override
   Widget build(BuildContext context) {
+    final _NetWorthHero(
+      :netWorth,
+      :change,
+      :previousMonth,
+      :accounts,
+      :portfolio,
+      :snapshots,
+      :onTap,
+    ) = widget;
     final colors = WealthColors.of(context);
     final text = Theme.of(context).textTheme;
-    final visible = snapshots.length > 90
-        ? snapshots.sublist(snapshots.length - 90)
-        : snapshots;
+    final months = _heroRanges[_range];
+    final now = DateTime.now();
+    final from = months == null
+        ? null
+        : DateTime(now.year, now.month - months, now.day);
+    final visible = from == null
+        ? snapshots
+        : snapshots.where((item) => !item.capturedAt.isBefore(from)).toList();
+    final primary = Theme.of(context).colorScheme.primary;
     final base = netWorth - (change ?? 0);
-    final percent = change == null || base == 0 ? null : change! / base * 100;
+    final percent = change == null || base == 0 ? null : change / base * 100;
     Widget figure(String label, double value, Color dot) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1120,7 +931,16 @@ class _NetWorthHero extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Eyebrow('Nettovermögen'),
+              Row(
+                children: [
+                  const Expanded(child: Eyebrow('Nettovermögen')),
+                  _RangePicker(
+                    value: _range,
+                    values: _heroRanges.keys.toList(),
+                    onChanged: (value) => setState(() => _range = value),
+                  ),
+                ],
+              ),
               const SizedBox(height: 6),
               FittedBox(
                 fit: BoxFit.scaleDown,
@@ -1137,58 +957,77 @@ class _NetWorthHero extends StatelessWidget {
               if (change != null) ...[
                 const SizedBox(height: 4),
                 Text(
-                  '${signedMoney(change!, income: change! >= 0)}'
+                  '${signedMoney(change, income: change >= 0)}'
                   '${percent == null ? '' : ' (${percent >= 0 ? '+' : '−'}${percent.abs().toStringAsFixed(1).replaceAll('.', ',')} %)'}'
                   ' seit $previousMonth',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: colors.amount(income: change! >= 0),
+                    color: colors.amount(income: change >= 0),
                   ),
                 ),
               ],
-              if (visible.length >= 2) ...[
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 96,
-                  child: LineChart(
-                    LineChartData(
-                      borderData: FlBorderData(show: false),
-                      gridData: const FlGridData(show: false),
-                      titlesData: const FlTitlesData(show: false),
-                      lineTouchData: const LineTouchData(enabled: false),
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: [
-                            for (final item in visible.indexed)
-                              FlSpot(item.$1.toDouble(), item.$2.totalNetWorth),
-                          ],
-                          isCurved: true,
-                          preventCurveOverShooting: true,
-                          barWidth: 2.5,
-                          color: Theme.of(context).colorScheme.primary,
-                          dotData: const FlDotData(show: false),
-                          belowBarData: BarAreaData(
-                            show: true,
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Theme.of(
-                                  context,
-                                ).colorScheme.primary.withValues(alpha: .18),
-                                Theme.of(
-                                  context,
-                                ).colorScheme.primary.withValues(alpha: 0),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 110,
+                child: visible.length < 2
+                    ? Center(
+                        child: Text(
+                          'Der Verlauf erscheint nach der nächsten Wertänderung.',
+                          style: TextStyle(color: colors.muted, fontSize: 13),
+                        ),
+                      )
+                    : LineChart(
+                        LineChartData(
+                          borderData: FlBorderData(show: false),
+                          gridData: const FlGridData(show: false),
+                          titlesData: const FlTitlesData(show: false),
+                          lineTouchData: LineTouchData(
+                            touchTooltipData: LineTouchTooltipData(
+                              getTooltipItems: (spots) => [
+                                for (final spot in spots)
+                                  LineTooltipItem(
+                                    '${shortDate(DateTime.fromMillisecondsSinceEpoch(spot.x.round()))}\n'
+                                    '${money(spot.y)}',
+                                    const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
+                          lineBarsData: [
+                            LineChartBarData(
+                              spots: [
+                                for (final item in visible)
+                                  FlSpot(
+                                    item.capturedAt.millisecondsSinceEpoch
+                                        .toDouble(),
+                                    item.totalNetWorth,
+                                  ),
+                              ],
+                              isCurved: true,
+                              preventCurveOverShooting: true,
+                              barWidth: 2.5,
+                              color: primary,
+                              dotData: const FlDotData(show: false),
+                              belowBarData: BarAreaData(
+                                show: true,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    primary.withValues(alpha: .18),
+                                    primary.withValues(alpha: 0),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                      ),
+              ),
               const SizedBox(height: 16),
               Divider(height: 1, color: colors.border),
               const SizedBox(height: 14),
@@ -1639,6 +1478,75 @@ class _LightDesignHint extends StatelessWidget {
             TextButton(onPressed: onDismiss, child: const Text('Nein, danke')),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Small segmented control for chart ranges (1M · 6M · 1J · Alles).
+class _RangePicker extends StatelessWidget {
+  const _RangePicker({
+    required this.value,
+    required this.values,
+    required this.onChanged,
+  });
+
+  final String value;
+  final List<String> values;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WealthColors.of(context);
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: colors.ground,
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final item in values)
+            Semantics(
+              button: true,
+              selected: item == value,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(7),
+                onTap: () => onChanged(item),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: item == value
+                        ? Theme.of(context).colorScheme.surface
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(7),
+                    boxShadow: item == value
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: .06),
+                              blurRadius: 3,
+                              offset: const Offset(0, 1),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Text(
+                    item,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: item == value ? colors.income : colors.muted,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
