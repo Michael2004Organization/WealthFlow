@@ -213,14 +213,11 @@ void main() {
 
       expect(result.dataFile, DataFileResult.written);
       final file = File(
-        '${folder.path}${Platform.pathSeparator}wealthflow-srv@example.test.wflow',
+        '${folder.path}${Platform.pathSeparator}wealthflow-srv@example.test.wflow2',
       );
-      final content = await file.readAsString();
-      expect(content, isNot(contains('Giro')));
-      final opened = await DataCipher.decryptWithPassword(
-        content,
-        password: 'pw',
-      );
+      final content = await file.readAsBytes();
+      expect(DataCipher.isPackedWithPassword(content), isTrue);
+      final opened = await DataCipher.unpack(content, password: 'pw');
       expect(opened, contains('Giro'));
     });
   });

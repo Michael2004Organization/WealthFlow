@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:html' as html;
+import 'dart:typed_data';
 
 Future<bool> downloadReadonlyExport(String json, String fileName) async {
   final blob = html.Blob([json], 'application/json;charset=utf-8');
@@ -15,12 +16,22 @@ Future<bool> downloadReadonlyExport(String json, String fileName) async {
 
 Future<String?> chooseDataFilePath(String fileName) async => null;
 
-Future<bool> writeDataFile(String json, String path) async => false;
+Future<bool> writeDataFile(List<int> bytes, String path) async => false;
 
-Future<String?> chooseDataImport() async {
+Future<String?> saveTransferFile(Uint8List bytes, String fileName) async {
+  final blob = html.Blob([bytes], 'application/octet-stream');
+  final url = html.Url.createObjectUrlFromBlob(blob);
+  html.AnchorElement(href: url)
+    ..download = fileName
+    ..click();
+  html.Url.revokeObjectUrl(url);
+  return fileName;
+}
+
+Future<Uint8List?> chooseDataImport() async {
   final input = html.FileUploadInputElement()
-    ..accept = '.json,.wflow,application/json,application/octet-stream';
-  final completer = Completer<String?>();
+    ..accept = '.wflow2,.wflow,.json,application/json,application/octet-stream';
+  final completer = Completer<Uint8List?>();
   input.onChange.first.then((_) {
     final file = input.files?.firstOrNull;
     if (file == null) {
@@ -29,10 +40,14 @@ Future<String?> chooseDataImport() async {
     }
     final reader = html.FileReader();
     reader.onLoad.first.then(
-      (_) => completer.complete(reader.result as String?),
+      (_) => completer.complete(switch (reader.result) {
+        final ByteBuffer buffer => buffer.asUint8List(),
+        final Uint8List bytes => bytes,
+        _ => null,
+      }),
     );
     reader.onError.first.then((_) => completer.complete(null));
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   });
   input.click();
   return completer.future;

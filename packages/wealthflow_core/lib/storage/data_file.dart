@@ -3,15 +3,15 @@ import 'dart:io';
 /// Daily copies of the data file that are kept next to it.
 const dataFileGenerations = 7;
 
-/// Writes [content] to a temporary file first and only then replaces [path],
+/// Writes [bytes] to a temporary file first and only then replaces [path],
 /// so a crash or a full disk never leaves a half-written data file behind.
 /// Before the first write of a new day the previous file is kept as a dated
 /// copy; only the newest [dataFileGenerations] copies remain.
-Future<bool> writeDataFile(String content, String path) async {
+Future<bool> writeDataFile(List<int> bytes, String path) async {
   if (path.trim().isEmpty) return false;
   final target = File(path);
   final temp = File('$path.tmp');
-  await temp.writeAsString(content, flush: true);
+  await temp.writeAsBytes(bytes, flush: true);
   if (await target.exists()) {
     await _keepDailyCopy(target);
   }

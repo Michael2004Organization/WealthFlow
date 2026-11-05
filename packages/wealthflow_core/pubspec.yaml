@@ -8,6 +8,7 @@ environment:
   sdk: ^3.12.2
 
 dependencies:
+  archive: ^4.6.0
   cryptography: ^2.9.0
   drift: ^2.34.2
   intl: ^0.20.2

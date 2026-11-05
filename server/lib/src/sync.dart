@@ -142,7 +142,7 @@ final class ServerSync {
     final name = user.email.replaceAll(RegExp(r'[^A-Za-z0-9@._-]'), '_');
     await _database.setDataFilePath(
       userId,
-      '$directory${Platform.pathSeparator}wealthflow-$name.wflow',
+      '$directory${Platform.pathSeparator}wealthflow-$name.wflow2',
     );
     _database
       ..setDataFileKey(userId, _unusedDeviceKey)

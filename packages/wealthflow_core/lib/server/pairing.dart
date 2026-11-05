@@ -53,7 +53,9 @@ Future<String> pairingProof({
   String serverNonce = '',
 }) async {
   final mac = await Hmac.sha256().calculateMac(
-    utf8.encode('wealthflow-pairing|$role|$fingerprint|$clientNonce|$serverNonce'),
+    utf8.encode(
+      'wealthflow-pairing|$role|$fingerprint|$clientNonce|$serverNonce',
+    ),
     secretKey: SecretKey(utf8.encode(normalizePairingCode(code))),
   );
   return base64UrlEncode(mac.bytes);

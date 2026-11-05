@@ -131,39 +131,118 @@ void main() {
       await newDevice.close();
     });
 
-    test('restores a backup into a newly registered account', () async {
-      await _createUser(oldDevice, 'old-user');
-      await _createAccount(oldDevice, 'old-user', 'giro');
-      await oldDevice.saveLedgerEntries([_entry('rent', 'old-user', 'giro')]);
-      expect(await _balance(oldDevice, 'giro'), 900);
-      final key = await DataCipher.deriveBackupKey('pw', iterations: 1000);
-      oldDevice
-        ..setDataFileKey('old-user', List<int>.filled(32, 1))
-        ..setBackupKey('old-user', key);
-      final file = await DataCipher.encrypt(
-        jsonEncode(await oldDevice.exportUserData('old-user')),
-        List<int>.filled(32, 1),
-        backupKey: key,
-      );
+    test(
+      'restores an older .wflow backup into a newly registered account',
+      () async {
+        await _createUser(oldDevice, 'old-user');
+        await _createAccount(oldDevice, 'old-user', 'giro');
+        await oldDevice.saveLedgerEntries([_entry('rent', 'old-user', 'giro')]);
+        expect(await _balance(oldDevice, 'giro'), 900);
+        final key = await DataCipher.deriveBackupKey('pw', iterations: 1000);
+        oldDevice
+          ..setDataFileKey('old-user', List<int>.filled(32, 1))
+          ..setBackupKey('old-user', key);
+        final file = await DataCipher.encrypt(
+          jsonEncode(await oldDevice.exportUserData('old-user')),
+          List<int>.filled(32, 1),
+          backupKey: key,
+        );
 
-      await _createUser(newDevice, 'new-user');
-      newDevice.setDataFileKey('new-user', List<int>.filled(32, 2));
+        await _createUser(newDevice, 'new-user');
+        newDevice.setDataFileKey('new-user', List<int>.filled(32, 2));
+        await expectLater(
+          newDevice.decodeUserDataFile('new-user', utf8.encode(file)),
+          throwsA(isA<BackupPasswordRequired>()),
+        );
+        final data = await newDevice.decodeUserDataFile(
+          'new-user',
+          utf8.encode(file),
+          password: 'pw',
+        );
+        await newDevice.mergeUserData('new-user', data);
+
+        final accounts = await newDevice.watchAccounts('new-user').first;
+        expect(accounts.single.id, 'giro');
+        expect(accounts.single.balance, 900);
+        final entries = await newDevice.watchLedgerEntries('new-user').first;
+        expect(entries.single.id, 'rent');
+      },
+    );
+
+    test(
+      '.wflow2 round trip restores the same data on another device',
+      () async {
+        final writes = <String, List<int>>{};
+        final device = AppDatabase.forTesting(
+          NativeDatabase.memory(),
+          writeDataFile: (bytes, path) async {
+            writes[path] = bytes;
+            return true;
+          },
+        );
+        addTearDown(device.close);
+        await _createUser(device, 'user');
+        await _createAccount(device, 'user', 'giro');
+        await device.saveLedgerEntries([_entry('rent', 'user', 'giro')]);
+        final key = await DataCipher.deriveBackupKey('pw', iterations: 1000);
+        device
+          ..setDataFileKey('user', List<int>.filled(32, 1))
+          ..setBackupKey('user', key);
+        await device.setDataFilePath('user', '/backup/data.wflow');
+
+        expect(await device.persistUserFile('user'), isTrue);
+        // An older .wflow path is continued as .wflow2 next to it.
+        expect(writes.keys, ['/backup/data.wflow2']);
+        final file = writes.values.single;
+        expect(DataCipher.isPacked(file), isTrue);
+        expect(DataCipher.isPackedWithPassword(file), isTrue);
+        final json = utf8.encode(
+          jsonEncode(await device.exportUserData('user')),
+        );
+        expect(file.length, lessThan(json.length));
+
+        // Unchanged data is not written again.
+        writes.clear();
+        expect(await device.persistUserFile('user'), isTrue);
+        expect(writes, isEmpty);
+
+        await _createUser(newDevice, 'new-user');
+        await expectLater(
+          newDevice.decodeUserDataFile('new-user', file),
+          throwsA(isA<BackupPasswordRequired>()),
+        );
+        final data = await newDevice.decodeUserDataFile(
+          'new-user',
+          file,
+          password: 'pw',
+        );
+        await newDevice.mergeUserData('new-user', data);
+        final entries = await newDevice.watchLedgerEntries('new-user').first;
+        expect(entries.single.id, 'rent');
+        expect(
+          (await newDevice.watchAccounts('new-user').first).single.balance,
+          900,
+        );
+      },
+    );
+
+    test('transfer file opens with its password only', () async {
+      await _createUser(oldDevice, 'user');
+      await _createAccount(oldDevice, 'user', 'giro');
+      final key = await DataCipher.deriveBackupKey('geheim', iterations: 1000);
+      final file = await oldDevice.transferFile('user', key);
+
+      await _createUser(newDevice, 'other');
       await expectLater(
-        newDevice.decodeUserDataFile('new-user', file),
-        throwsA(isA<BackupPasswordRequired>()),
+        newDevice.decodeUserDataFile('other', file, password: 'falsch'),
+        throwsA(anything),
       );
       final data = await newDevice.decodeUserDataFile(
-        'new-user',
+        'other',
         file,
-        password: 'pw',
+        password: 'geheim',
       );
-      await newDevice.mergeUserData('new-user', data);
-
-      final accounts = await newDevice.watchAccounts('new-user').first;
-      expect(accounts.single.id, 'giro');
-      expect(accounts.single.balance, 900);
-      final entries = await newDevice.watchLedgerEntries('new-user').first;
-      expect(entries.single.id, 'rent');
+      expect((data['accounts'] as List).single['id'], 'giro');
     });
 
     test('corrects the kept balance when a newer booking arrives', () async {
@@ -183,11 +262,9 @@ void main() {
         _entry('food', 'user', 'giro', amount: 50, updatedAt: _now),
       ]);
       expect(await _balance(newDevice, 'giro'), 950);
-      await (newDevice.update(
-        newDevice.accounts,
-      )..where((row) => row.id.equals('giro'))).write(
-        AccountsCompanion(updatedAt: Value(DateTime.utc(2099))),
-      );
+      await (newDevice.update(newDevice.accounts)
+            ..where((row) => row.id.equals('giro')))
+          .write(AccountsCompanion(updatedAt: Value(DateTime.utc(2099))));
 
       // The file now carries a newer version of the booking (amount 250)
       // while the local account stays the newer one.
@@ -216,13 +293,7 @@ void main() {
 
     test('editing one side also updates the other side', () async {
       await database.saveLedgerEntries([
-        _entry(
-          'out',
-          'user',
-          'giro',
-          sourceType: 'transfer',
-          sourceId: 't1',
-        ),
+        _entry('out', 'user', 'giro', sourceType: 'transfer', sourceId: 't1'),
         _entry(
           'in',
           'user',
@@ -282,9 +353,8 @@ void main() {
       await database.saveLedgerEntries(entries);
       expect(await _balance(database, 'giro'), 700);
       expect(await _balance(database, 'savings'), 300);
-      final edited = (await database.watchLedgerEntries(
-        'user',
-      ).first).firstWhere((entry) => entry.id == 'out-0');
+      final edited = (await database.watchLedgerEntries('user').first)
+          .firstWhere((entry) => entry.id == 'out-0');
 
       await database.updateLedgerSeries(
         'series',
@@ -322,12 +392,12 @@ void main() {
 
     test('replaces the file and keeps dated daily copies', () async {
       final path = '${directory.path}${Platform.pathSeparator}data.wflow';
-      await writeDataFile('first', path);
+      await writeDataFile(utf8.encode('first'), path);
       expect(await File(path).readAsString(), 'first');
 
       for (var day = 1; day <= 9; day++) {
         await File(path).setLastModified(DateTime(2026, 9, day, 12));
-        await writeDataFile('day $day', path);
+        await writeDataFile(utf8.encode('day $day'), path);
       }
 
       expect(await File(path).readAsString(), 'day 9');

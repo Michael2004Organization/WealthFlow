@@ -50,15 +50,34 @@ Future<String?> chooseDataFilePath(String fileName) async {
   return directory + separator + fileName;
 }
 
-Future<String?> chooseDataImport() async {
+Future<Uint8List?> chooseDataImport() async {
   final file = await openFile(
     acceptedTypeGroups: const [
-      XTypeGroup(label: 'WealthFlow JSON', extensions: ['json']),
       XTypeGroup(
-        label: 'Verschlüsselte WealthFlow-Datei',
-        extensions: ['wflow'],
+        label: 'WealthFlow-Datei',
+        extensions: ['wflow2', 'wflow', 'json'],
       ),
     ],
   );
-  return file?.readAsString();
+  return file?.readAsBytes();
+}
+
+/// Saves a transfer file. Android keeps it in the app's own folder (see
+/// [_androidFolder]); returns the path, or null when cancelled.
+Future<String?> saveTransferFile(Uint8List bytes, String fileName) async {
+  if (Platform.isAndroid) {
+    final folder = await _androidFolder();
+    final path = '${folder.path}${Platform.pathSeparator}$fileName';
+    await File(path).writeAsBytes(bytes, flush: true);
+    return path;
+  }
+  final location = await getSaveLocation(
+    suggestedName: fileName,
+    acceptedTypeGroups: const [
+      XTypeGroup(label: 'WealthFlow-Datei', extensions: ['wflow2']),
+    ],
+  );
+  if (location == null) return null;
+  await File(location.path).writeAsBytes(bytes, flush: true);
+  return location.path;
 }

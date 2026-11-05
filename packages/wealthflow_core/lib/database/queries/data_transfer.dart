@@ -487,19 +487,32 @@ extension DataTransferQueries on AppDatabase {
     final preference = await (select(
       userPreferences,
     )..where((row) => row.userId.equals(userId))).getSingleOrNull();
-    final path = preference?.dataFilePath ?? '';
+    var path = preference?.dataFilePath ?? '';
     final key = _dataFileKeys[userId];
     if (path.isEmpty || key == null) return false;
+    if (path.endsWith('.wflow')) {
+      // Older versions wrote the JSON format; the new file goes next to it
+      // and the old one stays untouched as a last copy.
+      path = '${path}2';
+      await setDataFilePath(userId, path);
+    }
     try {
       final data = await exportUserData(userId);
-      final json = const JsonEncoder.withIndent('  ').convert(data);
-      final encrypted = await DataCipher.encrypt(
-        json,
+      final backupKey = _backupKeys[userId];
+      final fingerprint = await _fingerprint(data, path, backupKey);
+      if (_persistedFingerprints[userId] == fingerprint) return true;
+      final file = await DataCipher.pack(
+        jsonEncode(data),
         key,
-        backupKey: _backupKeys[userId],
+        backupKey: backupKey,
       );
       final writer = writeDataFile;
-      final written = writer != null && await writer(encrypted, path);
+      final written = writer != null && await writer(file, path);
+      if (written) {
+        _persistedFingerprints[userId] = fingerprint;
+      } else {
+        _persistedFingerprints.remove(userId);
+      }
       _setBackupStatus(
         userId,
         written
@@ -508,6 +521,7 @@ extension DataTransferQueries on AppDatabase {
       );
       return written;
     } catch (error, stackTrace) {
+      _persistedFingerprints.remove(userId);
       // Local database writes must never fail just because an external backup
       // location is temporarily unavailable, but the user has to learn that
       // the data file is no longer up to date.
@@ -525,6 +539,26 @@ extension DataTransferQueries on AppDatabase {
       );
       return false;
     }
+  }
+
+  /// Hash of everything that ends up in the data file except the export
+  /// time, so a write is skipped when nothing changed since the last one.
+  Future<String> _fingerprint(
+    Map<String, Object?> data,
+    String path,
+    BackupKey? backupKey,
+  ) async {
+    final stable = {
+      for (final entry in data.entries)
+        if (entry.key != 'exportedAt') entry.key: entry.value,
+    };
+    final hash = await Sha256().hash(
+      utf8.encode(
+        '$path|${backupKey == null ? '' : base64Encode(backupKey.salt)}|'
+        '${jsonEncode(stable)}',
+      ),
+    );
+    return base64Encode(hash.bytes);
   }
 
   void _setBackupStatus(String userId, BackupStatus status) {

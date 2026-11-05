@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cryptography/cryptography.dart' show Sha256;
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -475,7 +476,7 @@ class NetWorthSnapshots extends Table {
 
 /// Writes [content] to the data file at [path]; returns false when the
 /// location is not writable.
-typedef DataFileWriter = Future<bool> Function(String content, String path);
+typedef DataFileWriter = Future<bool> Function(List<int> bytes, String path);
 
 @DriftDatabase(
   tables: [
@@ -508,6 +509,10 @@ final class AppDatabase extends _$AppDatabase {
   final Map<String, BackupKey> _backupKeys = {};
   final Map<String, Timer> _pendingPersists = {};
   final Map<String, BackupStatus> _backupStatus = {};
+
+  /// Fingerprint of the content last written per user, so an unchanged
+  /// data file is not rewritten.
+  final Map<String, String> _persistedFingerprints = {};
   final _backupStatusChanges = StreamController<String>.broadcast();
 
   /// Delay that bundles several quick changes into one data file write.
@@ -585,29 +590,49 @@ final class AppDatabase extends _$AppDatabase {
     await persistUserFile(userId);
   }
 
-  /// Decrypts a data file. Password-protected files use the stored backup key
-  /// when it matches, otherwise [password]; throws [BackupPasswordRequired]
-  /// when neither is available.
+  /// Decrypts a data file: the compressed `.wflow2` format, the older
+  /// `.wflow` JSON envelope or a plain JSON export. Password-protected files
+  /// use the stored backup key when it matches, otherwise [password]; throws
+  /// [BackupPasswordRequired] when neither is available.
   Future<Map<String, dynamic>> decodeUserDataFile(
     String userId,
-    String content, {
+    List<int> bytes, {
     String? password,
   }) async {
     final String clear;
-    if (DataCipher.isPasswordProtected(content)) {
-      clear = await DataCipher.decryptWithPassword(
-        content,
+    if (DataCipher.isPacked(bytes)) {
+      clear = await DataCipher.unpack(
+        bytes,
+        deviceKey: _dataFileKeys[userId],
         stored: _backupKeys[userId],
         password: password,
       );
     } else {
-      final key = _dataFileKeys[userId];
-      clear = key == null ? content : await DataCipher.decrypt(content, key);
+      final content = utf8.decode(bytes, allowMalformed: true);
+      if (DataCipher.isPasswordProtected(content)) {
+        clear = await DataCipher.decryptWithPassword(
+          content,
+          stored: _backupKeys[userId],
+          password: password,
+        );
+      } else {
+        final key = _dataFileKeys[userId];
+        clear = key == null ? content : await DataCipher.decrypt(content, key);
+      }
     }
     final decoded = jsonDecode(clear);
     if (decoded is! Map) throw const FormatException('Ungültige Datendatei');
     return Map<String, dynamic>.from(decoded);
   }
+
+  /// A password-protected `.wflow2` file of the user's data, e.g. to move it
+  /// to another device.
+  Future<Uint8List> transferFile(String userId, BackupKey key) async =>
+      DataCipher.pack(
+        jsonEncode(await exportUserData(userId)),
+        const [],
+        backupKey: key,
+      );
 
   @override
   int get schemaVersion => 21;

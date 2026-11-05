@@ -136,12 +136,6 @@ class SettingsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               _Section(
-                title: 'Server im Heimnetz',
-                icon: Icons.dns_rounded,
-                children: [ServerConnectionTiles(accountEmail: user.email)],
-              ),
-              const SizedBox(height: 16),
-              _Section(
                 title: 'Datenspeicherung',
                 icon: Icons.storage_rounded,
                 children: [
@@ -153,7 +147,7 @@ class SettingsPage extends ConsumerWidget {
                     leading: Icon(Icons.shield_rounded),
                     title: Text('Sichere lokale Speicherung'),
                     subtitle: Text(
-                      'Die App-Datenbank liegt im privaten App-Speicher. Die optionale .wflow-Datei wird zusätzlich mit AES-256-GCM verschlüsselt.',
+                      'Die App-Datenbank liegt im privaten App-Speicher. Die optionale Datendatei (.wflow2) ist komprimiert und mit AES-256-GCM verschlüsselt.',
                     ),
                   ),
                   ListTile(
@@ -198,10 +192,19 @@ class SettingsPage extends ConsumerWidget {
                           _savePreference(ref, preference, dataFilePath: ''),
                     ),
                   ListTile(
-                    leading: const Icon(Icons.merge_type_rounded),
-                    title: const Text('Datendatei zusammenführen'),
+                    leading: const Icon(Icons.send_to_mobile_rounded),
+                    title: const Text('Auf anderes Gerät übertragen'),
                     subtitle: const Text(
-                      'Verschlüsselte .wflow- oder ältere JSON-Datei importieren',
+                      'Verschlüsselte Datei erstellen und auf dem anderen Gerät unter „Von anderem Gerät übernehmen“ öffnen',
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _createTransferFile(context, ref, user.id),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.download_for_offline_rounded),
+                    title: const Text('Von anderem Gerät übernehmen'),
+                    subtitle: const Text(
+                      'Datei von einem anderen Gerät oder eine ältere Sicherung (.wflow2, .wflow, .json) einlesen',
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _importDataFile(context, ref, preference),
@@ -218,6 +221,12 @@ class SettingsPage extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 16),
+              _Section(
+                title: 'Server im Heimnetz (optional)',
+                icon: Icons.dns_rounded,
+                children: [ServerConnectionTiles(accountEmail: user.email)],
+              ),
+              const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: () =>
                     ref.read(authControllerProvider.notifier).logout(),
@@ -226,7 +235,7 @@ class SettingsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'WealthFlow 1.0.0 · Lokale Datenbankversion 10',
+                'WealthFlow 1.0.0 · Datenbankversion ${ref.read(databaseProvider).schemaVersion}',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -365,7 +374,7 @@ class SettingsPage extends ConsumerWidget {
     WidgetRef ref,
     UserPreference preference,
   ) async {
-    final path = await chooseDataFilePath('wealthflow-data.wflow');
+    final path = await chooseDataFilePath('wealthflow-data.wflow2');
     if (path == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -406,7 +415,7 @@ class SettingsPage extends ConsumerWidget {
   ) async {
     final database = ref.read(databaseProvider);
     final userId = preference.userId;
-    final String? content;
+    final Uint8List? content;
     try {
       content = await chooseDataImport();
     } catch (_) {
@@ -620,6 +629,47 @@ class SettingsPage extends ConsumerWidget {
     pin.dispose();
     repeat.dispose();
     return result;
+  }
+
+  Future<void> _createTransferFile(
+    BuildContext context,
+    WidgetRef ref,
+    String userId,
+  ) async {
+    final database = ref.read(databaseProvider);
+    var key = database.backupKeyFor(userId);
+    if (key == null) {
+      final password = await _askPassword(
+        context,
+        title: 'Passwort für die Übertragung',
+        message:
+            'Die Datei wird mit diesem Passwort verschlüsselt. Auf dem anderen Gerät gibst du es beim Öffnen ein.',
+        confirm: true,
+      );
+      if (password == null) return;
+      key = await DataCipher.deriveBackupKey(password);
+    }
+    final now = DateTime.now();
+    String two(int value) => value.toString().padLeft(2, '0');
+    final name =
+        'wealthflow-uebertragung-${now.year}-${two(now.month)}-${two(now.day)}.wflow2';
+    try {
+      final path = await saveTransferFile(
+        await database.transferFile(userId, key),
+        name,
+      );
+      if (path == null || !context.mounted) return;
+      _showSnack(
+        context,
+        database.backupKeyFor(userId) == null
+            ? 'Übertragungsdatei gespeichert: $path'
+            : 'Übertragungsdatei gespeichert: $path. Sie öffnet sich mit deinem Backup-Passwort.',
+      );
+    } catch (_) {
+      if (context.mounted) {
+        _showSnack(context, 'Die Datei konnte nicht gespeichert werden.');
+      }
+    }
   }
 
   Future<void> _setBackupPassword(

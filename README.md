@@ -117,11 +117,21 @@ direkt als lokale Datei.
 
 ## Datenschutz und Datendatei
 
-Die Arbeitsdaten bleiben lokal. In den Einstellungen kann ein Ordner gewählt
-werden, in dem WealthFlow automatisch `wealthflow-data.wflow` pflegt. Diese
-Datei ist mit AES-256-GCM verschlüsselt; der Schlüssel wird im
-Plattform-Schlüsselspeicher abgelegt und nicht in unverschlüsselten
-Einstellungen gespeichert. Nach der Anmeldung können die eigenen Daten
-weiterhin vollständig lesbar angezeigt oder bewusst als JSON exportiert werden.
+Die Arbeitsdaten bleiben lokal in einer SQLite-Datenbank. Unter Windows liegt
+sie in `%APPDATA%\WealthFlow\wealthflow.sqlite` (ältere Versionen nutzten den
+Ordner „Dokumente“; die Datei wird beim ersten Start automatisch verschoben),
+unter Android im privaten App-Speicher und im Browser im Speicher des Browsers.
+
+In den Einstellungen kann ein Ordner gewählt werden, in dem WealthFlow
+automatisch `wealthflow-data.wflow2` pflegt. Die Datei ist komprimiert und mit
+AES-256-GCM verschlüsselt und wird nur geschrieben, wenn sich Daten geändert
+haben; sieben Tageskopien bleiben daneben liegen. Ohne Backup-Passwort liegt
+der Schlüssel im Plattform-Schlüsselspeicher, mit Backup-Passwort öffnet sich
+die Datei auf jedem Gerät. Ältere `.wflow`- und JSON-Dateien lassen sich
+weiterhin einlesen.
+
+„Auf anderes Gerät übertragen“ erstellt eine passwortgeschützte `.wflow2`-Datei,
+die auf dem anderen Gerät unter „Von anderem Gerät übernehmen“ mit Vorschau
+eingelesen wird. Der eingebaute Server im Heimnetz bleibt optional.
 
 Die technischen Konzepte und Diagramme stehen in [`docs/architecture.md`](docs/architecture.md).
