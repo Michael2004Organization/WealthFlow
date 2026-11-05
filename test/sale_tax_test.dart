@@ -22,7 +22,11 @@ void main() {
       realizedGain: 1500,
       allowanceAvailable: 0,
       priorSales: const [
-        PriorSale(assetType: 'Aktie', name: 'Verlierer AG', realizedGain: -1000),
+        PriorSale(
+          assetType: 'Aktie',
+          name: 'Verlierer AG',
+          realizedGain: -1000,
+        ),
       ],
     );
     expect(tax.lossOffset, 1000);

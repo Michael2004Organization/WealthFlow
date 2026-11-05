@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' hide isNull;
+import 'package:drift/drift.dart' hide Column, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -97,7 +97,7 @@ void main() {
           databaseProvider.overrideWithValue(database),
           currentUserIdProvider.overrideWithValue(_userId),
         ],
-        child: const MaterialApp(home: Scaffold(body: HouseholdPage())),
+        child: const MaterialApp(home: Scaffold(body: _NewBookingHost())),
       ),
     );
     await tester.runAsync(
@@ -111,13 +111,10 @@ void main() {
     testWidgets('save and next keeps the editor open at $size', (tester) async {
       final database = await pumpHousehold(tester, size);
 
-      await tester.tap(find.text('Buchung').first);
+      await tester.tap(find.byIcon(Icons.add_circle_rounded));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Betrag *'),
-        '1.234,56',
-      );
+      await tester.enterText(find.byKey(const Key('entry-amount')), '1.234,56');
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Händler / Quelle'),
         'rewe',
@@ -196,10 +193,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Buchung bearbeiten'), findsOneWidget);
 
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Betrag *'),
-      '250',
-    );
+    await tester.enterText(find.byKey(const Key('entry-amount')), '250');
     await tester.tap(find.text('Speichern'));
     for (var i = 0; i < 20; i++) {
       await tester.runAsync(
@@ -232,4 +226,23 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.runAsync(database.close);
   });
+}
+
+/// Stands in for the "+" of the app's navigation bar, which opens the
+/// booking editor on phones where the household page has no own button.
+class _NewBookingHost extends StatelessWidget {
+  const _NewBookingHost();
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      const Expanded(child: HouseholdPage()),
+      Consumer(
+        builder: (context, ref, _) => IconButton(
+          onPressed: () => startNewBooking(context, ref),
+          icon: const Icon(Icons.add_circle_rounded),
+        ),
+      ),
+    ],
+  );
 }

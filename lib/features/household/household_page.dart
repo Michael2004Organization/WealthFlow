@@ -1291,42 +1291,18 @@ class _EntryEditorState extends State<_EntryEditor> {
         const SizedBox(height: 12),
       ],
       _kindSelector(),
+      const SizedBox(height: 8),
+      _amountField(context),
+      if (_bookingKind == 'standard') ...[
+        const SizedBox(height: 4),
+        _categoryChips(context),
+      ],
       const SizedBox(height: 12),
-      _responsiveFields([
-        TextFormField(
-          controller: _amount,
-          focusNode: _amountFocus,
-          autofocus: _isNew,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          textInputAction: TextInputAction.next,
-          style: widget.fullscreen
-              ? TextStyle(
-                  fontFamily: AppTheme.displayFont,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: _kind == 'expense'
-                      ? WealthColors.of(context).expense
-                      : _kind == 'income'
-                      ? WealthColors.of(context).income
-                      : null,
-                )
-              : null,
-          decoration: InputDecoration(
-            labelText: 'Betrag *',
-            hintText: '0,00',
-            suffixText: _selectedAccount?.currency ?? 'EUR',
-            prefixIcon: const Icon(Icons.payments_outlined),
-          ),
-          validator: (value) => (parseAmount(value) ?? 0) <= 0
-              ? 'Bitte einen positiven Betrag eingeben.'
-              : null,
-        ),
-        _DateField(
-          label: 'Datum',
-          value: DateFormat('dd.MM.yyyy').format(_date),
-          onTap: _pickDate,
-        ),
-      ]),
+      _DateField(
+        label: 'Datum',
+        value: DateFormat('dd.MM.yyyy').format(_date),
+        onTap: _pickDate,
+      ),
       if (_isNew && _bookingKind != 'standard') ...[
         const SizedBox(height: 12),
         SearchableDropdownButtonFormField<String>(
@@ -1374,7 +1350,7 @@ class _EntryEditorState extends State<_EntryEditor> {
                 .where((item) => item.kind == 'category')
                 .map((item) => item.value),
           }.toList(),
-          onChanged: (_) => _categoryEdited = true,
+          onChanged: (_) => setState(() => _categoryEdited = true),
         ),
       ]),
       const SizedBox(height: 12),
@@ -1400,6 +1376,108 @@ class _EntryEditorState extends State<_EntryEditor> {
       ),
     ],
   );
+
+  /// The amount as the centre of the editor: large, coloured by direction.
+  Widget _amountField(BuildContext context) {
+    final colors = WealthColors.of(context);
+    final color = switch (_kind) {
+      'expense' => colors.expense,
+      'income' => colors.income,
+      _ => Theme.of(context).colorScheme.onSurface,
+    };
+    return TextFormField(
+      key: const Key('entry-amount'),
+      controller: _amount,
+      focusNode: _amountFocus,
+      autofocus: _isNew,
+      textAlign: TextAlign.center,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      textInputAction: TextInputAction.next,
+      style: TextStyle(
+        fontFamily: AppTheme.displayFont,
+        fontSize: 40,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -.5,
+        color: color,
+      ),
+      decoration: InputDecoration(
+        hintText: '0,00',
+        hintStyle: TextStyle(
+          fontFamily: AppTheme.displayFont,
+          fontSize: 40,
+          fontWeight: FontWeight.w800,
+          color: colors.border,
+        ),
+        helper: Center(
+          child: Text(
+            _selectedAccount?.currency ?? 'EUR',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: colors.muted,
+            ),
+          ),
+        ),
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        errorBorder: InputBorder.none,
+        focusedErrorBorder: InputBorder.none,
+        filled: false,
+        errorStyle: const TextStyle(height: 1.2),
+        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+      ),
+      validator: (value) => (parseAmount(value) ?? 0) <= 0
+          ? 'Bitte einen positiven Betrag eingeben.'
+          : null,
+    );
+  }
+
+  /// The categories used most for this direction, one tap to pick.
+  Widget _categoryChips(BuildContext context) {
+    final counts = <String, int>{};
+    for (final entry in widget.ledgerEntries) {
+      if (entry.isIncome != _income ||
+          entry.category.isEmpty ||
+          entry.sourceType == 'transfer' ||
+          entry.sourceType == 'saving') {
+        continue;
+      }
+      counts.update(entry.category, (count) => count + 1, ifAbsent: () => 1);
+    }
+    final ranked = counts.keys.toList()
+      ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
+    final fallback = _income
+        ? const ['Gehalt', 'Dividende', 'Sonstiges']
+        : const ['Einkaufen', 'Wohnen', 'Tanken', 'Freizeit', 'Sonstiges'];
+    final chips = {
+      ...ranked.take(6),
+      if (ranked.length < 4) ...fallback,
+    }.take(7).toList();
+    final current = _category.text.trim();
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          for (final category in chips)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: ChoiceChip(
+                label: Text(category),
+                selected: current == category,
+                showCheckmark: false,
+                visualDensity: VisualDensity.compact,
+                onSelected: (selected) => setState(() {
+                  _category.text = selected ? category : '';
+                  _categoryEdited = true;
+                }),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   bool get _hasExtraOptions =>
       _vehicleId.isNotEmpty ||
@@ -1642,7 +1720,7 @@ class _EntryEditorState extends State<_EntryEditor> {
         )
         .firstOrNull;
     if (previous == null) return;
-    _category.text = previous.category;
+    setState(() => _category.text = previous.category);
     if (_payment.text.trim().isEmpty && previous.paymentMethod.isNotEmpty) {
       _payment.text = previous.paymentMethod;
     }

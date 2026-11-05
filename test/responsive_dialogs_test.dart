@@ -307,7 +307,7 @@ void main() {
       );
       await pumpPage(
         tester,
-        const HouseholdPage(),
+        const _NewBookingHost(),
         overrides: [
           accountsProvider.overrideWith((_) => Stream.value([account])),
           accountBalanceHistoriesProvider.overrideWith(
@@ -337,7 +337,7 @@ void main() {
         size: size,
       );
 
-      await tester.tap(find.text('Buchung').first);
+      await tester.tap(find.byIcon(Icons.add_circle_rounded));
       await tester.pumpAndSettle();
       for (final kind in ['Ausgabe', 'Einnahme', 'Umbuchung', 'Sparen']) {
         expect(find.text(kind), findsOneWidget);
@@ -360,4 +360,23 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+}
+
+/// Stands in for the "+" of the app's navigation bar, which opens the
+/// booking editor on phones where the household page has no own button.
+class _NewBookingHost extends StatelessWidget {
+  const _NewBookingHost();
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      const Expanded(child: HouseholdPage()),
+      Consumer(
+        builder: (context, ref, _) => IconButton(
+          onPressed: () => startNewBooking(context, ref),
+          icon: const Icon(Icons.add_circle_rounded),
+        ),
+      ),
+    ],
+  );
 }
