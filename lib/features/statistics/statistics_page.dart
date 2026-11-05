@@ -240,9 +240,8 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
               'Top-Ausgaben',
               style: Theme.of(
                 context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
-            const Text('Höchste Einzel-Ausgaben im gewählten Zeitraum'),
             const SizedBox(height: 14),
             Wrap(
               spacing: 10,
@@ -325,7 +324,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                       return ListTile(
                         dense: true,
                         contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(child: Text('${index + 1}')),
+                        leading: IconTile(label: '${index + 1}', size: 32),
                         title: Text(
                           entry.merchant.isEmpty
                               ? entry.description
@@ -334,10 +333,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Text(entry.category),
-                        trailing: Text(
-                          money(entry.amount),
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
+                        trailing: AmountText(entry.amount, income: false),
                       );
                     },
                   ),
@@ -536,14 +532,8 @@ class _CompactDateRangeDialogState extends State<_CompactDateRangeDialog> {
 }
 
 class _ChartCard extends StatelessWidget {
-  const _ChartCard({
-    required this.title,
-    required this.description,
-    required this.child,
-    this.details,
-  });
+  const _ChartCard({required this.title, required this.child, this.details});
   final String title;
-  final String description;
   final Widget child;
   final Widget? details;
   @override
@@ -557,10 +547,9 @@ class _ChartCard extends StatelessWidget {
             title,
             style: Theme.of(
               context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
-          Text(description, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           Expanded(child: child),
           if (details != null)
             ExpansionTile(
@@ -583,7 +572,6 @@ class _AccountsChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _ChartCard(
     title: 'Kontostände',
-    description: 'Verteilung des liquiden Vermögens nach Konto',
     details: SizedBox(
       height: 110,
       child: ListView(
@@ -647,7 +635,6 @@ class _PortfolioChart extends ConsumerWidget {
       );
     return _ChartCard(
       title: 'Depotentwicklung',
-      description: 'Aktueller Wert der größten Positionen',
       details: SizedBox(
         height: 110,
         child: ListView(
@@ -757,7 +744,6 @@ class _CategoryChart extends StatelessWidget {
       ..sort((a, b) => b.value.compareTo(a.value));
     return _ChartCard(
       title: 'Ausgabenkategorien',
-      description: 'Anteil der Ausgaben nach Kategorie',
       details: SizedBox(
         height: 110,
         child: ListView(
@@ -858,7 +844,6 @@ class _CashflowChartState extends State<_CashflowChart> {
     }
     return _ChartCard(
       title: 'Cashflow',
-      description: 'Einnahmen und Ausgaben der letzten $_months Monate',
       child: Column(
         children: [
           Row(
@@ -1089,7 +1074,6 @@ class _VehicleCostChart extends StatelessWidget {
     final total = sorted.fold<double>(0, (sum, item) => sum + item.value);
     return _ChartCard(
       title: 'Fahrzeugkosten',
-      description: 'Kostenarten im direkten Vergleich',
       child: sorted.isEmpty
           ? const Center(child: Text('Noch keine Fahrzeugkosten'))
           : ListView.separated(
@@ -1164,7 +1148,6 @@ class _SavingsChart extends StatelessWidget {
         : ((income - expense) / income).clamp(0.0, 1.0);
     return _ChartCard(
       title: 'Sparquote',
-      description: 'Gesamteinnahmen im Verhältnis zum Überschuss',
       child: Center(
         child: Stack(
           alignment: Alignment.center,

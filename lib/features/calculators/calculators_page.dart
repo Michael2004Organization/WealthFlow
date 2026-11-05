@@ -122,7 +122,6 @@ class _CompoundCalculatorState extends ConsumerState<_CompoundCalculator> {
     }
     return _CalculatorScaffold(
       title: 'Zinseszinsrechner',
-      subtitle: 'Berechne, wie Sparrate und Rendite dein Vermögen entwickeln.',
       input: Column(
         children: [
           SegmentedButton<bool>(
@@ -441,7 +440,6 @@ class _WithdrawalCalculatorState extends State<_WithdrawalCalculator> {
     }
     return _CalculatorScaffold(
       title: 'Entnahmerechner',
-      subtitle: 'Berechne den Monatsbetrag oder wie lange dein Kapital reicht.',
       resultHeight: 560,
       verticalResultHeight: 680,
       input: Column(
@@ -649,7 +647,6 @@ class _FuelCalculatorState extends State<_FuelCalculator> {
         : 'Preis B ist günstiger';
     return _CalculatorScaffold(
       title: 'Spritkosten-Vergleich',
-      subtitle: 'Vergleiche zwei Preise für eine Strecke oder Tankfüllung.',
       input: Column(
         children: [
           SegmentedButton<String>(
@@ -816,7 +813,7 @@ class _FuelPriceCard extends StatelessWidget {
             '${fuelPrice.toStringAsFixed(3).replaceAll('.', ',')} €/l',
             style: Theme.of(
               context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 14),
           Text(
@@ -937,8 +934,6 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
     }
     return _CalculatorScaffold(
       title: 'Finanzielle Freiheit',
-      subtitle:
-          'Berechne Zielkapital und Alter, ab dem passive Einnahmen deinen Wunschbetrag decken.',
       resultHeight: 560,
       verticalResultHeight: 760,
       input: Column(
@@ -1340,8 +1335,6 @@ class _AccountTargetCalculatorState
     }
     return _CalculatorScaffold(
       title: 'Kontoziel-Rechner',
-      subtitle:
-          'Ermittelt anhand geplanter Einnahmen und Ausgaben, wann ein Zielkontostand erreicht wird.',
       resultHeight: 500,
       verticalResultHeight: 600,
       input: Column(
@@ -1425,9 +1418,9 @@ class _AccountTargetCalculatorState
                       ? 'Ziel bereits erreicht'
                       : 'Ziel am ${DateFormat('dd.MM.yyyy').format(reachedAt)} erreicht',
                   textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 18),
                 Wrap(
@@ -1510,14 +1503,12 @@ class _AccountTargetCalculatorState
 class _CalculatorScaffold extends StatelessWidget {
   const _CalculatorScaffold({
     required this.title,
-    required this.subtitle,
     required this.input,
     required this.result,
     this.resultHeight = 480,
     this.verticalResultHeight = 660,
   });
   final String title;
-  final String subtitle;
   final Widget input;
   final Widget result;
   final double resultHeight;
