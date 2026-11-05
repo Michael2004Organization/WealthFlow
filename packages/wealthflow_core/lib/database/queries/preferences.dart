@@ -48,6 +48,20 @@ extension PreferenceQueries on AppDatabase {
         .write(UserPreferencesCompanion(dataFilePath: Value(path)));
   }
 
+  /// Sets the colour scheme: 'system', 'light' or 'dark'.
+  Future<void> setThemeMode(String userId, String themeMode) async {
+    await preferencesFor(userId);
+    await (update(
+      userPreferences,
+    )..where((row) => row.userId.equals(userId))).write(
+      UserPreferencesCompanion(
+        themeMode: Value(themeMode),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    _schedulePersist(userId);
+  }
+
   Future<void> savePreferences(UserPreferencesCompanion value) async {
     if (value.taxAllowance.present) {
       final maximum = (await appConfiguration()).maximumTaxAllowance;

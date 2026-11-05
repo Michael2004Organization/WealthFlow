@@ -34,6 +34,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   String _sortMode = 'default';
   List<String> _customOrder = [..._defaultCardOrder];
   String? _loadedForUser;
+  bool _showLightDesignHint = false;
 
   @override
   Widget build(BuildContext context) {
@@ -263,6 +264,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   onChanged: (value) => setState(() => _selectedMonth = value),
                 ),
               ),
+              if (_showLightDesignHint) ...[
+                _LightDesignHint(
+                  onTry: () => _answerLightDesignHint(tryIt: true),
+                  onDismiss: () => _answerLightDesignHint(tryIt: false),
+                ),
+                const SizedBox(height: 16),
+              ],
               LayoutBuilder(
                 builder: (context, constraints) {
                   const gap = 16.0;
@@ -459,8 +467,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final storedOrder = preferences.getStringList(
       'dashboard.cardOrder.$userId',
     );
+    final themeMode =
+        (await ref.read(databaseProvider).preferencesFor(userId)).themeMode;
     if (!mounted || _loadedForUser != userId) return;
     setState(() {
+      _showLightDesignHint =
+          themeMode == 'dark' &&
+          !(preferences.getBool('dashboard.lightDesignHint.$userId') ?? false);
       _sortMode =
           preferences.getString('dashboard.sortMode.$userId') ?? 'default';
       if (storedOrder != null) {
@@ -470,6 +483,15 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         ];
       }
     });
+  }
+
+  Future<void> _answerLightDesignHint({required bool tryIt}) async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    setState(() => _showLightDesignHint = false);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool('dashboard.lightDesignHint.$userId', true);
+    if (tryIt) await ref.read(databaseProvider).setThemeMode(userId, 'light');
   }
 
   Future<void> _persistCardLayout() async {
@@ -1577,6 +1599,44 @@ class _Upcoming extends StatelessWidget {
                 icon: const SizedBox.shrink(),
                 dateBadge: item.date,
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown once to users who kept the dark scheme from before the redesign.
+class _LightDesignHint extends StatelessWidget {
+  const _LightDesignHint({required this.onTry, required this.onDismiss});
+
+  final VoidCallback onTry;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WealthColors.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
+          children: [
+            IconTile(
+              icon: Icons.light_mode_rounded,
+              foreground: colors.income,
+              background: colors.incomeSoft,
+            ),
+            Text(
+              'Neues helles Design ausprobieren?',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            FilledButton(onPressed: onTry, child: const Text('Ausprobieren')),
+            TextButton(onPressed: onDismiss, child: const Text('Nein, danke')),
           ],
         ),
       ),
