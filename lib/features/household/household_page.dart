@@ -55,12 +55,11 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
           .where((item) => item.kind == 'category')
           .map((item) => item.value),
     }.toList()..sort();
-    final householdAccounts = accounts.where((account) {
-      if (account.usageType == 'household') return true;
-      if (account.usageType != 'unassigned') return false;
-      return !investments.any((item) => item.accountId == account.id) &&
-          !physicalAssets.any((item) => item.accountId == account.id);
-    }).toList();
+    final bookingAccounts = householdAccounts(
+      accounts,
+      investments: investments,
+      physicalAssets: physicalAssets,
+    );
     final monthEnd = DateTime(
       _selectedMonth.year,
       _selectedMonth.month + 1,
@@ -75,7 +74,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
       sales: sales,
     );
     final selectedAccountId = _effectiveAccountId(
-      householdAccounts,
+      bookingAccounts,
       preference,
     );
     final padding = MediaQuery.sizeOf(context).width < 600 ? 16.0 : 24.0;
@@ -100,7 +99,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                 runSpacing: 10,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  if (householdAccounts.isNotEmpty)
+                  if (bookingAccounts.isNotEmpty)
                     SizedBox(
                       width: 270,
                       child: SearchableDropdownButtonFormField<String>(
@@ -111,7 +110,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                           labelText: 'Haushaltskonto',
                           prefixIcon: Icon(Icons.account_balance_rounded),
                         ),
-                        items: householdAccounts
+                        items: bookingAccounts
                             .map(
                               (account) => DropdownMenuItem(
                                 value: account.id,
@@ -133,7 +132,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                 ],
               ),
             ),
-            if (householdAccounts.isEmpty) ...[
+            if (bookingAccounts.isEmpty) ...[
               const _MissingAccountHint(),
               const SizedBox(height: 14),
             ],
@@ -230,7 +229,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                       child: EmptyState(
                         icon: Icons.receipt_long_rounded,
                         title:
-                            'Keine Buchungen im ${_monthLabel(_selectedMonth)}',
+                            'Keine Buchungen im ${monthLabel(_selectedMonth)}',
                         message: allEntries.isEmpty
                             ? 'Erfasse eine einzelne Buchung oder plane eine monatliche Serie.'
                             : 'Lege eine Buchung an oder passe die Filter an.',
@@ -429,7 +428,7 @@ class _MonthButton extends StatelessWidget {
           child: Column(
             children: [
               Text(
-                _shortMonths[month.month - 1],
+                shortMonthNames[month.month - 1],
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -843,12 +842,11 @@ Future<void> startNewBooking(BuildContext context, WidgetRef ref) async {
   final physicalAssets =
       ref.read(physicalAssetsProvider).valueOrNull ?? const <PhysicalAsset>[];
   final preference = ref.read(preferencesProvider).valueOrNull;
-  final household = accounts.where((account) {
-    if (account.usageType == 'household') return true;
-    if (account.usageType != 'unassigned') return false;
-    return !investments.any((item) => item.accountId == account.id) &&
-        !physicalAssets.any((item) => item.accountId == account.id);
-  }).toList();
+  final household = householdAccounts(
+    accounts,
+    investments: investments,
+    physicalAssets: physicalAssets,
+  );
   final preferred = household
       .where((account) => account.id == preference?.selectedHouseholdAccountId)
       .firstOrNull;
@@ -1776,7 +1774,7 @@ class _EntryEditorState extends State<_EntryEditor> {
     final count = _monthCount.clamp(2, 120);
     final last = DateTime(_date.year, _date.month + count - 1);
     return 'Erste Buchung am ${DateFormat('dd.MM.yyyy').format(first)}, '
-        'letzte im ${_monthLabel(last)}.';
+        'letzte im ${monthLabel(last)}.';
   }
 
   Future<void> _pickReminderDate() async {
@@ -1897,36 +1895,3 @@ class _EditableSuggestionField extends StatelessWidget {
 }
 
 DateTime _month(DateTime value) => DateTime(value.year, value.month);
-
-const _shortMonths = [
-  'Jan',
-  'Feb',
-  'Mär',
-  'Apr',
-  'Mai',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Okt',
-  'Nov',
-  'Dez',
-];
-
-const _longMonths = [
-  'Januar',
-  'Februar',
-  'März',
-  'April',
-  'Mai',
-  'Juni',
-  'Juli',
-  'August',
-  'September',
-  'Oktober',
-  'November',
-  'Dezember',
-];
-
-String _monthLabel(DateTime value) =>
-    '${_longMonths[value.month - 1]} ${value.year}';

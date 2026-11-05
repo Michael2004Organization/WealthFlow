@@ -25,7 +25,23 @@ const _weekdays = [
   'Samstag',
   'Sonntag',
 ];
-const _shortMonthNames = [
+
+/// German month names, independent of loaded locale data.
+const monthNames = [
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
+];
+const shortMonthNames = [
   'Jan',
   'Feb',
   'Mär',
@@ -40,9 +56,13 @@ const _shortMonthNames = [
   'Dez',
 ];
 
+/// "November 2026".
+String monthLabel(DateTime date) =>
+    '${monthNames[date.month - 1]} ${date.year}';
+
 /// German day names without depending on loaded locale data.
 String weekdayName(DateTime date) => _weekdays[date.weekday - 1];
-String shortMonthName(DateTime date) => _shortMonthNames[date.month - 1];
+String shortMonthName(DateTime date) => shortMonthNames[date.month - 1];
 
 /// "5. Nov."; May has no abbreviation dot.
 String shortDate(DateTime date) =>

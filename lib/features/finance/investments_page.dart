@@ -2779,7 +2779,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                               12,
                               (index) => DropdownMenuItem(
                                 value: index + 1,
-                                child: Text(_investmentMonthNames[index]),
+                                child: Text(monthNames[index]),
                               ),
                             ),
                             onChanged: _usesSelectedMaster
@@ -4218,18 +4218,3 @@ String? _positiveNumberValidator(String? value) {
   final parsed = _parseNumber(value);
   return parsed == null || parsed < 0 ? 'Ungültiger Wert' : null;
 }
-
-const _investmentMonthNames = [
-  'Januar',
-  'Februar',
-  'März',
-  'April',
-  'Mai',
-  'Juni',
-  'Juli',
-  'August',
-  'September',
-  'Oktober',
-  'November',
-  'Dezember',
-];

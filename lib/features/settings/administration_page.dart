@@ -1608,7 +1608,7 @@ Future<void> _editStock(
                             12,
                             (index) => DropdownMenuItem(
                               value: index + 1,
-                              child: Text(_adminMonthNames[index]),
+                              child: Text(monthNames[index]),
                             ),
                           ),
                           onChanged: (value) =>
@@ -1762,18 +1762,3 @@ Future<void> _editStock(
     controller.dispose();
   }
 }
-
-const _adminMonthNames = [
-  'Januar',
-  'Februar',
-  'März',
-  'April',
-  'Mai',
-  'Juni',
-  'Juli',
-  'August',
-  'September',
-  'Oktober',
-  'November',
-  'Dezember',
-];

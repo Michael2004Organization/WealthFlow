@@ -227,7 +227,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
         '${DateFormat('dd.MM.yyyy').format(range.start)} – '
             '${DateFormat('dd.MM.yyyy').format(range.end)}',
       _ =>
-        '${_statisticsMonthNames[_periodAnchor.month - 1]} '
+        '${monthNames[_periodAnchor.month - 1]} '
             '${_periodAnchor.year}',
     };
     return Card(
@@ -534,21 +534,6 @@ class _CompactDateRangeDialogState extends State<_CompactDateRangeDialog> {
     ],
   );
 }
-
-const _statisticsMonthNames = [
-  'Januar',
-  'Februar',
-  'März',
-  'April',
-  'Mai',
-  'Juni',
-  'Juli',
-  'August',
-  'September',
-  'Oktober',
-  'November',
-  'Dezember',
-];
 
 class _ChartCard extends StatelessWidget {
   const _ChartCard({
@@ -934,7 +919,7 @@ class _CashflowChartState extends State<_CashflowChart> {
                                 ? 'Einnahmen'
                                 : 'Ausgaben';
                             return BarTooltipItem(
-                              '${_statisticsMonthNames[date.month - 1]} ${date.year}\n'
+                              '${monthNames[date.month - 1]} ${date.year}\n'
                               '$label: ${money(rod.toY)}',
                               const TextStyle(
                                 color: Colors.white,
@@ -987,8 +972,7 @@ class _CashflowChartState extends State<_CashflowChart> {
                               return Padding(
                                 padding: const EdgeInsets.only(top: 5),
                                 child: Text(
-                                  _statisticsMonthNames[date.month - 1]
-                                      .substring(0, 3),
+                                  monthNames[date.month - 1].substring(0, 3),
                                 ),
                               );
                             },
@@ -1049,7 +1033,7 @@ class _CashflowChartState extends State<_CashflowChart> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _statisticsMonthNames[date.month - 1],
+                        monthNames[date.month - 1],
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       Text(

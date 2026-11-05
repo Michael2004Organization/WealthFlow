@@ -541,7 +541,7 @@ class _AccountActivityDialogState extends State<_AccountActivityDialog> {
                               Padding(
                                 padding: const EdgeInsets.fromLTRB(8, 14, 8, 6),
                                 child: Text(
-                                  '${_accountMonthNames[entry.bookingDate.month - 1]} '
+                                  '${monthNames[entry.bookingDate.month - 1]} '
                                   '${entry.bookingDate.year}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
@@ -595,21 +595,6 @@ class _AccountActivityDialogState extends State<_AccountActivityDialog> {
     );
   }
 }
-
-const _accountMonthNames = [
-  'Januar',
-  'Februar',
-  'März',
-  'April',
-  'Mai',
-  'Juni',
-  'Juli',
-  'August',
-  'September',
-  'Oktober',
-  'November',
-  'Dezember',
-];
 
 Future<void> _showBalanceHistory(
   BuildContext context,

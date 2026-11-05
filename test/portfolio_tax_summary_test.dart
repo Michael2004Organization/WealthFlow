@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wealthflow_core/database/app_database.dart';
+import 'package:wealthflow_core/finance/dividend_projection.dart';
 import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 
 void main() {
@@ -64,6 +65,40 @@ void main() {
       expect(summary.taxPaid, 15);
     },
   );
+
+  test('dividend projection is net of taxes and skips unheld months', () {
+    final investment = _investment();
+    final purchase = InvestmentPurchase(
+      id: 'purchase',
+      userId: 'user',
+      investmentId: investment.id,
+      purchaseDate: DateTime(2026, 6, 1),
+      purchasePrice: 10,
+      quantity: 10,
+      fees: 0,
+      cashApplied: false,
+      exchangeRate: 1,
+      createdAt: DateTime(2026, 6, 1),
+    );
+    final projection = buildDividendProjection(
+      [investment],
+      [
+        _dividend('before-purchase', DateTime(2026, 5, 15)),
+        _dividend('after-purchase', DateTime(2026, 7, 15)),
+      ],
+      0,
+      2026,
+      [purchase],
+      const [],
+      const {'portfolio': 'EUR'},
+    );
+
+    expect(projection, hasLength(1));
+    expect(projection.single.month, 7);
+    expect(projection.single.paymentDateKnown, isTrue);
+    // 100 gross - 15 withholding - 10 remaining capital tax - 0.55 soli.
+    expect(projection.single.tax.net, closeTo(74.45, 0.001));
+  });
 }
 
 Investment _investment() => Investment(

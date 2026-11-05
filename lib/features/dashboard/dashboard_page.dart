@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wealthflow_core/database/app_database.dart';
 import 'package:wealthflow_core/finance/account_balance_math.dart';
 import 'package:wealthflow_core/finance/budget_period.dart';
-import 'package:wealthflow_core/finance/dividend_math.dart';
+import 'package:wealthflow_core/finance/dividend_projection.dart';
 import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 
 import '../../app/app_theme.dart';
@@ -163,21 +163,25 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final expenses = thisMonth
         .where((entry) => !entry.isIncome)
         .fold<double>(0, (sum, entry) => sum + entry.amount);
-    final yearlyDividend = investments.fold<double>(
-      0,
-      (sum, item) =>
-          sum +
-          List.generate(
-            12,
-            (index) => _dashboardDividendForMonth(
-              item,
-              schedules,
-              DateTime(_selectedMonth.year, index + 1),
-              purchases,
-              sales,
-            ),
-          ).fold<double>(0, (total, value) => total + value),
+    final taxAllowance =
+        ref.watch(preferencesProvider).valueOrNull?.taxAllowance ?? 1000;
+    final accountCurrencies = {
+      for (final account in accounts) account.id: account.currency,
+    };
+    List<ProjectedDividend> projectionFor(int year) => buildDividendProjection(
+      investments
+          .where((item) => wasHeldDuringYear(item, purchases, sales, year))
+          .toList(),
+      schedules,
+      taxAllowance,
+      year,
+      purchases,
+      sales,
+      accountCurrencies,
     );
+    final yearlyDividend = projectionFor(
+      _selectedMonth.year,
+    ).fold<double>(0, (sum, payment) => sum + payment.tax.net);
     final monthlyDividend = yearlyDividend / 12;
     final wealth = WealthColors.of(context);
     final netWorth = accountBalance + portfolio;
@@ -211,7 +215,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       change: previousSnapshot == null
           ? null
           : netWorth - previousSnapshot.totalNetWorth,
-      previousMonth: _dashboardMonths[previousMonthEnd.month - 1],
+      previousMonth: monthNames[previousMonthEnd.month - 1],
       accounts: accountBalance,
       portfolio: portfolio,
       snapshots: snapshots,
@@ -230,8 +234,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     );
     final upcoming = _Upcoming(
       entries: entries,
-      schedules: schedules,
-      investments: investments,
+      dividends: [
+        ...projectionFor(now.year),
+        if (now.month == 12) ...projectionFor(now.year + 1),
+      ].where((payment) => payment.paymentDateKnown).toList(),
     );
 
     return SingleChildScrollView(
@@ -245,7 +251,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               Padding(
                 padding: const EdgeInsets.only(left: 4),
                 child: Eyebrow(
-                  '${weekdayName(now)}, ${now.day}. ${_dashboardMonths[now.month - 1]}',
+                  '${weekdayName(now)}, ${now.day}. ${monthNames[now.month - 1]}',
                   color: wealth.muted,
                 ),
               ),
@@ -549,61 +555,6 @@ class _CardMoveControls extends StatelessWidget {
   );
 }
 
-double _dashboardDividendForMonth(
-  Investment investment,
-  List<DividendSchedule> schedules,
-  DateTime month,
-  List<InvestmentPurchase> purchases,
-  List<PortfolioSale> sales,
-) {
-  final paymentDate = DateTime(month.year, month.month, 28, 23, 59, 59);
-  final quantity = investmentSharesAt(
-    investment: investment,
-    date: paymentDate,
-    purchases: purchases,
-    sales: sales,
-  );
-  if (quantity <= 0) return 0;
-  final exact = schedules.where(
-    (row) =>
-        row.investmentId == investment.id &&
-        row.paymentMonth == month.month &&
-        (row.paymentYear == month.year ||
-            (row.paymentYear == 0 && month.year == DateTime.now().year)),
-  );
-  if (exact.isNotEmpty) {
-    return exact.fold<double>(
-      0,
-      (sum, row) => sum + row.amountPerShare * quantity,
-    );
-  }
-  final paymentMonths = dividendPaymentMonths(
-    investment.dividendFrequency,
-    investment.dividendStartMonth,
-  );
-  return paymentMonths.contains(month.month)
-      ? investment.annualDividend * quantity
-      : 0;
-}
-
-String _dashboardMonthLabel(DateTime date) =>
-    '${_dashboardMonths[date.month - 1]} ${date.year}';
-
-const _dashboardMonths = [
-  'Januar',
-  'Februar',
-  'März',
-  'April',
-  'Mai',
-  'Juni',
-  'Juli',
-  'August',
-  'September',
-  'Oktober',
-  'November',
-  'Dezember',
-];
-
 class _MonthlyChart extends StatefulWidget {
   const _MonthlyChart({required this.entries});
   final List<LedgerEntry> entries;
@@ -747,22 +698,7 @@ class _MonthlyChartState extends State<_MonthlyChart> {
                                 );
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    [
-                                      'Jan',
-                                      'Feb',
-                                      'Mär',
-                                      'Apr',
-                                      'Mai',
-                                      'Jun',
-                                      'Jul',
-                                      'Aug',
-                                      'Sep',
-                                      'Okt',
-                                      'Nov',
-                                      'Dez',
-                                    ][date.month - 1],
-                                  ),
+                                  child: Text(shortMonthName(date)),
                                 );
                               },
                             ),
@@ -1071,7 +1007,7 @@ class _MonthSwitcher extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 child: Text(
-                  _dashboardMonthLabel(month),
+                  monthLabel(month),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
@@ -1302,7 +1238,7 @@ class _MonthCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      _dashboardMonths[month.month - 1],
+                      monthNames[month.month - 1],
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -1563,15 +1499,12 @@ class _RecentEntries extends StatelessWidget {
 }
 
 class _Upcoming extends StatelessWidget {
-  const _Upcoming({
-    required this.entries,
-    required this.schedules,
-    required this.investments,
-  });
+  const _Upcoming({required this.entries, required this.dividends});
 
   final List<LedgerEntry> entries;
-  final List<DividendSchedule> schedules;
-  final List<Investment> investments;
+
+  /// Projected payouts with a known payment date, after taxes.
+  final List<ProjectedDividend> dividends;
 
   @override
   Widget build(BuildContext context) {
@@ -1604,24 +1537,14 @@ class _Upcoming extends StatelessWidget {
                       entry.sourceType == 'saving',
                 ),
               ),
-          for (final schedule in schedules)
-            if (schedule.paymentDate case final date?
-                when date.isAfter(now) && date.isBefore(until))
-              if (investments
-                      .where((item) => item.id == schedule.investmentId)
-                      .firstOrNull
-                  case final investment? when investment.quantity > 0)
-                (
-                  date: date,
-                  title: 'Dividende ${investment.name}',
-                  subtitle: 'erwartet, vor Steuern',
-                  amount: AmountText(
-                    schedule.amountPerShare *
-                        investment.quantity *
-                        schedule.exchangeRate,
-                    income: true,
-                  ),
-                ),
+          for (final payment in dividends)
+            if (payment.date.isAfter(now) && payment.date.isBefore(until))
+              (
+                date: payment.date,
+                title: 'Dividende ${payment.investment.name}',
+                subtitle: 'erwartet, nach Steuern',
+                amount: AmountText(payment.tax.net, income: true),
+              ),
         ]..sort((a, b) => a.date.compareTo(b.date));
     return Card(
       child: Padding(

@@ -1,6 +1,19 @@
 import '../database/app_database.dart';
 import 'budget_period.dart';
 
+/// Accounts that can carry household bookings: explicitly marked household
+/// accounts, plus unassigned ones that hold no investment or physical asset.
+List<Account> householdAccounts(
+  Iterable<Account> accounts, {
+  required List<Investment> investments,
+  required List<PhysicalAsset> physicalAssets,
+}) => accounts.where((account) {
+  if (account.usageType == 'household') return true;
+  if (account.usageType != 'unassigned') return false;
+  return !investments.any((item) => item.accountId == account.id) &&
+      !physicalAssets.any((item) => item.accountId == account.id);
+}).toList();
+
 double accountBalanceAt({
   required Account account,
   required DateTime date,

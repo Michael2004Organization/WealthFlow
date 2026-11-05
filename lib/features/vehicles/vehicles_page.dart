@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:wealthflow_core/finance/account_balance_math.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -601,12 +602,11 @@ Future<void> showVehicleCostEditor(
       ref.read(investmentsProvider).valueOrNull ?? const <Investment>[];
   final physicalAssets =
       ref.read(physicalAssetsProvider).valueOrNull ?? const <PhysicalAsset>[];
-  final eligibleAccounts = accounts.where((account) {
-    if (account.usageType == 'household') return true;
-    if (account.usageType != 'unassigned') return false;
-    return !investments.any((item) => item.accountId == account.id) &&
-        !physicalAssets.any((item) => item.accountId == account.id);
-  }).toList();
+  final eligibleAccounts = householdAccounts(
+    accounts,
+    investments: investments,
+    physicalAssets: physicalAssets,
+  );
   final userId = ref.read(currentUserIdProvider);
   final existingLedger = cost == null || userId == null
       ? null

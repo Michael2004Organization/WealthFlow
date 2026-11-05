@@ -8,6 +8,7 @@ import 'package:wealthflow_core/database/app_database.dart';
 import 'package:wealthflow_core/finance/amount_input.dart';
 import 'package:wealthflow_core/finance/currencies.dart';
 import 'package:wealthflow_core/finance/dividend_math.dart';
+import 'package:wealthflow_core/finance/dividend_projection.dart';
 import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 
 import '../../app/app_theme.dart';
@@ -96,13 +97,13 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
         var dividendItems = accountItems
             .where(
               (item) =>
-                  _wasHeldDuringYear(item, purchases, sales, _selectedYear) &&
+                  wasHeldDuringYear(item, purchases, sales, _selectedYear) &&
                   (item.annualDividend > 0 ||
                       schedules.any((row) => row.investmentId == item.id)),
             )
             .toList()
             .toList();
-        final fullProjection = _buildDividendProjection(
+        final fullProjection = buildDividendProjection(
           dividendItems,
           schedules,
           taxAllowance,
@@ -350,8 +351,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                                     (payment) => payment.month == now.month,
                                   )
                                   .toList(),
-                              periodLabel:
-                                  '${_monthNames[now.month - 1]} ${now.year}',
+                              periodLabel: monthLabel(now),
                             ),
                           ),
                         ],
@@ -536,7 +536,7 @@ class _DividendMetric extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String currency;
-  final List<_ProjectedDividend> payments;
+  final List<ProjectedDividend> payments;
   final String periodLabel;
 
   @override
@@ -596,7 +596,7 @@ class _CompactTaxMetric extends StatelessWidget {
 Future<void> _showDividendTaxInfo(
   BuildContext context,
   PortfolioTaxSummary summary,
-  List<_ProjectedDividend> projection,
+  List<ProjectedDividend> projection,
   List<PortfolioSale> sales,
   int year,
   DateTime through,
@@ -732,7 +732,7 @@ Future<void> _showDividendTaxInfo(
 class _DividendChart extends StatelessWidget {
   const _DividendChart({required this.items, required this.projection});
   final List<Investment> items;
-  final List<_ProjectedDividend> projection;
+  final List<ProjectedDividend> projection;
 
   @override
   Widget build(BuildContext context) {
@@ -828,192 +828,16 @@ class _DividendChart extends StatelessWidget {
 }
 
 double _annualDividend(
-  List<_ProjectedDividend> projection,
+  List<ProjectedDividend> projection,
   String investmentId,
 ) => _netForInvestment(projection, investmentId);
 
 double _netForInvestment(
-  List<_ProjectedDividend> projection,
+  List<ProjectedDividend> projection,
   String investmentId,
 ) => projection
     .where((payment) => payment.investment.id == investmentId)
     .fold<double>(0, (sum, payment) => sum + payment.tax.net);
-
-final class _ProjectedDividend {
-  const _ProjectedDividend({
-    required this.investment,
-    required this.month,
-    required this.tax,
-    required this.withholdingTaxRate,
-    required this.date,
-    required this.paymentDateKnown,
-    required this.sourceCurrency,
-    required this.exchangeRate,
-    required this.grossSource,
-    required this.accountCurrency,
-  });
-
-  final Investment investment;
-  final int month;
-  final DividendTaxResult tax;
-  final double withholdingTaxRate;
-  final DateTime date;
-  final bool paymentDateKnown;
-  final String sourceCurrency;
-  final double exchangeRate;
-  final double grossSource;
-  final String accountCurrency;
-}
-
-List<_ProjectedDividend> _buildDividendProjection(
-  List<Investment> investments,
-  List<DividendSchedule> schedules,
-  double allowance,
-  int year,
-  List<InvestmentPurchase> purchases,
-  List<PortfolioSale> sales,
-  Map<String, String> accountCurrencies,
-) {
-  var remainingAllowance = allowance.clamp(0, double.infinity).toDouble();
-  final events =
-      <
-        ({
-          Investment investment,
-          int month,
-          double amount,
-          double exchangeRate,
-          double withholdingTaxRate,
-          String currency,
-          DateTime date,
-        })
-      >[];
-  for (var month = 1; month <= 12; month++) {
-    for (final investment in investments) {
-      final exact = schedules
-          .where(
-            (row) =>
-                row.investmentId == investment.id &&
-                row.paymentMonth == month &&
-                (row.paymentYear == year ||
-                    (row.paymentYear == 0 && year == DateTime.now().year)),
-          )
-          .toList();
-      if (exact.isNotEmpty) {
-        for (final row in exact) {
-          final accountCurrency =
-              accountCurrencies[investment.accountId]?.toUpperCase() ?? 'EUR';
-          final sourceCurrency = row.currency.toUpperCase();
-          events.add((
-            investment: investment,
-            month: month,
-            amount: row.amountPerShare,
-            exchangeRate: sourceCurrency == accountCurrency
-                ? 1
-                : row.exchangeRate,
-            withholdingTaxRate: row.withholdingTaxRate,
-            currency: sourceCurrency,
-            date: row.paymentDate ?? row.exDate ?? DateTime(year, month, 1),
-          ));
-        }
-      } else if (dividendPaymentMonths(
-        investment.dividendFrequency,
-        investment.dividendStartMonth,
-      ).contains(month)) {
-        final accountCurrency =
-            accountCurrencies[investment.accountId]?.toUpperCase() ?? 'EUR';
-        final sourceCurrency = investment.dividendCurrency.toUpperCase();
-        events.add((
-          investment: investment,
-          month: month,
-          amount: investment.annualDividend,
-          exchangeRate: sourceCurrency == accountCurrency
-              ? 1
-              : investment.dividendExchangeRate,
-          withholdingTaxRate: investment.dividendWithholdingTaxRate,
-          currency: sourceCurrency,
-          date: DateTime(year, month),
-        ));
-      }
-    }
-  }
-  events.sort((a, b) {
-    final byDate = a.date.compareTo(b.date);
-    return byDate != 0
-        ? byDate
-        : a.investment.name.compareTo(b.investment.name);
-  });
-  final result = <_ProjectedDividend>[];
-  for (final event in events) {
-    final shares = _sharesHeldAt(
-      event.investment,
-      event.date,
-      purchases,
-      sales,
-    );
-    if (event.amount <= 0 || shares <= 0) continue;
-    final tax = calculateGermanDividendTax(
-      grossAmount: event.amount * shares,
-      exchangeRate: event.exchangeRate,
-      withholdingTaxRate: event.withholdingTaxRate,
-      allowanceRemaining: remainingAllowance,
-    );
-    remainingAllowance = tax.allowanceRemaining;
-    result.add(
-      _ProjectedDividend(
-        investment: event.investment,
-        month: event.month,
-        tax: tax,
-        withholdingTaxRate: event.withholdingTaxRate,
-        date: event.date,
-        paymentDateKnown: schedules.any(
-          (row) =>
-              row.investmentId == event.investment.id &&
-              row.paymentMonth == event.month &&
-              row.paymentDate != null &&
-              (row.paymentYear == year ||
-                  (row.paymentYear == 0 && year == DateTime.now().year)),
-        ),
-        sourceCurrency: event.currency,
-        exchangeRate: event.exchangeRate,
-        grossSource: event.amount * shares,
-        accountCurrency: accountCurrencies[event.investment.accountId] ?? 'EUR',
-      ),
-    );
-  }
-  return result;
-}
-
-bool _wasHeldDuringYear(
-  Investment investment,
-  List<InvestmentPurchase> purchases,
-  List<PortfolioSale> sales,
-  int year,
-) {
-  final end = DateTime(year + 1).subtract(const Duration(microseconds: 1));
-  final start = DateTime(year);
-  if (investment.deletedAt != null && investment.deletedAt!.isBefore(start)) {
-    return false;
-  }
-  return _sharesHeldAt(investment, end, purchases, sales) > 0 ||
-      sales.any(
-        (sale) =>
-            sale.investmentId == investment.id &&
-            !sale.soldAt.isBefore(start) &&
-            sale.soldAt.isBefore(DateTime(year + 1)),
-      );
-}
-
-double _sharesHeldAt(
-  Investment investment,
-  DateTime date,
-  List<InvestmentPurchase> purchases,
-  List<PortfolioSale> sales,
-) => investmentSharesAt(
-  investment: investment,
-  date: date,
-  purchases: purchases,
-  sales: sales,
-);
 
 String _perShareSummary(
   Investment investment,
@@ -1040,7 +864,7 @@ class _DividendCalendar extends ConsumerWidget {
 
   final List<Investment> investments;
   final List<DividendSchedule> schedules;
-  final List<_ProjectedDividend> projection;
+  final List<ProjectedDividend> projection;
   final String baseCurrency;
   final String? selectedInvestmentId;
   final int year;
@@ -1194,7 +1018,7 @@ class _DividendCalendar extends ConsumerWidget {
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
                     child: Text(
-                      _monthNames[row.paymentMonth - 1].substring(0, 3),
+                      monthNames[row.paymentMonth - 1].substring(0, 3),
                     ),
                   ),
                   title: Text(
@@ -1419,9 +1243,7 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
                 for (final month in _editableMonths)
                   PopupMenuItem(
                     value: month,
-                    child: Text(
-                      '${_monthNames[month - 1]} auf alle übernehmen',
-                    ),
+                    child: Text('${monthNames[month - 1]} auf alle übernehmen'),
                   ),
               ],
               child: const Chip(
@@ -1456,7 +1278,7 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
                             decimal: true,
                           ),
                           decoration: InputDecoration(
-                            labelText: _monthNames[month - 1],
+                            labelText: monthNames[month - 1],
                             suffixText: _currency.text.toUpperCase(),
                           ),
                         ),
@@ -1638,7 +1460,7 @@ class _AnnualDividendChart extends StatelessWidget {
   });
 
   final Investment? investment;
-  final List<_ProjectedDividend> projection;
+  final List<ProjectedDividend> projection;
   final String baseCurrency;
 
   @override
@@ -1683,7 +1505,7 @@ class _AnnualDividendChart extends StatelessWidget {
               showTitles: true,
               getTitlesWidget: (value, meta) => Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text(_monthNames[value.toInt()].substring(0, 3)),
+                child: Text(monthNames[value.toInt()].substring(0, 3)),
               ),
             ),
           ),
@@ -1691,7 +1513,7 @@ class _AnnualDividendChart extends StatelessWidget {
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
             getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
-              '${_monthNames[group.x]}\n${money(rod.toY, currency: baseCurrency)}',
+              '${monthNames[group.x]}\n${money(rod.toY, currency: baseCurrency)}',
               const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
             ),
           ),
@@ -1725,7 +1547,7 @@ class _AnnualDividendLineChart extends StatelessWidget {
   });
 
   final Investment? investment;
-  final List<_ProjectedDividend> projection;
+  final List<ProjectedDividend> projection;
   final String baseCurrency;
 
   @override
@@ -1775,7 +1597,7 @@ class _AnnualDividendLineChart extends StatelessWidget {
               interval: 1,
               getTitlesWidget: (value, meta) => Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text(_monthNames[value.toInt()].substring(0, 3)),
+                child: Text(monthNames[value.toInt()].substring(0, 3)),
               ),
             ),
           ),
@@ -1785,7 +1607,7 @@ class _AnnualDividendLineChart extends StatelessWidget {
             getTooltipItems: (spots) => spots
                 .map(
                   (spot) => LineTooltipItem(
-                    '${_monthNames[spot.x.toInt()]}\n'
+                    '${monthNames[spot.x.toInt()]}\n'
                     '${money(spot.y, currency: baseCurrency)} netto',
                     const TextStyle(
                       color: Colors.white,
@@ -1824,7 +1646,7 @@ class _DividendMonthCard extends StatelessWidget {
   });
 
   final int month;
-  final List<_ProjectedDividend> projection;
+  final List<ProjectedDividend> projection;
   final String baseCurrency;
 
   @override
@@ -1845,7 +1667,7 @@ class _DividendMonthCard extends StatelessWidget {
             ? null
             : () => _showDividendPayments(
                 context,
-                title: _monthNames[month - 1],
+                title: monthNames[month - 1],
                 payments: payments,
                 baseCurrency: baseCurrency,
               ),
@@ -1855,7 +1677,7 @@ class _DividendMonthCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                _monthNames[month - 1],
+                monthNames[month - 1],
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
               Text(
@@ -1913,7 +1735,7 @@ class _DividendMonthCard extends StatelessWidget {
 Future<void> _showDividendPayments(
   BuildContext context, {
   required String title,
-  required List<_ProjectedDividend> payments,
+  required List<ProjectedDividend> payments,
   required String baseCurrency,
 }) {
   var newestFirst = true;
@@ -2005,7 +1827,7 @@ Future<void> _showDividendPayments(
 
 Future<void> _showDividendPaymentDetail(
   BuildContext context, {
-  required _ProjectedDividend payment,
+  required ProjectedDividend payment,
 }) => showDialog<void>(
   context: context,
   builder: (dialogContext) {
@@ -2238,7 +2060,7 @@ Future<void> _showScheduleEditor(
                         12,
                         (index) => DropdownMenuItem(
                           value: index + 1,
-                          child: Text(_monthNames[index]),
+                          child: Text(monthNames[index]),
                         ),
                       ),
                       onChanged: (value) {
@@ -2266,7 +2088,7 @@ Future<void> _showScheduleEditor(
                     children: [
                       for (var month = 1; month <= 12; month++)
                         FilterChip(
-                          label: Text(_monthNames[month - 1].substring(0, 3)),
+                          label: Text(monthNames[month - 1].substring(0, 3)),
                           selected: months.contains(month),
                           onSelected: schedule != null
                               ? null
@@ -2560,18 +2382,3 @@ Future<void> _deleteSchedule(
         .deleteDividendSchedule(schedule.id, userId);
   }
 }
-
-const _monthNames = [
-  'Januar',
-  'Februar',
-  'März',
-  'April',
-  'Mai',
-  'Juni',
-  'Juli',
-  'August',
-  'September',
-  'Oktober',
-  'November',
-  'Dezember',
-];
