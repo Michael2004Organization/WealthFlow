@@ -10,6 +10,17 @@ import 'security/secure_session_store.dart';
 import 'server/server_connection.dart';
 import 'server/server_sync.dart';
 
+// The database queries live in extensions; export them with the provider so
+// callers that only read [databaseProvider] can use them.
+export 'package:wealthflow_core/database/app_database.dart'
+    show
+        AccountQueries,
+        AdminQueries,
+        DataTransferQueries,
+        HouseholdQueries,
+        PortfolioQueries,
+        PreferenceQueries;
+
 final databaseProvider = Provider<AppDatabase>((ref) {
   final database = openAppDatabase();
   ref.onDispose(database.close);
