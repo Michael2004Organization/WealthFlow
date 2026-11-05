@@ -7,6 +7,7 @@ import 'package:wealthflow/core/providers.dart';
 import 'package:wealthflow/features/auth/auth_page.dart';
 import 'package:wealthflow/features/calculators/calculators_page.dart';
 import 'package:wealthflow/features/finance/accounts_page.dart';
+import 'package:wealthflow/features/finance/dividend_prompt.dart';
 import 'package:wealthflow/features/finance/investments_page.dart';
 import 'package:wealthflow/features/household/bank_import_page.dart';
 import 'package:wealthflow/features/household/budgets_page.dart';
@@ -16,6 +17,9 @@ import 'package:wealthflow/features/settings/administration_page.dart';
 import 'package:wealthflow/features/vehicles/vehicles_page.dart';
 import 'package:wealthflow_core/database/app_database.dart';
 import 'package:wealthflow_core/finance/bank_csv.dart';
+import 'package:wealthflow_core/finance/dividend_math.dart';
+import 'package:wealthflow_core/finance/dividend_projection.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -518,6 +522,70 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('dividend prompt fits a phone', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final now = DateTime.now();
+    final store = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(store.close);
+    await store
+        .into(store.investments)
+        .insert(
+          InvestmentsCompanion.insert(
+            id: 'etf',
+            userId: 'responsive-user',
+            name: 'Vanguard FTSE All-World High Dividend Yield UCITS ETF',
+            assetType: 'ETF',
+            purchaseDate: now,
+            purchasePrice: 100,
+            quantity: 10,
+            currentPrice: 100,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    final investment = await store.select(store.investments).getSingle();
+    const tax = DividendTaxResult(
+      grossSource: 50,
+      withholdingTaxSource: 0,
+      gross: 50,
+      withholdingTax: 0,
+      creditableWithholdingTax: 0,
+      germanCapitalTax: 7.9,
+      solidaritySurcharge: 0,
+      churchTax: 0,
+      allowanceUsed: 0,
+      allowanceRemaining: 0,
+      net: 42.1,
+    );
+    await pumpPage(
+      tester,
+      SingleChildScrollView(
+        child: DividendPromptCard(
+          pending: [
+            for (final known in [true, false])
+              ProjectedDividend(
+                investment: investment,
+                month: now.month,
+                tax: tax,
+                withholdingTaxRate: 0,
+                date: DateTime(now.year, now.month, 1),
+                paymentDateKnown: known,
+                sourceCurrency: 'EUR',
+                exchangeRate: 1,
+                grossSource: 50,
+                accountCurrency: 'EUR',
+              ),
+          ],
+        ),
+      ),
+      overrides: [dividendAutoBookProvider.overrideWith((_) async => false)],
+    );
+
+    expect(find.text('2 Dividenden eingegangen?'), findsOneWidget);
+    expect(find.text('Übernehmen'), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+  });
 }
 
 /// Stands in for the "+" of the app's navigation bar, which opens the

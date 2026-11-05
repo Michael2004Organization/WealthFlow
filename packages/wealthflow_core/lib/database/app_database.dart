@@ -23,6 +23,7 @@ part 'queries/data_transfer.dart';
 part 'queries/preferences.dart';
 part 'queries/standing_orders.dart';
 part 'queries/budgets.dart';
+part 'queries/dividend_receipts.dart';
 
 extension InvestmentPurchaseCash on InvestmentPurchase {
   /// Amount taken from the cash account, in the account's currency.
@@ -449,6 +450,32 @@ class CategoryBudgets extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// A projected dividend the user confirmed (or marked as not received).
+/// The id follows from position and payment month, see
+/// `dividendReceiptId`.
+class DividendReceipts extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text().references(Users, #id)();
+  TextColumn get investmentId => text()();
+  TextColumn get accountId => text().withDefault(const Constant(''))();
+  DateTimeColumn get paymentDate => dateTime()();
+
+  /// Net amount in the account's currency; 0 when skipped.
+  RealColumn get amount => real().withDefault(const Constant(0))();
+
+  /// `received` or `skipped`.
+  TextColumn get status => text().withDefault(const Constant('received'))();
+
+  /// The household booking; empty when the cash went to a portfolio account.
+  TextColumn get ledgerEntryId => text().withDefault(const Constant(''))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class Vehicles extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text().references(Users, #id)();
@@ -562,6 +589,7 @@ typedef DataFileWriter = Future<bool> Function(List<int> bytes, String path);
     AppErrorLogs,
     StandingOrders,
     CategoryBudgets,
+    DividendReceipts,
   ],
 )
 final class AppDatabase extends _$AppDatabase {
@@ -696,7 +724,7 @@ final class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1005,6 +1033,9 @@ final class AppDatabase extends _$AppDatabase {
       }
       if (from < 23) {
         await migrator.createTable(categoryBudgets);
+      }
+      if (from < 24) {
+        await migrator.createTable(dividendReceipts);
       }
     },
   );

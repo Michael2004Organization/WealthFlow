@@ -43,6 +43,9 @@ extension DataTransferQueries on AppDatabase {
     final budgetRows = await (select(
       categoryBudgets,
     )..where((r) => r.userId.equals(userId))).get();
+    final receiptRows = await (select(
+      dividendReceipts,
+    )..where((r) => r.userId.equals(userId))).get();
     final masterRows = await (select(
       masterData,
     )..where((r) => r.userId.equals(userId))).get();
@@ -87,6 +90,7 @@ extension DataTransferQueries on AppDatabase {
       'vehicleCosts': costRows.map((e) => e.toJson()).toList(),
       'standingOrders': standingOrderRows.map((e) => e.toJson()).toList(),
       'categoryBudgets': budgetRows.map((e) => e.toJson()).toList(),
+      'dividendReceipts': receiptRows.map((e) => e.toJson()).toList(),
       'masterData': masterRows.map((e) => e.toJson()).toList(),
       'reminders': reminderRows.map((e) => e.toJson()).toList(),
       'netWorthSnapshots': snapshotRows.map((e) => e.toJson()).toList(),
@@ -388,6 +392,18 @@ extension DataTransferQueries on AppDatabase {
         if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
           await into(
             categoryBudgets,
+          ).insertOnConflictUpdate(remote.toCompanion(false));
+        }
+      }
+      for (final json in rows('dividendReceipts')) {
+        final remote = DividendReceipt.fromJson(json);
+        final local = await (select(
+          dividendReceipts,
+        )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+        if (local != null && local.userId != userId) continue;
+        if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
+          await into(
+            dividendReceipts,
           ).insertOnConflictUpdate(remote.toCompanion(false));
         }
       }

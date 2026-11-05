@@ -18202,6 +18202,673 @@ class CategoryBudgetsCompanion extends UpdateCompanion<CategoryBudget> {
   }
 }
 
+class $DividendReceiptsTable extends DividendReceipts
+    with TableInfo<$DividendReceiptsTable, DividendReceipt> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DividendReceiptsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES users (id)',
+    ),
+  );
+  static const VerificationMeta _investmentIdMeta = const VerificationMeta(
+    'investmentId',
+  );
+  @override
+  late final GeneratedColumn<String> investmentId = GeneratedColumn<String>(
+    'investment_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _paymentDateMeta = const VerificationMeta(
+    'paymentDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> paymentDate = GeneratedColumn<DateTime>(
+    'payment_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('received'),
+  );
+  static const VerificationMeta _ledgerEntryIdMeta = const VerificationMeta(
+    'ledgerEntryId',
+  );
+  @override
+  late final GeneratedColumn<String> ledgerEntryId = GeneratedColumn<String>(
+    'ledger_entry_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    investmentId,
+    accountId,
+    paymentDate,
+    amount,
+    status,
+    ledgerEntryId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'dividend_receipts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DividendReceipt> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('investment_id')) {
+      context.handle(
+        _investmentIdMeta,
+        investmentId.isAcceptableOrUnknown(
+          data['investment_id']!,
+          _investmentIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_investmentIdMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    }
+    if (data.containsKey('payment_date')) {
+      context.handle(
+        _paymentDateMeta,
+        paymentDate.isAcceptableOrUnknown(
+          data['payment_date']!,
+          _paymentDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_paymentDateMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('ledger_entry_id')) {
+      context.handle(
+        _ledgerEntryIdMeta,
+        ledgerEntryId.isAcceptableOrUnknown(
+          data['ledger_entry_id']!,
+          _ledgerEntryIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DividendReceipt map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DividendReceipt(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      investmentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}investment_id'],
+      )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      )!,
+      paymentDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}payment_date'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      ledgerEntryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ledger_entry_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $DividendReceiptsTable createAlias(String alias) {
+    return $DividendReceiptsTable(attachedDatabase, alias);
+  }
+}
+
+class DividendReceipt extends DataClass implements Insertable<DividendReceipt> {
+  final String id;
+  final String userId;
+  final String investmentId;
+  final String accountId;
+  final DateTime paymentDate;
+
+  /// Net amount in the account's currency; 0 when skipped.
+  final double amount;
+
+  /// `received` or `skipped`.
+  final String status;
+
+  /// The household booking; empty when the cash went to a portfolio account.
+  final String ledgerEntryId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const DividendReceipt({
+    required this.id,
+    required this.userId,
+    required this.investmentId,
+    required this.accountId,
+    required this.paymentDate,
+    required this.amount,
+    required this.status,
+    required this.ledgerEntryId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['investment_id'] = Variable<String>(investmentId);
+    map['account_id'] = Variable<String>(accountId);
+    map['payment_date'] = Variable<DateTime>(paymentDate);
+    map['amount'] = Variable<double>(amount);
+    map['status'] = Variable<String>(status);
+    map['ledger_entry_id'] = Variable<String>(ledgerEntryId);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  DividendReceiptsCompanion toCompanion(bool nullToAbsent) {
+    return DividendReceiptsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      investmentId: Value(investmentId),
+      accountId: Value(accountId),
+      paymentDate: Value(paymentDate),
+      amount: Value(amount),
+      status: Value(status),
+      ledgerEntryId: Value(ledgerEntryId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory DividendReceipt.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DividendReceipt(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      investmentId: serializer.fromJson<String>(json['investmentId']),
+      accountId: serializer.fromJson<String>(json['accountId']),
+      paymentDate: serializer.fromJson<DateTime>(json['paymentDate']),
+      amount: serializer.fromJson<double>(json['amount']),
+      status: serializer.fromJson<String>(json['status']),
+      ledgerEntryId: serializer.fromJson<String>(json['ledgerEntryId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'investmentId': serializer.toJson<String>(investmentId),
+      'accountId': serializer.toJson<String>(accountId),
+      'paymentDate': serializer.toJson<DateTime>(paymentDate),
+      'amount': serializer.toJson<double>(amount),
+      'status': serializer.toJson<String>(status),
+      'ledgerEntryId': serializer.toJson<String>(ledgerEntryId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  DividendReceipt copyWith({
+    String? id,
+    String? userId,
+    String? investmentId,
+    String? accountId,
+    DateTime? paymentDate,
+    double? amount,
+    String? status,
+    String? ledgerEntryId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => DividendReceipt(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    investmentId: investmentId ?? this.investmentId,
+    accountId: accountId ?? this.accountId,
+    paymentDate: paymentDate ?? this.paymentDate,
+    amount: amount ?? this.amount,
+    status: status ?? this.status,
+    ledgerEntryId: ledgerEntryId ?? this.ledgerEntryId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  DividendReceipt copyWithCompanion(DividendReceiptsCompanion data) {
+    return DividendReceipt(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      investmentId: data.investmentId.present
+          ? data.investmentId.value
+          : this.investmentId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      paymentDate: data.paymentDate.present
+          ? data.paymentDate.value
+          : this.paymentDate,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      status: data.status.present ? data.status.value : this.status,
+      ledgerEntryId: data.ledgerEntryId.present
+          ? data.ledgerEntryId.value
+          : this.ledgerEntryId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DividendReceipt(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('investmentId: $investmentId, ')
+          ..write('accountId: $accountId, ')
+          ..write('paymentDate: $paymentDate, ')
+          ..write('amount: $amount, ')
+          ..write('status: $status, ')
+          ..write('ledgerEntryId: $ledgerEntryId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    investmentId,
+    accountId,
+    paymentDate,
+    amount,
+    status,
+    ledgerEntryId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DividendReceipt &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.investmentId == this.investmentId &&
+          other.accountId == this.accountId &&
+          other.paymentDate == this.paymentDate &&
+          other.amount == this.amount &&
+          other.status == this.status &&
+          other.ledgerEntryId == this.ledgerEntryId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class DividendReceiptsCompanion extends UpdateCompanion<DividendReceipt> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> investmentId;
+  final Value<String> accountId;
+  final Value<DateTime> paymentDate;
+  final Value<double> amount;
+  final Value<String> status;
+  final Value<String> ledgerEntryId;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const DividendReceiptsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.investmentId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.paymentDate = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.status = const Value.absent(),
+    this.ledgerEntryId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DividendReceiptsCompanion.insert({
+    required String id,
+    required String userId,
+    required String investmentId,
+    this.accountId = const Value.absent(),
+    required DateTime paymentDate,
+    this.amount = const Value.absent(),
+    this.status = const Value.absent(),
+    this.ledgerEntryId = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       investmentId = Value(investmentId),
+       paymentDate = Value(paymentDate),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<DividendReceipt> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? investmentId,
+    Expression<String>? accountId,
+    Expression<DateTime>? paymentDate,
+    Expression<double>? amount,
+    Expression<String>? status,
+    Expression<String>? ledgerEntryId,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (investmentId != null) 'investment_id': investmentId,
+      if (accountId != null) 'account_id': accountId,
+      if (paymentDate != null) 'payment_date': paymentDate,
+      if (amount != null) 'amount': amount,
+      if (status != null) 'status': status,
+      if (ledgerEntryId != null) 'ledger_entry_id': ledgerEntryId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DividendReceiptsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? investmentId,
+    Value<String>? accountId,
+    Value<DateTime>? paymentDate,
+    Value<double>? amount,
+    Value<String>? status,
+    Value<String>? ledgerEntryId,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return DividendReceiptsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      investmentId: investmentId ?? this.investmentId,
+      accountId: accountId ?? this.accountId,
+      paymentDate: paymentDate ?? this.paymentDate,
+      amount: amount ?? this.amount,
+      status: status ?? this.status,
+      ledgerEntryId: ledgerEntryId ?? this.ledgerEntryId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (investmentId.present) {
+      map['investment_id'] = Variable<String>(investmentId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (paymentDate.present) {
+      map['payment_date'] = Variable<DateTime>(paymentDate.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (ledgerEntryId.present) {
+      map['ledger_entry_id'] = Variable<String>(ledgerEntryId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DividendReceiptsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('investmentId: $investmentId, ')
+          ..write('accountId: $accountId, ')
+          ..write('paymentDate: $paymentDate, ')
+          ..write('amount: $amount, ')
+          ..write('status: $status, ')
+          ..write('ledgerEntryId: $ledgerEntryId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -18240,6 +18907,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CategoryBudgetsTable categoryBudgets = $CategoryBudgetsTable(
     this,
   );
+  late final $DividendReceiptsTable dividendReceipts = $DividendReceiptsTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -18268,6 +18938,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     appErrorLogs,
     standingOrders,
     categoryBudgets,
+    dividendReceipts,
   ];
 }
 
@@ -18630,6 +19301,26 @@ final class $$UsersTableReferences
 
     final cache = $_typedResult.readTableOrNull(
       _categoryBudgetsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$DividendReceiptsTable, List<DividendReceipt>>
+  _dividendReceiptsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.dividendReceipts,
+    aliasName: 'users__id__dividend_receipts__user_id',
+  );
+
+  $$DividendReceiptsTableProcessedTableManager get dividendReceiptsRefs {
+    final manager = $$DividendReceiptsTableTableManager(
+      $_db,
+      $_db.dividendReceipts,
+    ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _dividendReceiptsRefsTable($_db),
     );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
@@ -19107,6 +19798,31 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
           }) => $$CategoryBudgetsTableFilterComposer(
             $db: $db,
             $table: $db.categoryBudgets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> dividendReceiptsRefs(
+    Expression<bool> Function($$DividendReceiptsTableFilterComposer f) f,
+  ) {
+    final $$DividendReceiptsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.dividendReceipts,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DividendReceiptsTableFilterComposer(
+            $db: $db,
+            $table: $db.dividendReceipts,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -19646,6 +20362,31 @@ class $$UsersTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> dividendReceiptsRefs<T extends Object>(
+    Expression<T> Function($$DividendReceiptsTableAnnotationComposer a) f,
+  ) {
+    final $$DividendReceiptsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.dividendReceipts,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DividendReceiptsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.dividendReceipts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$UsersTableTableManager
@@ -19679,6 +20420,7 @@ class $$UsersTableTableManager
             bool portfolioAuditLogsRefs,
             bool standingOrdersRefs,
             bool categoryBudgetsRefs,
+            bool dividendReceiptsRefs,
           })
         > {
   $$UsersTableTableManager(_$AppDatabase db, $UsersTable table)
@@ -19765,6 +20507,7 @@ class $$UsersTableTableManager
                 portfolioAuditLogsRefs = false,
                 standingOrdersRefs = false,
                 categoryBudgetsRefs = false,
+                dividendReceiptsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -19786,6 +20529,7 @@ class $$UsersTableTableManager
                     if (portfolioAuditLogsRefs) db.portfolioAuditLogs,
                     if (standingOrdersRefs) db.standingOrders,
                     if (categoryBudgetsRefs) db.categoryBudgets,
+                    if (dividendReceiptsRefs) db.dividendReceipts,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -20139,6 +20883,27 @@ class $$UsersTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (dividendReceiptsRefs)
+                        await $_getPrefetchedData<
+                          User,
+                          $UsersTable,
+                          DividendReceipt
+                        >(
+                          currentTable: table,
+                          referencedTable: $$UsersTableReferences
+                              ._dividendReceiptsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$UsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).dividendReceiptsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -20177,6 +20942,7 @@ typedef $$UsersTableProcessedTableManager =
         bool portfolioAuditLogsRefs,
         bool standingOrdersRefs,
         bool categoryBudgetsRefs,
+        bool dividendReceiptsRefs,
       })
     >;
 typedef $$AccountsTableCreateCompanionBuilder =
@@ -31505,6 +32271,452 @@ typedef $$CategoryBudgetsTableProcessedTableManager =
       CategoryBudget,
       PrefetchHooks Function({bool userId})
     >;
+typedef $$DividendReceiptsTableCreateCompanionBuilder =
+    DividendReceiptsCompanion Function({
+      required String id,
+      required String userId,
+      required String investmentId,
+      Value<String> accountId,
+      required DateTime paymentDate,
+      Value<double> amount,
+      Value<String> status,
+      Value<String> ledgerEntryId,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$DividendReceiptsTableUpdateCompanionBuilder =
+    DividendReceiptsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> investmentId,
+      Value<String> accountId,
+      Value<DateTime> paymentDate,
+      Value<double> amount,
+      Value<String> status,
+      Value<String> ledgerEntryId,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $$DividendReceiptsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $DividendReceiptsTable, DividendReceipt> {
+  $$DividendReceiptsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $UsersTable _userIdTable(_$AppDatabase db) =>
+      db.users.createAlias('dividend_receipts__user_id__users__id');
+
+  $$UsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$UsersTableTableManager(
+      $_db,
+      $_db.users,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$DividendReceiptsTableFilterComposer
+    extends Composer<_$AppDatabase, $DividendReceiptsTable> {
+  $$DividendReceiptsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get investmentId => $composableBuilder(
+    column: $table.investmentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get paymentDate => $composableBuilder(
+    column: $table.paymentDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ledgerEntryId => $composableBuilder(
+    column: $table.ledgerEntryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$UsersTableFilterComposer get userId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableFilterComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DividendReceiptsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DividendReceiptsTable> {
+  $$DividendReceiptsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get investmentId => $composableBuilder(
+    column: $table.investmentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get paymentDate => $composableBuilder(
+    column: $table.paymentDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ledgerEntryId => $composableBuilder(
+    column: $table.ledgerEntryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$UsersTableOrderingComposer get userId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DividendReceiptsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DividendReceiptsTable> {
+  $$DividendReceiptsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get investmentId => $composableBuilder(
+    column: $table.investmentId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get paymentDate => $composableBuilder(
+    column: $table.paymentDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get ledgerEntryId => $composableBuilder(
+    column: $table.ledgerEntryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$UsersTableAnnotationComposer get userId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DividendReceiptsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DividendReceiptsTable,
+          DividendReceipt,
+          $$DividendReceiptsTableFilterComposer,
+          $$DividendReceiptsTableOrderingComposer,
+          $$DividendReceiptsTableAnnotationComposer,
+          $$DividendReceiptsTableCreateCompanionBuilder,
+          $$DividendReceiptsTableUpdateCompanionBuilder,
+          (DividendReceipt, $$DividendReceiptsTableReferences),
+          DividendReceipt,
+          PrefetchHooks Function({bool userId})
+        > {
+  $$DividendReceiptsTableTableManager(
+    _$AppDatabase db,
+    $DividendReceiptsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DividendReceiptsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DividendReceiptsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DividendReceiptsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> investmentId = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
+                Value<DateTime> paymentDate = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> ledgerEntryId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DividendReceiptsCompanion(
+                id: id,
+                userId: userId,
+                investmentId: investmentId,
+                accountId: accountId,
+                paymentDate: paymentDate,
+                amount: amount,
+                status: status,
+                ledgerEntryId: ledgerEntryId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String investmentId,
+                Value<String> accountId = const Value.absent(),
+                required DateTime paymentDate,
+                Value<double> amount = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> ledgerEntryId = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DividendReceiptsCompanion.insert(
+                id: id,
+                userId: userId,
+                investmentId: investmentId,
+                accountId: accountId,
+                paymentDate: paymentDate,
+                amount: amount,
+                status: status,
+                ledgerEntryId: ledgerEntryId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$DividendReceiptsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({userId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (userId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.userId,
+                                referencedTable:
+                                    $$DividendReceiptsTableReferences
+                                        ._userIdTable(db),
+                                referencedColumn:
+                                    $$DividendReceiptsTableReferences
+                                        ._userIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$DividendReceiptsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DividendReceiptsTable,
+      DividendReceipt,
+      $$DividendReceiptsTableFilterComposer,
+      $$DividendReceiptsTableOrderingComposer,
+      $$DividendReceiptsTableAnnotationComposer,
+      $$DividendReceiptsTableCreateCompanionBuilder,
+      $$DividendReceiptsTableUpdateCompanionBuilder,
+      (DividendReceipt, $$DividendReceiptsTableReferences),
+      DividendReceipt,
+      PrefetchHooks Function({bool userId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -31558,4 +32770,6 @@ class $AppDatabaseManager {
       $$StandingOrdersTableTableManager(_db, _db.standingOrders);
   $$CategoryBudgetsTableTableManager get categoryBudgets =>
       $$CategoryBudgetsTableTableManager(_db, _db.categoryBudgets);
+  $$DividendReceiptsTableTableManager get dividendReceipts =>
+      $$DividendReceiptsTableTableManager(_db, _db.dividendReceipts);
 }

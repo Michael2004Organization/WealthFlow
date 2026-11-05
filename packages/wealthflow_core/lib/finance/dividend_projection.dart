@@ -174,3 +174,29 @@ bool wasHeldDuringYear(
             sale.soldAt.isBefore(DateTime(year + 1)),
       );
 }
+
+/// Payouts of [projection] that should have arrived within the last [days]
+/// and are neither confirmed nor marked as not received, oldest first.
+List<ProjectedDividend> pendingDividends(
+  Iterable<ProjectedDividend> projection,
+  Iterable<DividendReceipt> receipts, {
+  required DateTime today,
+  int days = 45,
+}) {
+  final end = DateTime(today.year, today.month, today.day + 1);
+  final start = end.subtract(Duration(days: days + 1));
+  final answered = {
+    for (final receipt in receipts)
+      if (receipt.deletedAt == null) receipt.id,
+  };
+  return [
+    for (final payment in projection)
+      if (payment.tax.net > 0 &&
+          payment.date.isBefore(end) &&
+          !payment.date.isBefore(start) &&
+          !answered.contains(
+            dividendReceiptId(payment.investment.id, payment.date),
+          ))
+        payment,
+  ]..sort((a, b) => a.date.compareTo(b.date));
+}

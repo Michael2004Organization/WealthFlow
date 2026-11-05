@@ -14,6 +14,7 @@ import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
+import 'dividend_prompt.dart';
 import 'investments_page.dart';
 
 final _dividendInvestmentFilterProvider = StateProvider<String?>((_) => null);
@@ -189,6 +190,18 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                                 ),
                             ],
                           ),
+                        ),
+                        FilterChip(
+                          avatar: const Icon(Icons.bolt_rounded, size: 18),
+                          label: const Text('Automatisch buchen'),
+                          tooltip:
+                              'Dividenden mit bekanntem Zahltag ohne '
+                              'Nachfrage als Buchung übernehmen',
+                          selected:
+                              ref.watch(dividendAutoBookProvider).valueOrNull ??
+                              false,
+                          onSelected: (value) =>
+                              setDividendAutoBook(ref, value),
                         ),
                         SizedBox(
                           width: 290,

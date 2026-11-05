@@ -12,6 +12,7 @@ import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 import '../../app/app_theme.dart';
 import '../../app/app_shell.dart' show desktopBreakpoint;
 import '../../core/providers.dart';
+import '../finance/dividend_prompt.dart';
 import '../household/budgets_page.dart';
 import '../household/standing_orders_page.dart';
 import '../search/search_page.dart';
@@ -278,6 +279,18 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 : null,
             onShowAll: () => openMore(ref, 'budgets'),
           );
+    final receipts = ref.watch(dividendReceiptsProvider).valueOrNull;
+    // Asked only once the confirmations are loaded, so nothing flashes.
+    final pendingPayouts = receipts == null
+        ? const <ProjectedDividend>[]
+        : pendingDividends(
+            [
+              if (now.month == 1) ...projectionFor(now.year - 1),
+              ...projectionFor(now.year),
+            ],
+            receipts,
+            today: now,
+          );
     final upcoming = _Upcoming(
       entries: entries,
       standingOrders: plannedStandingOrderBookings(
@@ -326,6 +339,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   ],
                 ),
               ),
+              if (pendingPayouts.isNotEmpty) ...[
+                DividendPromptCard(pending: pendingPayouts),
+                const SizedBox(height: 16),
+              ],
               if (_showLightDesignHint) ...[
                 _LightDesignHint(
                   onTry: () => _answerLightDesignHint(tryIt: true),

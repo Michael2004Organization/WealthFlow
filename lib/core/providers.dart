@@ -18,6 +18,7 @@ export 'package:wealthflow_core/database/app_database.dart'
         AdminQueries,
         BudgetQueries,
         DataTransferQueries,
+        DividendReceiptQueries,
         HouseholdQueries,
         PortfolioQueries,
         PreferenceQueries,
@@ -187,6 +188,13 @@ final categoryBudgetsProvider = StreamProvider<List<CategoryBudget>>((ref) {
   return userId == null
       ? Stream.value(const <CategoryBudget>[])
       : ref.watch(databaseProvider).watchCategoryBudgets(userId);
+});
+
+final dividendReceiptsProvider = StreamProvider<List<DividendReceipt>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <DividendReceipt>[])
+      : ref.watch(databaseProvider).watchDividendReceipts(userId);
 });
 
 final masterDataProvider = StreamProvider<List<MasterDataData>>((ref) {

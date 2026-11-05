@@ -13,6 +13,7 @@ WealthFlow ist eine lokale, plattformübergreifende Finanzverwaltung für Androi
 - Daueraufträge ohne festes Ende (monatlich, vierteljährlich, jährlich), die ihre Buchung am Fälligkeitstag selbst anlegen; bestehende Monatsserien lassen sich umwandeln
 - Budgets je Kategorie mit Fortschrittsbalken (orange ab 80 %, rot darüber), optionalem Übertrag des Rests und Monatsrückblick
 - CSV-Import von Kontoauszügen (Sparkasse, ING, DKB, comdirect, Volksbank; andere Banken über eine einmalige Spaltenzuordnung) mit Vorschau, Dublettenerkennung und Kategorie-Vorschlägen
+- Dividenden als Buchung: fällige Ausschüttungen werden auf dem Dashboard abgefragt (Betrag änderbar) oder auf Wunsch automatisch gebucht
 - lokale SQLite-Datenbank mit reaktiven Abfragen
 - Light-, Dark- und System-Theme sowie konfigurierbarer Servermodus
 
