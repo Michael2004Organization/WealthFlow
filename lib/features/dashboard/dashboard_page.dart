@@ -5,12 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wealthflow_core/database/app_database.dart';
 import 'package:wealthflow_core/finance/account_balance_math.dart';
 import 'package:wealthflow_core/finance/budget_period.dart';
+import 'package:wealthflow_core/finance/category_budget.dart';
 import 'package:wealthflow_core/finance/dividend_projection.dart';
 import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 
 import '../../app/app_theme.dart';
 import '../../app/app_shell.dart' show desktopBreakpoint;
 import '../../core/providers.dart';
+import '../household/budgets_page.dart';
 import '../household/standing_orders_page.dart';
 import '../search/search_page.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -69,6 +71,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final standingOrders =
         ref.watch(standingOrdersProvider).valueOrNull ??
         const <StandingOrder>[];
+    final budgets =
+        ref.watch(categoryBudgetsProvider).valueOrNull ??
+        const <CategoryBudget>[];
     final userId = ref.watch(currentUserIdProvider);
     if (userId != null && _loadedForUser != userId) {
       _loadedForUser = userId;
@@ -249,6 +254,30 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       entries: entries,
       onShowAll: () => selectShellDestination(ref, 2),
     );
+    final previousMonth = DateTime(
+      _selectedMonth.year,
+      _selectedMonth.month - 1,
+    );
+    final budgetCard = budgets.isEmpty
+        ? null
+        : _BudgetsCard(
+            progress: buildBudgetProgress(budgets, entries, _selectedMonth),
+            // In the first week a short look back at the month before.
+            review:
+                now.day <= 7 &&
+                    _selectedMonth.year == now.year &&
+                    _selectedMonth.month == now.month
+                ? (
+                    month: previousMonth,
+                    progress: buildBudgetProgress(
+                      budgets,
+                      entries,
+                      previousMonth,
+                    ),
+                  )
+                : null,
+            onShowAll: () => openMore(ref, 'budgets'),
+          );
     final upcoming = _Upcoming(
       entries: entries,
       standingOrders: plannedStandingOrderBookings(
@@ -314,6 +343,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         hero,
                         const SizedBox(height: gap),
                         month,
+                        if (budgetCard != null) ...[
+                          const SizedBox(height: gap),
+                          budgetCard,
+                        ],
                         const SizedBox(height: gap),
                         recent,
                         const SizedBox(height: gap),
@@ -342,6 +375,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             month,
+                            if (budgetCard != null) ...[
+                              const SizedBox(height: gap),
+                              budgetCard,
+                            ],
                             const SizedBox(height: gap),
                             upcoming,
                           ],
@@ -1384,6 +1421,79 @@ class _RecentEntries extends StatelessWidget {
                         entry.sourceType == 'transfer' ||
                         entry.sourceType == 'saving',
                   ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BudgetsCard extends StatelessWidget {
+  const _BudgetsCard({
+    required this.progress,
+    required this.review,
+    required this.onShowAll,
+  });
+
+  final List<BudgetProgress> progress;
+  final ({DateTime month, List<BudgetProgress> progress})? review;
+  final VoidCallback onShowAll;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WealthColors.of(context);
+    final review = this.review;
+    final over = review?.progress
+        .where((item) => item.state == BudgetState.over)
+        .toList();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 8, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Budgets',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                TextButton(onPressed: onShowAll, child: const Text('Alle')),
+              ],
+            ),
+            if (review != null && review.progress.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(right: 12, bottom: 6),
+                child: Text(
+                  'Rückblick ${monthNames[review.month.month - 1]}: '
+                  '${review.progress.length - over!.length} von '
+                  '${review.progress.length} eingehalten'
+                  '${over.isEmpty ? '' : ', ${over.first.budget.category} '
+                            '${money(-over.first.left)} drüber'}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: over.isEmpty ? colors.income : colors.muted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            for (final item in progress.take(4))
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: BudgetBar(progress: item, dense: true, onTap: onShowAll),
+              ),
+            if (progress.length > 4)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '+ ${progress.length - 4} weitere',
+                  style: TextStyle(fontSize: 12, color: colors.muted),
                 ),
               ),
           ],

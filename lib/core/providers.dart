@@ -16,6 +16,7 @@ export 'package:wealthflow_core/database/app_database.dart'
     show
         AccountQueries,
         AdminQueries,
+        BudgetQueries,
         DataTransferQueries,
         HouseholdQueries,
         PortfolioQueries,
@@ -179,6 +180,13 @@ final standingOrdersProvider = StreamProvider<List<StandingOrder>>((ref) {
   return userId == null
       ? Stream.value(const <StandingOrder>[])
       : ref.watch(databaseProvider).watchStandingOrders(userId);
+});
+
+final categoryBudgetsProvider = StreamProvider<List<CategoryBudget>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <CategoryBudget>[])
+      : ref.watch(databaseProvider).watchCategoryBudgets(userId);
 });
 
 final masterDataProvider = StreamProvider<List<MasterDataData>>((ref) {

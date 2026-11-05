@@ -56,6 +56,7 @@ final class ServerSync {
     'vehicles': 'vehicles',
     'vehicleCosts': 'vehicle_costs',
     'standingOrders': 'standing_orders',
+    'categoryBudgets': 'category_budgets',
     'masterData': 'master_data',
     'reminders': 'reminders',
     'netWorthSnapshots': 'net_worth_snapshots',

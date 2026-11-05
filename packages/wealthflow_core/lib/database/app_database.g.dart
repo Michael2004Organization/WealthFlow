@@ -17628,6 +17628,580 @@ class StandingOrdersCompanion extends UpdateCompanion<StandingOrder> {
   }
 }
 
+class $CategoryBudgetsTable extends CategoryBudgets
+    with TableInfo<$CategoryBudgetsTable, CategoryBudget> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CategoryBudgetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES users (id)',
+    ),
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _monthlyLimitMeta = const VerificationMeta(
+    'monthlyLimit',
+  );
+  @override
+  late final GeneratedColumn<double> monthlyLimit = GeneratedColumn<double>(
+    'monthly_limit',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _carryOverMeta = const VerificationMeta(
+    'carryOver',
+  );
+  @override
+  late final GeneratedColumn<bool> carryOver = GeneratedColumn<bool>(
+    'carry_over',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("carry_over" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _startMonthMeta = const VerificationMeta(
+    'startMonth',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startMonth = GeneratedColumn<DateTime>(
+    'start_month',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    category,
+    monthlyLimit,
+    carryOver,
+    startMonth,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'category_budgets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CategoryBudget> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryMeta);
+    }
+    if (data.containsKey('monthly_limit')) {
+      context.handle(
+        _monthlyLimitMeta,
+        monthlyLimit.isAcceptableOrUnknown(
+          data['monthly_limit']!,
+          _monthlyLimitMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_monthlyLimitMeta);
+    }
+    if (data.containsKey('carry_over')) {
+      context.handle(
+        _carryOverMeta,
+        carryOver.isAcceptableOrUnknown(data['carry_over']!, _carryOverMeta),
+      );
+    }
+    if (data.containsKey('start_month')) {
+      context.handle(
+        _startMonthMeta,
+        startMonth.isAcceptableOrUnknown(data['start_month']!, _startMonthMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startMonthMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CategoryBudget map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CategoryBudget(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      )!,
+      monthlyLimit: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}monthly_limit'],
+      )!,
+      carryOver: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}carry_over'],
+      )!,
+      startMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start_month'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $CategoryBudgetsTable createAlias(String alias) {
+    return $CategoryBudgetsTable(attachedDatabase, alias);
+  }
+}
+
+class CategoryBudget extends DataClass implements Insertable<CategoryBudget> {
+  final String id;
+  final String userId;
+  final String category;
+  final double monthlyLimit;
+
+  /// Whether an unused rest is added to the next month's limit.
+  final bool carryOver;
+
+  /// First month the budget counts for; carry-over starts here.
+  final DateTime startMonth;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const CategoryBudget({
+    required this.id,
+    required this.userId,
+    required this.category,
+    required this.monthlyLimit,
+    required this.carryOver,
+    required this.startMonth,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['category'] = Variable<String>(category);
+    map['monthly_limit'] = Variable<double>(monthlyLimit);
+    map['carry_over'] = Variable<bool>(carryOver);
+    map['start_month'] = Variable<DateTime>(startMonth);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  CategoryBudgetsCompanion toCompanion(bool nullToAbsent) {
+    return CategoryBudgetsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      category: Value(category),
+      monthlyLimit: Value(monthlyLimit),
+      carryOver: Value(carryOver),
+      startMonth: Value(startMonth),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory CategoryBudget.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CategoryBudget(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      category: serializer.fromJson<String>(json['category']),
+      monthlyLimit: serializer.fromJson<double>(json['monthlyLimit']),
+      carryOver: serializer.fromJson<bool>(json['carryOver']),
+      startMonth: serializer.fromJson<DateTime>(json['startMonth']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'category': serializer.toJson<String>(category),
+      'monthlyLimit': serializer.toJson<double>(monthlyLimit),
+      'carryOver': serializer.toJson<bool>(carryOver),
+      'startMonth': serializer.toJson<DateTime>(startMonth),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  CategoryBudget copyWith({
+    String? id,
+    String? userId,
+    String? category,
+    double? monthlyLimit,
+    bool? carryOver,
+    DateTime? startMonth,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => CategoryBudget(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    category: category ?? this.category,
+    monthlyLimit: monthlyLimit ?? this.monthlyLimit,
+    carryOver: carryOver ?? this.carryOver,
+    startMonth: startMonth ?? this.startMonth,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  CategoryBudget copyWithCompanion(CategoryBudgetsCompanion data) {
+    return CategoryBudget(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      category: data.category.present ? data.category.value : this.category,
+      monthlyLimit: data.monthlyLimit.present
+          ? data.monthlyLimit.value
+          : this.monthlyLimit,
+      carryOver: data.carryOver.present ? data.carryOver.value : this.carryOver,
+      startMonth: data.startMonth.present
+          ? data.startMonth.value
+          : this.startMonth,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CategoryBudget(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('category: $category, ')
+          ..write('monthlyLimit: $monthlyLimit, ')
+          ..write('carryOver: $carryOver, ')
+          ..write('startMonth: $startMonth, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    category,
+    monthlyLimit,
+    carryOver,
+    startMonth,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CategoryBudget &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.category == this.category &&
+          other.monthlyLimit == this.monthlyLimit &&
+          other.carryOver == this.carryOver &&
+          other.startMonth == this.startMonth &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class CategoryBudgetsCompanion extends UpdateCompanion<CategoryBudget> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> category;
+  final Value<double> monthlyLimit;
+  final Value<bool> carryOver;
+  final Value<DateTime> startMonth;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const CategoryBudgetsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.category = const Value.absent(),
+    this.monthlyLimit = const Value.absent(),
+    this.carryOver = const Value.absent(),
+    this.startMonth = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CategoryBudgetsCompanion.insert({
+    required String id,
+    required String userId,
+    required String category,
+    required double monthlyLimit,
+    this.carryOver = const Value.absent(),
+    required DateTime startMonth,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       category = Value(category),
+       monthlyLimit = Value(monthlyLimit),
+       startMonth = Value(startMonth),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<CategoryBudget> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? category,
+    Expression<double>? monthlyLimit,
+    Expression<bool>? carryOver,
+    Expression<DateTime>? startMonth,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (category != null) 'category': category,
+      if (monthlyLimit != null) 'monthly_limit': monthlyLimit,
+      if (carryOver != null) 'carry_over': carryOver,
+      if (startMonth != null) 'start_month': startMonth,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CategoryBudgetsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? category,
+    Value<double>? monthlyLimit,
+    Value<bool>? carryOver,
+    Value<DateTime>? startMonth,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return CategoryBudgetsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      category: category ?? this.category,
+      monthlyLimit: monthlyLimit ?? this.monthlyLimit,
+      carryOver: carryOver ?? this.carryOver,
+      startMonth: startMonth ?? this.startMonth,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (monthlyLimit.present) {
+      map['monthly_limit'] = Variable<double>(monthlyLimit.value);
+    }
+    if (carryOver.present) {
+      map['carry_over'] = Variable<bool>(carryOver.value);
+    }
+    if (startMonth.present) {
+      map['start_month'] = Variable<DateTime>(startMonth.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CategoryBudgetsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('category: $category, ')
+          ..write('monthlyLimit: $monthlyLimit, ')
+          ..write('carryOver: $carryOver, ')
+          ..write('startMonth: $startMonth, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -17663,6 +18237,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $PortfolioAuditLogsTable(this);
   late final $AppErrorLogsTable appErrorLogs = $AppErrorLogsTable(this);
   late final $StandingOrdersTable standingOrders = $StandingOrdersTable(this);
+  late final $CategoryBudgetsTable categoryBudgets = $CategoryBudgetsTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -17690,6 +18267,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     portfolioAuditLogs,
     appErrorLogs,
     standingOrders,
+    categoryBudgets,
   ];
 }
 
@@ -18033,6 +18611,26 @@ final class $$UsersTableReferences
     ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_standingOrdersRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$CategoryBudgetsTable, List<CategoryBudget>>
+  _categoryBudgetsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.categoryBudgets,
+    aliasName: 'users__id__category_budgets__user_id',
+  );
+
+  $$CategoryBudgetsTableProcessedTableManager get categoryBudgetsRefs {
+    final manager = $$CategoryBudgetsTableTableManager(
+      $_db,
+      $_db.categoryBudgets,
+    ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _categoryBudgetsRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -18484,6 +19082,31 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
           }) => $$StandingOrdersTableFilterComposer(
             $db: $db,
             $table: $db.standingOrders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> categoryBudgetsRefs(
+    Expression<bool> Function($$CategoryBudgetsTableFilterComposer f) f,
+  ) {
+    final $$CategoryBudgetsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.categoryBudgets,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoryBudgetsTableFilterComposer(
+            $db: $db,
+            $table: $db.categoryBudgets,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -18998,6 +19621,31 @@ class $$UsersTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> categoryBudgetsRefs<T extends Object>(
+    Expression<T> Function($$CategoryBudgetsTableAnnotationComposer a) f,
+  ) {
+    final $$CategoryBudgetsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.categoryBudgets,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoryBudgetsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.categoryBudgets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$UsersTableTableManager
@@ -19030,6 +19678,7 @@ class $$UsersTableTableManager
             bool portfolioSalesRefs,
             bool portfolioAuditLogsRefs,
             bool standingOrdersRefs,
+            bool categoryBudgetsRefs,
           })
         > {
   $$UsersTableTableManager(_$AppDatabase db, $UsersTable table)
@@ -19115,6 +19764,7 @@ class $$UsersTableTableManager
                 portfolioSalesRefs = false,
                 portfolioAuditLogsRefs = false,
                 standingOrdersRefs = false,
+                categoryBudgetsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -19135,6 +19785,7 @@ class $$UsersTableTableManager
                     if (portfolioSalesRefs) db.portfolioSales,
                     if (portfolioAuditLogsRefs) db.portfolioAuditLogs,
                     if (standingOrdersRefs) db.standingOrders,
+                    if (categoryBudgetsRefs) db.categoryBudgets,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -19467,6 +20118,27 @@ class $$UsersTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (categoryBudgetsRefs)
+                        await $_getPrefetchedData<
+                          User,
+                          $UsersTable,
+                          CategoryBudget
+                        >(
+                          currentTable: table,
+                          referencedTable: $$UsersTableReferences
+                              ._categoryBudgetsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$UsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).categoryBudgetsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -19504,6 +20176,7 @@ typedef $$UsersTableProcessedTableManager =
         bool portfolioSalesRefs,
         bool portfolioAuditLogsRefs,
         bool standingOrdersRefs,
+        bool categoryBudgetsRefs,
       })
     >;
 typedef $$AccountsTableCreateCompanionBuilder =
@@ -30426,6 +31099,412 @@ typedef $$StandingOrdersTableProcessedTableManager =
       StandingOrder,
       PrefetchHooks Function({bool userId})
     >;
+typedef $$CategoryBudgetsTableCreateCompanionBuilder =
+    CategoryBudgetsCompanion Function({
+      required String id,
+      required String userId,
+      required String category,
+      required double monthlyLimit,
+      Value<bool> carryOver,
+      required DateTime startMonth,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$CategoryBudgetsTableUpdateCompanionBuilder =
+    CategoryBudgetsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> category,
+      Value<double> monthlyLimit,
+      Value<bool> carryOver,
+      Value<DateTime> startMonth,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $$CategoryBudgetsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $CategoryBudgetsTable, CategoryBudget> {
+  $$CategoryBudgetsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $UsersTable _userIdTable(_$AppDatabase db) =>
+      db.users.createAlias('category_budgets__user_id__users__id');
+
+  $$UsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$UsersTableTableManager(
+      $_db,
+      $_db.users,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$CategoryBudgetsTableFilterComposer
+    extends Composer<_$AppDatabase, $CategoryBudgetsTable> {
+  $$CategoryBudgetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get monthlyLimit => $composableBuilder(
+    column: $table.monthlyLimit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get carryOver => $composableBuilder(
+    column: $table.carryOver,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startMonth => $composableBuilder(
+    column: $table.startMonth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$UsersTableFilterComposer get userId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableFilterComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CategoryBudgetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CategoryBudgetsTable> {
+  $$CategoryBudgetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get monthlyLimit => $composableBuilder(
+    column: $table.monthlyLimit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get carryOver => $composableBuilder(
+    column: $table.carryOver,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startMonth => $composableBuilder(
+    column: $table.startMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$UsersTableOrderingComposer get userId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CategoryBudgetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CategoryBudgetsTable> {
+  $$CategoryBudgetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<double> get monthlyLimit => $composableBuilder(
+    column: $table.monthlyLimit,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get carryOver =>
+      $composableBuilder(column: $table.carryOver, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startMonth => $composableBuilder(
+    column: $table.startMonth,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$UsersTableAnnotationComposer get userId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CategoryBudgetsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CategoryBudgetsTable,
+          CategoryBudget,
+          $$CategoryBudgetsTableFilterComposer,
+          $$CategoryBudgetsTableOrderingComposer,
+          $$CategoryBudgetsTableAnnotationComposer,
+          $$CategoryBudgetsTableCreateCompanionBuilder,
+          $$CategoryBudgetsTableUpdateCompanionBuilder,
+          (CategoryBudget, $$CategoryBudgetsTableReferences),
+          CategoryBudget,
+          PrefetchHooks Function({bool userId})
+        > {
+  $$CategoryBudgetsTableTableManager(
+    _$AppDatabase db,
+    $CategoryBudgetsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CategoryBudgetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CategoryBudgetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CategoryBudgetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> category = const Value.absent(),
+                Value<double> monthlyLimit = const Value.absent(),
+                Value<bool> carryOver = const Value.absent(),
+                Value<DateTime> startMonth = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CategoryBudgetsCompanion(
+                id: id,
+                userId: userId,
+                category: category,
+                monthlyLimit: monthlyLimit,
+                carryOver: carryOver,
+                startMonth: startMonth,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String category,
+                required double monthlyLimit,
+                Value<bool> carryOver = const Value.absent(),
+                required DateTime startMonth,
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CategoryBudgetsCompanion.insert(
+                id: id,
+                userId: userId,
+                category: category,
+                monthlyLimit: monthlyLimit,
+                carryOver: carryOver,
+                startMonth: startMonth,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$CategoryBudgetsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({userId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (userId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.userId,
+                                referencedTable:
+                                    $$CategoryBudgetsTableReferences
+                                        ._userIdTable(db),
+                                referencedColumn:
+                                    $$CategoryBudgetsTableReferences
+                                        ._userIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$CategoryBudgetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CategoryBudgetsTable,
+      CategoryBudget,
+      $$CategoryBudgetsTableFilterComposer,
+      $$CategoryBudgetsTableOrderingComposer,
+      $$CategoryBudgetsTableAnnotationComposer,
+      $$CategoryBudgetsTableCreateCompanionBuilder,
+      $$CategoryBudgetsTableUpdateCompanionBuilder,
+      (CategoryBudget, $$CategoryBudgetsTableReferences),
+      CategoryBudget,
+      PrefetchHooks Function({bool userId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -30477,4 +31556,6 @@ class $AppDatabaseManager {
       $$AppErrorLogsTableTableManager(_db, _db.appErrorLogs);
   $$StandingOrdersTableTableManager get standingOrders =>
       $$StandingOrdersTableTableManager(_db, _db.standingOrders);
+  $$CategoryBudgetsTableTableManager get categoryBudgets =>
+      $$CategoryBudgetsTableTableManager(_db, _db.categoryBudgets);
 }

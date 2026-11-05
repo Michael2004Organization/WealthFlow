@@ -22,6 +22,7 @@ part 'queries/household.dart';
 part 'queries/data_transfer.dart';
 part 'queries/preferences.dart';
 part 'queries/standing_orders.dart';
+part 'queries/budgets.dart';
 
 extension InvestmentPurchaseCash on InvestmentPurchase {
   /// Amount taken from the cash account, in the account's currency.
@@ -428,6 +429,26 @@ class StandingOrders extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Monthly spending limit for one household category.
+class CategoryBudgets extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text().references(Users, #id)();
+  TextColumn get category => text()();
+  RealColumn get monthlyLimit => real()();
+
+  /// Whether an unused rest is added to the next month's limit.
+  BoolColumn get carryOver => boolean().withDefault(const Constant(false))();
+
+  /// First month the budget counts for; carry-over starts here.
+  DateTimeColumn get startMonth => dateTime()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class Vehicles extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text().references(Users, #id)();
@@ -540,6 +561,7 @@ typedef DataFileWriter = Future<bool> Function(List<int> bytes, String path);
     PortfolioAuditLogs,
     AppErrorLogs,
     StandingOrders,
+    CategoryBudgets,
   ],
 )
 final class AppDatabase extends _$AppDatabase {
@@ -674,7 +696,7 @@ final class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 22;
+  int get schemaVersion => 23;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -980,6 +1002,9 @@ final class AppDatabase extends _$AppDatabase {
       }
       if (from < 22) {
         await migrator.createTable(standingOrders);
+      }
+      if (from < 23) {
+        await migrator.createTable(categoryBudgets);
       }
     },
   );

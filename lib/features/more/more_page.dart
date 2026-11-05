@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../household/budgets_page.dart';
 import '../household/standing_orders_page.dart';
 import '../reminders/reminders_page.dart';
 import '../search/search_page.dart';
@@ -23,6 +24,7 @@ class _MorePageState extends ConsumerState<MorePage> {
     'statistics',
     'calculators',
     'vehicles',
+    'budgets',
     'standingOrders',
     'reminders',
     'search',
@@ -59,6 +61,13 @@ class _MorePageState extends ConsumerState<MorePage> {
       null,
       shellIndex: 5,
       phoneOnly: true,
+    ),
+    _MoreDestination(
+      'budgets',
+      'Budgets',
+      'Monatliche Grenzen je Kategorie',
+      Icons.donut_large_rounded,
+      BudgetsPage(),
     ),
     _MoreDestination(
       'standingOrders',
@@ -341,6 +350,7 @@ class _MorePageState extends ConsumerState<MorePage> {
     'statistics',
     'calculators',
     'vehicles',
+    'budgets',
     'standingOrders',
     'reminders',
     'search',

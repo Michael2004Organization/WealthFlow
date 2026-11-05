@@ -11,6 +11,7 @@ WealthFlow ist eine lokale, plattformübergreifende Finanzverwaltung für Androi
 - responsive Navigation mit NavigationRail und NavigationBar
 - Dashboard, Konten, Portfolio, Haushaltsbuch, Fahrzeuge, Rechner, Statistiken, globale Suche und Einstellungen
 - Daueraufträge ohne festes Ende (monatlich, vierteljährlich, jährlich), die ihre Buchung am Fälligkeitstag selbst anlegen; bestehende Monatsserien lassen sich umwandeln
+- Budgets je Kategorie mit Fortschrittsbalken (orange ab 80 %, rot darüber), optionalem Übertrag des Rests und Monatsrückblick
 - lokale SQLite-Datenbank mit reaktiven Abfragen
 - Light-, Dark- und System-Theme sowie konfigurierbarer Servermodus
 

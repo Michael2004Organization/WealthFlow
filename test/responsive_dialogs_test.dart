@@ -8,6 +8,7 @@ import 'package:wealthflow/features/auth/auth_page.dart';
 import 'package:wealthflow/features/calculators/calculators_page.dart';
 import 'package:wealthflow/features/finance/accounts_page.dart';
 import 'package:wealthflow/features/finance/investments_page.dart';
+import 'package:wealthflow/features/household/budgets_page.dart';
 import 'package:wealthflow/features/household/household_page.dart';
 import 'package:wealthflow/features/household/standing_orders_page.dart';
 import 'package:wealthflow/features/settings/administration_page.dart';
@@ -415,6 +416,59 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('budget editor fits a phone', (tester) async {
+    final now = DateTime.now();
+    LedgerEntry expense(String category, int day) => LedgerEntry(
+      id: '$category-$day',
+      userId: 'responsive-user',
+      bookingDate: DateTime(now.year, now.month - 1, day),
+      amount: 87.4,
+      isIncome: false,
+      category: category,
+      merchant: '',
+      description: '',
+      paymentMethod: '',
+      recurrenceId: '',
+      sourceType: 'manual',
+      sourceId: '',
+      vehicleId: '',
+      accountId: 'giro',
+      accountApplied: true,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await pumpPage(
+      tester,
+      const BudgetsPage(),
+      overrides: [
+        categoryBudgetsProvider.overrideWith(
+          (_) => Stream.value(const <CategoryBudget>[]),
+        ),
+        ledgerEntriesProvider.overrideWith(
+          (_) => Stream.value([
+            for (final category in [
+              'Lebensmittel',
+              'Freizeit',
+              'Restaurant und Lieferdienste',
+              'Drogerie',
+            ])
+              expense(category, 3),
+          ]),
+        ),
+      ],
+    );
+
+    await tester.tap(find.text('Budget festlegen'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lebensmittel'));
+    await tester.pumpAndSettle();
+
+    // Suggests a round amount above last months' average.
+    expect(find.text('30,00'), findsOneWidget);
+    expect(find.text('Rest übertragen'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 /// Stands in for the "+" of the app's navigation bar, which opens the
