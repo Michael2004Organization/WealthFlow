@@ -10,6 +10,7 @@ import 'package:wealthflow_core/finance/budget_period.dart';
 
 import '../../app/app_theme.dart';
 import '../../core/providers.dart';
+import '../search/search_page.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/save_feedback.dart';
 
@@ -24,6 +25,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
   late DateTime _selectedMonth = _month(DateTime.now());
   String _query = '';
   String _category = 'Alle';
+  bool _showFilters = false;
   String? _selectedAccountId;
 
   @override
@@ -74,7 +76,8 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
       sales: sales,
     );
     final selectedAccountId = _effectiveAccountId(bookingAccounts, preference);
-    final padding = MediaQuery.sizeOf(context).width < 600 ? 16.0 : 24.0;
+    final phone = MediaQuery.sizeOf(context).width < 600;
+    final padding = phone ? 16.0 : 24.0;
     final newEntry = selectedAccountId == null
         ? null
         : () => showEntryEditor(
@@ -89,46 +92,82 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
         child: ListView(
           padding: EdgeInsets.all(padding),
           children: [
-            PageHeader(
-              title: 'Haushalt',
-              action: Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  if (bookingAccounts.isNotEmpty)
-                    SizedBox(
-                      width: 270,
-                      child: SearchableDropdownButtonFormField<String>(
-                        key: ValueKey(selectedAccountId),
-                        initialValue: selectedAccountId,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Haushaltskonto',
-                          prefixIcon: Icon(Icons.account_balance_rounded),
-                        ),
-                        items: bookingAccounts
-                            .map(
-                              (account) => DropdownMenuItem(
-                                value: account.id,
-                                child: Text(
-                                  '${account.label} · ${money(balanceAtMonthEnd(account))}',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: _selectAccount,
-                      ),
+            if (phone) ...[
+              PageHeader(
+                title: 'Haushalt',
+                actionInline: true,
+                action: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      onPressed: () => showSearchOverlay(context, ref),
+                      icon: const Icon(Icons.search_rounded),
+                      tooltip: 'Suchen',
                     ),
-                  FilledButton.icon(
-                    onPressed: newEntry,
-                    icon: const Icon(Icons.add_rounded),
-                    label: const Text('Buchung'),
-                  ),
-                ],
+                    IconButton(
+                      onPressed: () =>
+                          setState(() => _showFilters = !_showFilters),
+                      isSelected: _showFilters,
+                      icon: Badge(
+                        isLabelVisible:
+                            !_showFilters &&
+                            (_query.isNotEmpty || _category != 'Alle'),
+                        smallSize: 8,
+                        child: const Icon(Icons.tune_rounded),
+                      ),
+                      tooltip: 'Filter',
+                    ),
+                  ],
+                ),
               ),
-            ),
+              if (bookingAccounts.isNotEmpty)
+                _AccountRow(
+                  accounts: bookingAccounts,
+                  selectedId: selectedAccountId,
+                  balanceOf: balanceAtMonthEnd,
+                  onSelected: _selectAccount,
+                ),
+            ] else
+              PageHeader(
+                title: 'Haushalt',
+                action: Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (bookingAccounts.isNotEmpty)
+                      SizedBox(
+                        width: 270,
+                        child: SearchableDropdownButtonFormField<String>(
+                          key: ValueKey(selectedAccountId),
+                          initialValue: selectedAccountId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Haushaltskonto',
+                            prefixIcon: Icon(Icons.account_balance_rounded),
+                          ),
+                          items: bookingAccounts
+                              .map(
+                                (account) => DropdownMenuItem(
+                                  value: account.id,
+                                  child: Text(
+                                    '${account.label} · ${money(balanceAtMonthEnd(account))}',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: _selectAccount,
+                        ),
+                      ),
+                    FilledButton.icon(
+                      onPressed: newEntry,
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Buchung'),
+                    ),
+                  ],
+                ),
+              ),
             if (bookingAccounts.isEmpty) ...[
               const _MissingAccountHint(),
               const SizedBox(height: 14),
@@ -138,42 +177,43 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
               onSelected: (value) => setState(() => _selectedMonth = value),
             ),
             const SizedBox(height: 14),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                SizedBox(
-                  width: 280,
-                  child: TextField(
-                    onChanged: (value) =>
-                        setState(() => _query = value.toLowerCase()),
-                    decoration: const InputDecoration(
-                      labelText: 'Quelle oder Beschreibung',
-                      prefixIcon: Icon(Icons.search_rounded),
+            if (!phone || _showFilters)
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(
+                    width: phone ? double.infinity : 280,
+                    child: TextField(
+                      onChanged: (value) =>
+                          setState(() => _query = value.toLowerCase()),
+                      decoration: const InputDecoration(
+                        labelText: 'Quelle oder Beschreibung',
+                        prefixIcon: Icon(Icons.search_rounded),
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(
-                  width: 210,
-                  child: SearchableDropdownButtonFormField<String>(
-                    initialValue: _category,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Kategorie'),
-                    items: ['Alle', ...categories]
-                        .map(
-                          (value) => DropdownMenuItem(
-                            value: value,
-                            child: Text(value),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) =>
-                        setState(() => _category = value ?? 'Alle'),
+                  SizedBox(
+                    width: phone ? double.infinity : 210,
+                    child: SearchableDropdownButtonFormField<String>(
+                      initialValue: _category,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Kategorie'),
+                      items: ['Alle', ...categories]
+                          .map(
+                            (value) => DropdownMenuItem(
+                              value: value,
+                              child: Text(value),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) =>
+                          setState(() => _category = value ?? 'Alle'),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
             const SizedBox(height: 18),
             ...asyncEntries.when<List<Widget>>(
               loading: () => const [
@@ -1892,3 +1932,94 @@ class _EditableSuggestionField extends StatelessWidget {
 }
 
 DateTime _month(DateTime value) => DateTime(value.year, value.month);
+
+/// The household account as one tappable line under the title on phones;
+/// the choice opens in a bottom sheet.
+class _AccountRow extends StatelessWidget {
+  const _AccountRow({
+    required this.accounts,
+    required this.selectedId,
+    required this.balanceOf,
+    required this.onSelected,
+  });
+
+  final List<Account> accounts;
+  final String? selectedId;
+  final double Function(Account account) balanceOf;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WealthColors.of(context);
+    final selected =
+        accounts.where((account) => account.id == selectedId).firstOrNull ??
+        accounts.first;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: accounts.length < 2
+            ? null
+            : () async {
+                final chosen = await showModalBottomSheet<String>(
+                  context: context,
+                  showDragHandle: true,
+                  builder: (sheetContext) => SafeArea(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final account in accounts)
+                          ListTile(
+                            leading: const Icon(Icons.account_balance_rounded),
+                            title: Text(account.label),
+                            subtitle: Text(account.bankName),
+                            trailing: Text(
+                              money(
+                                balanceOf(account),
+                                currency: account.currency,
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            selected: account.id == selected.id,
+                            onTap: () =>
+                                Navigator.pop(sheetContext, account.id),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+                if (chosen != null) onSelected(chosen);
+              },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          child: Row(
+            children: [
+              Icon(
+                Icons.account_balance_rounded,
+                size: 18,
+                color: colors.muted,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  selected.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              Text(
+                ' · ${money(balanceOf(selected), currency: selected.currency)}',
+                style: TextStyle(color: colors.muted),
+              ),
+              if (accounts.length > 1)
+                Icon(Icons.expand_more_rounded, size: 20, color: colors.muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

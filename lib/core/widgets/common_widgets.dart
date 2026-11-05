@@ -281,6 +281,7 @@ class PageHeader extends StatelessWidget {
     required this.title,
     this.action,
     this.actionBelow = false,
+    this.actionInline = false,
     this.titleSingleLine = false,
     super.key,
   });
@@ -288,6 +289,9 @@ class PageHeader extends StatelessWidget {
   final String title;
   final Widget? action;
   final bool actionBelow;
+
+  /// Keeps [action] beside the title on phones, e.g. a row of icon buttons.
+  final bool actionInline;
   final bool titleSingleLine;
 
   @override
@@ -308,7 +312,10 @@ class PageHeader extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(4, compact ? 4 : 8, 4, compact ? 16 : 20),
       // Icon actions stay beside the title, wider ones move below on phones.
       child:
-          (compact && action is! PopupMenuButton && action is! IconButton) ||
+          (compact &&
+                  !actionInline &&
+                  action is! PopupMenuButton &&
+                  action is! IconButton) ||
               actionBelow
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
