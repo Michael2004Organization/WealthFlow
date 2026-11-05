@@ -3,10 +3,27 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:path_provider/path_provider.dart';
 
 export 'package:wealthflow_core/storage/data_file.dart';
 
+/// Android has no folder picker that `dart:io` may write to (scoped
+/// storage). There the app keeps its files in its own external folder,
+/// which needs no permission, is visible over USB under
+/// `Android/data/<app>/files` and is covered by Android's automatic backup
+/// (see `android/app/src/main/res/xml`).
+Future<Directory> _androidFolder() async =>
+    await getExternalStorageDirectory() ??
+    await getApplicationDocumentsDirectory();
+
 Future<bool> downloadReadonlyExport(String json, String fileName) async {
+  if (Platform.isAndroid) {
+    final folder = await _androidFolder();
+    await File(
+      '${folder.path}${Platform.pathSeparator}$fileName',
+    ).writeAsString(json);
+    return true;
+  }
   final location = await getSaveLocation(suggestedName: fileName);
   if (location == null) return false;
   final file = XFile.fromData(
@@ -19,6 +36,10 @@ Future<bool> downloadReadonlyExport(String json, String fileName) async {
 }
 
 Future<String?> chooseDataFilePath(String fileName) async {
+  if (Platform.isAndroid) {
+    final folder = await _androidFolder();
+    return '${folder.path}${Platform.pathSeparator}$fileName';
+  }
   final directory = await getDirectoryPath(
     confirmButtonText: 'Diesen Ordner verwenden',
   );

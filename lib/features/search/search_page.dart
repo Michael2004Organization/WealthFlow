@@ -162,7 +162,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               type: 'Portfolio',
               title: item.name,
               subtitle: '${item.assetType} · ${item.symbol}',
-              value: money(item.quantity * item.currentPrice),
+              value: money(
+                ref.read(currencyConverterProvider).investmentValue(item),
+              ),
               icon: Icons.candlestick_chart_rounded,
               shellIndex: 1,
             ),

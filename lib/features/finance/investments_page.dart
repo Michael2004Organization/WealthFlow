@@ -35,6 +35,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(currencyConverterProvider);
     final asyncItems = ref.watch(investmentsProvider);
     final accounts =
         ref.watch(accountsProvider).valueOrNull ?? const <Account>[];
@@ -463,9 +464,16 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
     _ => _value(b).compareTo(_value(a)),
   };
 
-  double _value(Investment item) => item.quantity * item.currentPrice;
-  double _cost(Investment item) =>
-      item.quantity * item.purchasePrice + item.fees;
+  double _value(Investment item) =>
+      ref.read(currencyConverterProvider).investmentValue(item);
+  double _cost(Investment item) => ref
+      .read(currencyConverterProvider)
+      .toBase(
+        item.quantity * item.purchasePrice + item.fees,
+        item.instrumentCurrency.isEmpty
+            ? moneyCurrency
+            : item.instrumentCurrency,
+      );
   double _performance(Investment item) =>
       _cost(item) == 0 ? 0 : (_value(item) - _cost(item)) / _cost(item);
 
@@ -1611,6 +1619,12 @@ Future<void> _showPhysicalAssetEditor(
   }
 }
 
+/// Currency in which prices of [investment] are entered.
+String _instrumentCurrency(Investment investment) =>
+    investment.instrumentCurrency.isEmpty
+    ? moneyCurrency
+    : investment.instrumentCurrency;
+
 class _InvestmentTile extends ConsumerWidget {
   const _InvestmentTile({required this.item, required this.purchaseCount});
   final Investment item;
@@ -1618,8 +1632,12 @@ class _InvestmentTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final value = item.quantity * item.currentPrice;
-    final cost = item.quantity * item.purchasePrice + item.fees;
+    final converter = ref.watch(currencyConverterProvider);
+    final value = converter.investmentValue(item);
+    final cost = converter.toBase(
+      item.quantity * item.purchasePrice + item.fees,
+      _instrumentCurrency(item),
+    );
     final gain = value - cost;
     final positive = gain >= 0;
     final purchases =
@@ -1653,7 +1671,7 @@ class _InvestmentTile extends ConsumerWidget {
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         subtitle: Text(
-          '${item.assetType} · ${item.quantity.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '')} Stück${item.broker.isEmpty ? '' : ' · ${item.broker}'}',
+          '${item.assetType} · ${quantityText(item.quantity)} Stück${item.broker.isEmpty ? '' : ' · ${item.broker}'}',
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1786,19 +1804,19 @@ Future<void> _showInvestmentDetails(
                 children: [
                   Chip(
                     avatar: const Icon(Icons.inventory_2_outlined, size: 18),
-                    label: Text(
-                      '${investment.quantity.toStringAsFixed(2)} Stück',
-                    ),
+                    label: Text('${quantityText(investment.quantity)} Stück'),
                   ),
                   Chip(
                     avatar: const Icon(Icons.calculate_outlined, size: 18),
                     label: Text(
-                      'Ø Kaufkurs ${money(investment.purchasePrice)}',
+                      'Ø Kaufkurs ${money(investment.purchasePrice, currency: _instrumentCurrency(investment))}',
                     ),
                   ),
                   Chip(
                     avatar: const Icon(Icons.show_chart_rounded, size: 18),
-                    label: Text('Kurs ${money(investment.currentPrice)}'),
+                    label: Text(
+                      'Kurs ${money(investment.currentPrice, currency: _instrumentCurrency(investment))}',
+                    ),
                   ),
                   if (!hasApiKey)
                     ActionChip(
@@ -1844,7 +1862,7 @@ Future<void> _showInvestmentDetails(
                               child: Icon(Icons.add_chart_rounded),
                             ),
                             title: Text(
-                              '${purchase.quantity.toStringAsFixed(2)} Stück · ${money(purchase.purchasePrice)}',
+                              '${quantityText(purchase.quantity)} Stück · ${money(purchase.purchasePrice, currency: _instrumentCurrency(investment))}',
                             ),
                             subtitle: Text(
                               DateFormat(
@@ -1852,7 +1870,7 @@ Future<void> _showInvestmentDetails(
                                   ).format(purchase.purchaseDate) +
                                   (purchase.fees == 0
                                       ? ''
-                                      : ' · Gebühren ${money(purchase.fees)}'),
+                                      : ' · Gebühren ${money(purchase.fees, currency: _instrumentCurrency(investment))}'),
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1861,6 +1879,7 @@ Future<void> _showInvestmentDetails(
                                   money(
                                     purchase.quantity * purchase.purchasePrice +
                                         purchase.fees,
+                                    currency: _instrumentCurrency(investment),
                                   ),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
@@ -2235,8 +2254,7 @@ Future<void> showInvestmentEditor(
           }
         } else {
           final addedQuantity = result.quantity.value;
-          final totalQuantity =
-              ((duplicate.quantity + addedQuantity) * 100).round() / 100;
+          final totalQuantity = duplicate.quantity + addedQuantity;
           final averagePrice = totalQuantity == 0
               ? 0.0
               : (duplicate.quantity * duplicate.purchasePrice +
@@ -2289,18 +2307,14 @@ Future<void> showInvestmentEditor(
           );
         }
         if (investment == null) {
-          await database.saveInvestmentPurchase(
-            InvestmentPurchasesCompanion.insert(
-              id: const Uuid().v4(),
-              userId: userId,
-              investmentId: targetId,
-              purchaseDate: result.purchaseDate.value,
-              purchasePrice: result.purchasePrice.value,
-              quantity: result.quantity.value,
-              fees: result.fees,
-              cashApplied: Value(saved.buy),
-              createdAt: DateTime.now().toUtc(),
-            ),
+          await database.recordInvestmentPurchase(
+            userId: userId,
+            investmentId: targetId,
+            purchaseDate: result.purchaseDate.value,
+            purchasePrice: result.purchasePrice.value,
+            quantity: result.quantity.value,
+            fees: result.fees.value,
+            buy: saved.buy,
           );
           await _importCachedDividendHistory(
             database: database,
@@ -2311,16 +2325,6 @@ Future<void> showInvestmentEditor(
             exchangeRate: result.dividendExchangeRate.value,
             withholdingTaxRate: result.dividendWithholdingTaxRate.value,
           );
-          if (saved.buy) {
-            await database.applyPortfolioPurchaseToCash(
-              userId: userId,
-              accountId: result.accountId.value,
-              amount:
-                  result.purchasePrice.value * result.quantity.value +
-                  result.fees.value,
-              purchasedAt: result.purchaseDate.value,
-            );
-          }
         }
         for (final item in {
           'broker': result.broker.value,
@@ -3412,7 +3416,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
         sector: Value(_sector.text.trim()),
         purchaseDate: _date,
         purchasePrice: _number(_purchasePrice.text) ?? 0,
-        quantity: ((_number(_quantity.text) ?? 0) * 100).round() / 100,
+        quantity: _number(_quantity.text) ?? 0,
         fees: Value(_number(_fees.text) ?? 0),
         currentPrice: _number(_currentPrice.text) ?? 0,
         annualDividend: Value(_number(_dividend.text) ?? 0),
@@ -3479,7 +3483,7 @@ Future<void> _showInvestmentSaleDialog(
                   decoration: InputDecoration(
                     labelText: 'Stückzahl',
                     helperText:
-                        'Verfügbar: ${investment.quantity.toStringAsFixed(4)} Stück',
+                        'Verfügbar: ${quantityText(investment.quantity)} Stück',
                     suffixIcon: TextButton(
                       onPressed: () =>
                           quantity.text = investment.quantity.toString(),
@@ -3948,7 +3952,7 @@ Future<void> _showPortfolioActivity(
                                   children: [
                                     Text(
                                       '${DateFormat('dd.MM.yyyy').format(sale.soldAt)} · '
-                                      '${sale.quantity.toStringAsFixed(2)} ${sale.unit}',
+                                      '${quantityText(sale.quantity)} ${sale.unit}',
                                     ),
                                     Text(
                                       '${positive ? 'Gewinn' : 'Verlust'} '
@@ -4116,7 +4120,7 @@ Future<void> _showSaleDetail(
                         ),
                         Text(
                           '${DateFormat('dd.MM.yyyy').format(sale.soldAt)} · '
-                          '${sale.quantity.toStringAsFixed(2)} ${sale.unit} zu '
+                          '${quantityText(sale.quantity)} ${sale.unit} zu '
                           '${money(sale.pricePerUnit, currency: sale.sourceCurrency)}',
                         ),
                       ],

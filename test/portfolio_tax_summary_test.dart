@@ -41,6 +41,7 @@ void main() {
         quantity: 10,
         fees: 0,
         cashApplied: false,
+        exchangeRate: 1,
         createdAt: DateTime(2026, 6, 1),
       );
       final schedules = [

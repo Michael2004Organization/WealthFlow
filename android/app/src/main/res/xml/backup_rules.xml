@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 6 bis 11: Nur die verschlüsselte Datendatei und ihre Tageskopien
+     werden gesichert, nie die Datenbank oder der Schlüsselspeicher. -->
+<full-backup-content>
+    <include domain="external" path="." />
+</full-backup-content>

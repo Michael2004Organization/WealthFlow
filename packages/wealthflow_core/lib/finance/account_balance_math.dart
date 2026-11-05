@@ -60,7 +60,7 @@ double accountBalanceAt({
           purchase.purchaseDate.isAfter(base.effectiveAt) &&
           !purchase.purchaseDate.isAfter(date),
     )) {
-      balance -= purchase.purchasePrice * purchase.quantity + purchase.fees;
+      balance -= purchase.cashAmount;
     }
     return balance;
   }
@@ -96,7 +96,7 @@ double accountBalanceAt({
           investmentIds.contains(purchase.investmentId) &&
           purchase.purchaseDate.isAfter(date),
     )) {
-      balance += purchase.purchasePrice * purchase.quantity + purchase.fees;
+      balance += purchase.cashAmount;
     }
   } else {
     for (final entry in entries.where((entry) {

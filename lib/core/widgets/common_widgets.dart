@@ -9,6 +9,11 @@ String money(num value, {String? currency}) => NumberFormat.simpleCurrency(
   name: currency ?? moneyCurrency,
 ).format(value);
 
+/// A quantity with every decimal that matters (fractions of savings-plan
+/// shares included), without trailing zeros: 0,1234 · 12 · 1.000,5.
+String quantityText(num value) =>
+    NumberFormat('#,##0.########', 'de_DE').format(value);
+
 /// A form-compatible dropdown whose options are filtered while the user types.
 ///
 /// This deliberately mirrors the small subset of [DropdownButtonFormField]

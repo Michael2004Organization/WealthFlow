@@ -563,11 +563,29 @@ void main() {
         balanceEffectiveAt: DateTime(2026, 1, 1),
       );
 
-      await database.applyPortfolioPurchaseToCash(
+      await database.saveInvestment(
+        InvestmentsCompanion.insert(
+          id: 'history-share',
+          userId: 'history-owner',
+          accountId: const Value('history-account'),
+          name: 'Test Aktie',
+          assetType: 'Aktie',
+          purchaseDate: now,
+          purchasePrice: 100,
+          quantity: 2.75,
+          currentPrice: 100,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await database.recordInvestmentPurchase(
         userId: 'history-owner',
-        accountId: 'history-account',
-        amount: 275,
-        purchasedAt: now,
+        investmentId: 'history-share',
+        purchaseDate: now,
+        purchasePrice: 100,
+        quantity: 2.75,
+        fees: 0,
+        buy: true,
       );
 
       final histories = await database
@@ -625,24 +643,15 @@ void main() {
           updatedAt: now,
         ),
       );
-      await database.saveInvestmentPurchase(
-        InvestmentPurchasesCompanion.insert(
-          id: 'bought-lot',
-          userId: 'delete-investor',
-          investmentId: 'bought-share',
-          purchaseDate: now,
-          purchasePrice: 100,
-          quantity: 2,
-          fees: const Value(5),
-          cashApplied: const Value(true),
-          createdAt: now,
-        ),
-      );
-      await database.applyPortfolioPurchaseToCash(
+      await database.recordInvestmentPurchase(
+        id: 'bought-lot',
         userId: 'delete-investor',
-        accountId: 'portfolio-cash',
-        amount: 205,
-        purchasedAt: now,
+        investmentId: 'bought-share',
+        purchaseDate: now,
+        purchasePrice: 100,
+        quantity: 2,
+        fees: 5,
+        buy: true,
       );
 
       await database.deleteInvestment('bought-share', 'delete-investor');
