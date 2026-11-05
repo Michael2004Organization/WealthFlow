@@ -12,6 +12,7 @@ import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 import '../../app/app_theme.dart';
 import '../../app/app_shell.dart' show desktopBreakpoint;
 import '../../core/providers.dart';
+import '../finance/allocation_card.dart';
 import '../finance/dividend_prompt.dart';
 import '../household/budgets_page.dart';
 import '../household/standing_orders_page.dart';
@@ -405,6 +406,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   );
                 },
               ),
+              const SizedBox(height: 16),
+              const AllocationCard(),
               const SizedBox(height: 8),
               SectionTitle(
                 'Kennzahlen',

@@ -7,6 +7,7 @@ import 'package:wealthflow/core/providers.dart';
 import 'package:wealthflow/features/auth/auth_page.dart';
 import 'package:wealthflow/features/calculators/calculators_page.dart';
 import 'package:wealthflow/features/finance/accounts_page.dart';
+import 'package:wealthflow/features/finance/allocation_card.dart';
 import 'package:wealthflow/features/finance/dividend_prompt.dart';
 import 'package:wealthflow/features/finance/investments_page.dart';
 import 'package:wealthflow/features/household/bank_import_page.dart';
@@ -584,6 +585,78 @@ void main() {
 
     expect(find.text('2 Dividenden eingegangen?'), findsOneWidget);
     expect(find.text('Übernehmen'), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('allocation card fits a phone', (tester) async {
+    final now = DateTime.now();
+    final account = Account(
+      id: 'giro',
+      userId: 'responsive-user',
+      bankName: 'Testbank',
+      label: 'Giro',
+      holder: '',
+      iban: '',
+      bic: '',
+      accountNumber: '',
+      currency: 'EUR',
+      balance: 123456.78,
+      availableBalance: 0,
+      usageType: 'household',
+      notes: '',
+      displayOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    );
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          currentUserIdProvider.overrideWithValue('responsive-user'),
+          accountsProvider.overrideWith((_) => Stream.value([account])),
+          investmentsProvider.overrideWith(
+            (_) => Stream.value(const <Investment>[]),
+          ),
+          physicalAssetsProvider.overrideWith(
+            (_) => Stream.value(const <PhysicalAsset>[]),
+          ),
+          masterDataProvider.overrideWith(
+            (_) => Stream.value([
+              MasterDataData(
+                id: 't',
+                userId: 'responsive-user',
+                kind: 'allocationTarget',
+                value: 'Edelmetalle und Rohstoffe=25',
+                createdAt: now,
+              ),
+            ]),
+          ),
+          preferencesProvider.overrideWith((_) => const Stream.empty()),
+          countryTaxRatesProvider.overrideWith(
+            (_) => Stream.value(const <CountryTaxRate>[]),
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: SingleChildScrollView(child: AllocationCard())),
+        ),
+      ),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(find.text('Vermögensaufteilung'), findsOneWidget);
+    expect(find.textContaining('nachkaufen'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Währungen'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('EUR'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

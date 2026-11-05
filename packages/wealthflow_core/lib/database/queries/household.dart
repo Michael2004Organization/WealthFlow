@@ -57,6 +57,45 @@ extension HouseholdQueries on AppDatabase {
     _schedulePersist(userId);
   }
 
+  /// Replaces all master data of [kind] by [values]. Rows are revived
+  /// instead of inserted again, because (user, kind, value) is unique.
+  Future<void> replaceMasterData(
+    String userId,
+    String kind,
+    Set<String> values,
+  ) async {
+    final now = DateTime.now().toUtc();
+    final rows = await (select(
+      masterData,
+    )..where((row) => row.userId.equals(userId) & row.kind.equals(kind))).get();
+    await transaction(() async {
+      for (final row in rows) {
+        final keep = values.contains(row.value);
+        if (keep == (row.deletedAt == null)) continue;
+        await (update(masterData)..where((r) => r.id.equals(row.id))).write(
+          MasterDataCompanion(
+            deletedAt: Value(keep ? null : now),
+            updatedAt: Value(now),
+          ),
+        );
+      }
+      final known = {for (final row in rows) row.value};
+      for (final value in values.difference(known)) {
+        await into(masterData).insert(
+          MasterDataCompanion.insert(
+            id: AppDatabase._uuid.v4(),
+            userId: userId,
+            kind: kind,
+            value: value,
+            createdAt: now,
+            updatedAt: Value(now),
+          ),
+        );
+      }
+    });
+    _schedulePersist(userId);
+  }
+
   Future<void> saveLedgerEntry(LedgerEntriesCompanion value) =>
       saveLedgerEntries([value]);
 

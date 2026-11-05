@@ -1,3 +1,4 @@
+import 'allocation_card.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -376,6 +377,8 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                           performanceBase: securitiesCost,
                           cash: visibleCash,
                         ),
+                        const SizedBox(height: 12),
+                        const AllocationCard(includeAccounts: false),
                         const SizedBox(height: 12),
                         Align(
                           alignment: Alignment.centerLeft,
