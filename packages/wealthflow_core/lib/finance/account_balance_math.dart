@@ -44,6 +44,13 @@ double accountBalanceAt({
       .toSet();
 
   if (base != null) {
+    // A balance is "valid from" a day: it is the opening balance of that
+    // day, so bookings, sales and purchases on the same day count on top.
+    final baseDay = DateTime(
+      base.effectiveAt.year,
+      base.effectiveAt.month,
+      base.effectiveAt.day,
+    );
     var balance = base.balance;
     for (final entry in entries.where((entry) {
       final effective = ledgerEffectiveDate(
@@ -51,7 +58,7 @@ double accountBalanceAt({
         entry.budgetMonth,
       );
       return entry.accountId == account.id &&
-          effective.isAfter(base.effectiveAt) &&
+          !effective.isBefore(baseDay) &&
           !effective.isAfter(date);
     })) {
       balance += entry.isIncome ? entry.amount : -entry.amount;
@@ -61,7 +68,7 @@ double accountBalanceAt({
           sale.destinationAccountId ??
           (sale.accountCredited ? sale.accountId : null);
       return creditedAccount == account.id &&
-          sale.soldAt.isAfter(base.effectiveAt) &&
+          !sale.soldAt.isBefore(baseDay) &&
           !sale.soldAt.isAfter(date);
     })) {
       balance += sale.proceeds;
@@ -70,7 +77,7 @@ double accountBalanceAt({
       (purchase) =>
           purchase.cashApplied &&
           investmentIds.contains(purchase.investmentId) &&
-          purchase.purchaseDate.isAfter(base.effectiveAt) &&
+          !purchase.purchaseDate.isBefore(baseDay) &&
           !purchase.purchaseDate.isAfter(date),
     )) {
       balance -= purchase.cashAmount;
