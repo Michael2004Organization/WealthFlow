@@ -9,7 +9,7 @@ on:
     tags: ['v*']
   # Probelauf, wenn diese Datei in einem PR geändert wird.
   pull_request:
-    paths: ['.github/workflows/release.yml', 'android/app/build.gradle.kts']
+    paths: ['.github/workflows/release.yml', 'android/**']
 
 permissions:
   contents: write
