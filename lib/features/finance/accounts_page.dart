@@ -48,7 +48,6 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
             children: [
               PageHeader(
                 title: 'Konten',
-                subtitle: '',
                 action: FilledButton.icon(
                   onPressed: () => showAccountEditor(context, ref),
                   icon: const Icon(Icons.add_rounded),

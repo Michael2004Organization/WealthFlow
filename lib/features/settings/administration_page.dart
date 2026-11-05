@@ -76,11 +76,7 @@ class _UsersAdmin extends ConsumerWidget {
       data: (items) => ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          const PageHeader(
-            title: 'Benutzerverwaltung',
-            subtitle:
-                'Mitglieder verwalten ihre eigenen Finanzdaten. Administratoren verwalten zusätzlich Rollen und globale Portfolio-Stammdaten.',
-          ),
+          const PageHeader(title: 'Benutzerverwaltung'),
           for (final user in items)
             Card(
               child: ListTile(
@@ -147,8 +143,6 @@ class _StocksAdminState extends ConsumerState<_StocksAdmin> {
         children: [
           PageHeader(
             title: 'Portfolio-Stammdaten',
-            subtitle:
-                'Gemeinsamer, deduplizierter Katalog nach fester Anlageklasse.',
             action: FilledButton.icon(
               onPressed: () => _editStock(context, ref),
               icon: const Icon(Icons.add_rounded),
@@ -368,8 +362,6 @@ class _TaxAdminState extends ConsumerState<_TaxAdmin> {
           children: [
             PageHeader(
               title: 'Steuerregeln',
-              subtitle:
-                  'Quellensteuern gelten global nach Herkunftsland. Ohne Eintrag gelten 0 %, für die USA standardmäßig 15 %.',
               action: Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -1091,8 +1083,6 @@ class _ErrorLogsAdmin extends ConsumerWidget {
         children: [
           PageHeader(
             title: 'Fehlerprotokoll',
-            subtitle:
-                'Unbehandelte Flutter-, Plattform- und Hintergrundfehler.',
             action: OutlinedButton.icon(
               onPressed: () async {
                 final actor = ref.read(currentUserIdProvider);

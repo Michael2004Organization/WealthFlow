@@ -28,8 +28,6 @@ class VehiclesPage extends ConsumerWidget {
             children: [
               PageHeader(
                 title: 'Fahrzeuge',
-                subtitle:
-                    'Autos, Motorräder und ihre vollständige Kostenhistorie.',
                 action: FilledButton.icon(
                   onPressed: () => showVehicleEditor(context, ref),
                   icon: const Icon(Icons.add_rounded),

@@ -352,7 +352,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Laufzeit (Monate)'), findsOneWidget);
-      expect(find.byType(Dialog), findsOneWidget);
+      // Phones get a bottom sheet, larger screens a dialog.
+      expect(
+        find.byType(size.width < 600 ? BottomSheet : Dialog),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     });
   }

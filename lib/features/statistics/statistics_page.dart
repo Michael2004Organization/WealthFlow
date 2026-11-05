@@ -117,7 +117,6 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
             children: [
               PageHeader(
                 title: 'Statistik',
-                subtitle: '',
                 action: SizedBox(
                   width: 220,
                   child: SearchableDropdownButtonFormField<String>(

@@ -50,7 +50,7 @@ class SettingsPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const PageHeader(title: 'Einstellungen', subtitle: ''),
+              const PageHeader(title: 'Einstellungen'),
               _Section(
                 title: 'Profil',
                 icon: Icons.person_rounded,

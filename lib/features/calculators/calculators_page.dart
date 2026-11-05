@@ -1528,7 +1528,7 @@ class _CalculatorScaffold extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            PageHeader(title: title, subtitle: subtitle),
+            PageHeader(title: title),
             LayoutBuilder(
               builder: (context, constraints) {
                 final vertical = constraints.maxWidth < 760;

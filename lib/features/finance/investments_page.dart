@@ -95,7 +95,6 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
             children: [
               PageHeader(
                 title: 'Portfolio',
-                subtitle: '',
                 action: _PortfolioHeaderActions(
                   children: [
                     FilledButton.tonalIcon(

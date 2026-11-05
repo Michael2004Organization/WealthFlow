@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../app/app_theme.dart';
+
 /// Standard currency of the signed-in user, used when [money] gets none.
 String moneyCurrency = 'EUR';
 
@@ -13,6 +15,38 @@ String money(num value, {String? currency}) => NumberFormat.simpleCurrency(
 /// shares included), without trailing zeros: 0,1234 · 12 · 1.000,5.
 String quantityText(num value) =>
     NumberFormat('#,##0.########', 'de_DE').format(value);
+
+const _weekdays = [
+  'Montag',
+  'Dienstag',
+  'Mittwoch',
+  'Donnerstag',
+  'Freitag',
+  'Samstag',
+  'Sonntag',
+];
+const _shortMonthNames = [
+  'Jan',
+  'Feb',
+  'Mär',
+  'Apr',
+  'Mai',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Dez',
+];
+
+/// German day names without depending on loaded locale data.
+String weekdayName(DateTime date) => _weekdays[date.weekday - 1];
+String shortMonthName(DateTime date) => _shortMonthNames[date.month - 1];
+
+/// "5. Nov."; May has no abbreviation dot.
+String shortDate(DateTime date) =>
+    '${date.day}. ${shortMonthName(date)}${date.month == 5 ? '' : '.'}';
 
 /// A form-compatible dropdown whose options are filtered while the user types.
 ///
@@ -159,10 +193,10 @@ class LoadErrorMessage extends StatelessWidget {
   );
 }
 
+/// Page title with an optional action on the right (or below on phones).
 class PageHeader extends StatelessWidget {
   const PageHeader({
     required this.title,
-    required this.subtitle,
     this.action,
     this.actionBelow = false,
     this.titleSingleLine = false,
@@ -170,7 +204,6 @@ class PageHeader extends StatelessWidget {
   });
 
   final String title;
-  final String subtitle;
   final Widget? action;
   final bool actionBelow;
   final bool titleSingleLine;
@@ -178,52 +211,177 @@ class PageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 520;
-    final text = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (titleSingleLine)
-          FittedBox(
+    final style = Theme.of(context).textTheme.headlineSmall?.copyWith(
+      fontWeight: FontWeight.w800,
+      fontSize: compact ? 24 : 28,
+    );
+    final text = titleSingleLine
+        ? FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(
-              title,
-              maxLines: 1,
-              softWrap: false,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
-            ),
+            child: Text(title, maxLines: 1, softWrap: false, style: style),
           )
-        else
-          Text(
-            title,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
-          ),
-        if (subtitle.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(subtitle, style: Theme.of(context).textTheme.bodyLarge),
-        ],
-      ],
-    );
+        : Text(title, style: style);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 4, 24),
+      padding: EdgeInsets.fromLTRB(4, compact ? 4 : 8, 4, compact ? 16 : 20),
       child: compact || actionBelow
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 text,
-                if (action != null) ...[const SizedBox(height: 14), action!],
+                if (action != null) ...[const SizedBox(height: 12), action!],
               ],
             )
           : Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(child: text),
                 if (action != null) ...[const SizedBox(width: 12), action!],
               ],
             ),
+    );
+  }
+}
+
+/// Section heading inside a page, with an optional link-style action.
+class SectionTitle extends StatelessWidget {
+  const SectionTitle(this.title, {this.action, super.key});
+
+  final String title;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ),
+        ?action,
+      ],
+    ),
+  );
+}
+
+/// Small uppercase label above a key figure.
+class Eyebrow extends StatelessWidget {
+  const Eyebrow(this.text, {this.color, super.key});
+
+  final String text;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    text.toUpperCase(),
+    style: TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      letterSpacing: .6,
+      color: color ?? WealthColors.of(context).muted,
+    ),
+  );
+}
+
+/// Rounded square with an icon or a short text, used to mark list rows.
+class IconTile extends StatelessWidget {
+  const IconTile({
+    this.icon,
+    this.label,
+    this.background,
+    this.foreground,
+    this.size = 40,
+    super.key,
+  });
+
+  final IconData? icon;
+  final String? label;
+  final Color? background;
+  final Color? foreground;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WealthColors.of(context);
+    final fg = foreground ?? colors.income;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: background ?? colors.incomeSoft,
+        borderRadius: BorderRadius.circular(size * .3),
+      ),
+      child: label != null
+          ? Text(
+              label!,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: fg,
+              ),
+            )
+          : Icon(icon, size: size * .5, color: fg),
+    );
+  }
+}
+
+/// Signed money text: income with "+", expenses with "−", transfers without a
+/// sign. The sign carries the meaning, the color only supports it.
+String signedMoney(
+  num value, {
+  required bool income,
+  bool neutral = false,
+  String? currency,
+}) {
+  final text = money(value.abs(), currency: currency);
+  if (neutral) return text;
+  return '${income ? '+' : '−'} $text';
+}
+
+class AmountText extends StatelessWidget {
+  const AmountText(
+    this.value, {
+    required this.income,
+    this.neutral = false,
+    this.currency,
+    this.style,
+    super.key,
+  });
+
+  /// Expenses and gains or losses whose sign is the value's own sign.
+  AmountText.change(num value, {String? currency, TextStyle? style, Key? key})
+    : this(
+        value.abs(),
+        income: value >= 0,
+        currency: currency,
+        style: style,
+        key: key,
+      );
+
+  final num value;
+  final bool income;
+  final bool neutral;
+  final String? currency;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WealthColors.of(context);
+    return Text(
+      signedMoney(value, income: income, neutral: neutral, currency: currency),
+      maxLines: 1,
+      style: (style ?? const TextStyle(fontWeight: FontWeight.w700)).copyWith(
+        color: neutral
+            ? Theme.of(context).colorScheme.onSurface
+            : colors.amount(income: income),
+      ),
     );
   }
 }
@@ -253,10 +411,14 @@ class EmptyState extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(24),
+                color: WealthColors.of(context).incomeSoft,
+                borderRadius: BorderRadius.circular(22),
               ),
-              child: Icon(icon, size: 36),
+              child: Icon(
+                icon,
+                size: 34,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
             const SizedBox(height: 20),
             Text(
@@ -298,8 +460,9 @@ class MetricCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.icon,
-    required this.color,
+    this.color,
     this.caption,
+    this.captionColor,
     this.onTap,
     super.key,
   });
@@ -307,40 +470,37 @@ class MetricCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
-  final Color color;
+
+  /// Accent of the icon; defaults to the theme's primary color.
+  final Color? color;
   final String? caption;
+  final Color? captionColor;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final accent = color ?? Theme.of(context).colorScheme.primary;
     return Card(
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: .14),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(icon, color: color),
+                  Expanded(child: Eyebrow(title)),
+                  IconTile(
+                    icon: icon,
+                    size: 32,
+                    foreground: accent,
+                    background: accent.withValues(alpha: .12),
                   ),
-                  const Spacer(),
-                  if (onTap != null)
-                    const Icon(Icons.arrow_outward_rounded, size: 19),
                 ],
               ),
-              const SizedBox(height: 20),
-              Text(title, style: Theme.of(context).textTheme.labelLarge),
-              const SizedBox(height: 5),
+              const SizedBox(height: 10),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
@@ -352,8 +512,14 @@ class MetricCard extends StatelessWidget {
                 ),
               ),
               if (caption != null) ...[
-                const SizedBox(height: 7),
-                Text(caption!, style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 4),
+                Text(
+                  caption!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: captionColor,
+                    fontWeight: captionColor == null ? null : FontWeight.w600,
+                  ),
+                ),
               ],
             ],
           ),

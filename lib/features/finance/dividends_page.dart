@@ -160,7 +160,6 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                   PageHeader(
                     title:
                         'Dividenden – Erträge und Ausschüttungsrhythmus deiner Positionen',
-                    subtitle: '',
                     titleSingleLine: true,
                     actionBelow: true,
                     action: Wrap(

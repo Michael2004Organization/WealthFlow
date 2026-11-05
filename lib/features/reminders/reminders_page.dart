@@ -24,8 +24,6 @@ class RemindersPage extends ConsumerWidget {
             children: [
               PageHeader(
                 title: 'Erinnerungen',
-                subtitle:
-                    'Termine planen und als Systembenachrichtigung erhalten.',
                 action: FilledButton.icon(
                   onPressed: () => showReminderEditor(context, ref),
                   icon: const Icon(Icons.add_alert_rounded),
@@ -215,9 +213,7 @@ Future<void> showReminderEditor(
                     }
                   },
                   icon: const Icon(Icons.schedule_rounded),
-                  label: Text(
-                    '${DateFormat('HH:mm').format(scheduledAt)} Uhr',
-                  ),
+                  label: Text('${DateFormat('HH:mm').format(scheduledAt)} Uhr'),
                 ),
               ],
             ),
