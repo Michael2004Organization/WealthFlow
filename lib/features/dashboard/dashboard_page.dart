@@ -9,7 +9,9 @@ import 'package:wealthflow_core/finance/dividend_projection.dart';
 import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 
 import '../../app/app_theme.dart';
+import '../../app/app_shell.dart' show desktopBreakpoint;
 import '../../core/providers.dart';
+import '../search/search_page.dart';
 import '../../core/widgets/common_widgets.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
@@ -258,9 +260,21 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               PageHeader(
                 title:
                     '${_greeting(now)}, ${user?.displayName.split(' ').first ?? 'du'}',
-                action: _MonthSwitcher(
-                  month: _selectedMonth,
-                  onChanged: (value) => setState(() => _selectedMonth = value),
+                action: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (width < desktopBreakpoint)
+                      IconButton(
+                        onPressed: () => showSearchOverlay(context, ref),
+                        icon: const Icon(Icons.search_rounded),
+                        tooltip: 'Suchen',
+                      ),
+                    _MonthSwitcher(
+                      month: _selectedMonth,
+                      onChanged: (value) =>
+                          setState(() => _selectedMonth = value),
+                    ),
+                  ],
                 ),
               ),
               if (_showLightDesignHint) ...[

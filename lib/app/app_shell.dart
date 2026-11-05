@@ -8,6 +8,7 @@ import '../features/calculators/calculators_page.dart';
 import '../features/finance/finance_page.dart';
 import '../features/household/household_page.dart';
 import '../features/more/more_page.dart';
+import '../features/search/search_page.dart';
 import '../features/statistics/statistics_page.dart';
 import '../features/vehicles/vehicles_page.dart';
 import '../core/widgets/common_widgets.dart';
@@ -49,9 +50,9 @@ class AppShell extends ConsumerWidget {
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyK, control: true): () =>
-            openMore(ref, 'search'),
+            showSearchOverlay(context, ref),
         const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () =>
-            openMore(ref, 'search'),
+            showSearchOverlay(context, ref),
         const SingleActivator(LogicalKeyboardKey.keyN, control: true): () =>
             startNewBooking(context, ref),
       },
@@ -250,7 +251,7 @@ class _Sidebar extends ConsumerWidget {
                 label: const Text('Buchung'),
               ),
               const SizedBox(height: 10),
-              _SearchButton(onTap: () => openMore(ref, 'search')),
+              _SearchButton(onTap: () => showSearchOverlay(context, ref)),
               const SizedBox(height: 18),
               for (final index in AppShell._desktopOrder)
                 _SidebarItem(

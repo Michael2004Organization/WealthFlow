@@ -1,214 +1,349 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:wealthflow_core/database/app_database.dart';
 
+import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../finance/investments_page.dart';
+import '../household/household_page.dart';
 
-class SearchPage extends ConsumerStatefulWidget {
-  const SearchPage({super.key});
-  @override
-  ConsumerState<SearchPage> createState() => _SearchPageState();
+/// Opens the search above the current page (Ctrl+K, the search field in the
+/// sidebar or the magnifier on phones). A hit closes the search and opens
+/// the booking or position directly.
+Future<void> showSearchOverlay(BuildContext context, WidgetRef ref) async {
+  final phone = MediaQuery.sizeOf(context).width < 600;
+  final hit = await showDialog<_SearchResult>(
+    context: context,
+    barrierColor: Colors.black.withValues(alpha: .35),
+    builder: (_) => phone
+        ? const Dialog.fullscreen(child: _SearchPanel())
+        : Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 72, 24, 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 640,
+                  maxHeight: 560,
+                ),
+                child: Material(
+                  type: MaterialType.card,
+                  borderRadius: const BorderRadius.all(Radius.circular(20)),
+                  clipBehavior: Clip.antiAlias,
+                  child: const _SearchPanel(),
+                ),
+              ),
+            ),
+          ),
+  );
+  if (hit == null || !context.mounted) return;
+  await hit.open(context, ref);
 }
 
-class _SearchPageState extends ConsumerState<SearchPage> {
+const _types = ['Alle', 'Buchungen', 'Depot', 'Konten', 'Fahrzeuge'];
+
+class _SearchPanel extends ConsumerStatefulWidget {
+  const _SearchPanel();
+
+  @override
+  ConsumerState<_SearchPanel> createState() => _SearchPanelState();
+}
+
+class _SearchPanelState extends ConsumerState<_SearchPanel> {
   String _query = '';
   String _type = 'Alle';
 
   @override
   Widget build(BuildContext context) {
-    final results = _results(ref);
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1000),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    final colors = WealthColors.of(context);
+    final results = _results();
+    final phone = MediaQuery.sizeOf(context).width < 600;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(phone ? 4 : 16, 8, 8, 0),
+          child: Row(
             children: [
-              const PageHeader(title: 'Globale Suche'),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  SizedBox(
-                    width: 420,
-                    child: TextField(
-                      autofocus: true,
-                      onChanged: (value) =>
-                          setState(() => _query = value.trim().toLowerCase()),
-                      decoration: const InputDecoration(
-                        labelText: 'Suchbegriff',
-                        prefixIcon: Icon(Icons.search_rounded),
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 180,
-                    child: SearchableDropdownButtonFormField<String>(
-                      initialValue: _type,
-                      decoration: const InputDecoration(labelText: 'Datentyp'),
-                      items:
-                          const [
-                                'Alle',
-                                'Konten',
-                                'Portfolio',
-                                'Buchungen',
-                                'Fahrzeuge',
-                              ]
-                              .map(
-                                (value) => DropdownMenuItem(
-                                  value: value,
-                                  child: Text(value),
-                                ),
-                              )
-                              .toList(),
-                      onChanged: (value) =>
-                          setState(() => _type = value ?? 'Alle'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
+              if (phone)
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  tooltip: 'Zurück',
+                )
+              else
+                Icon(Icons.search_rounded, color: colors.muted),
+              const SizedBox(width: 8),
               Expanded(
-                child: _query.isEmpty
-                    ? const EmptyState(
-                        icon: Icons.manage_search_rounded,
-                        title: 'Was suchst du?',
-                        message:
-                            'Gib einen Namen, ein Symbol, eine Kategorie, einen Händler oder ein Kennzeichen ein.',
-                      )
-                    : results.isEmpty
-                    ? const EmptyState(
-                        icon: Icons.search_off_rounded,
-                        title: 'Keine Treffer',
-                        message:
-                            'Prüfe den Suchbegriff oder ändere den Filter.',
-                      )
-                    : ListView.separated(
-                        itemCount: results.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final result = results[index];
-                          return Card(
-                            child: ListTile(
-                              leading: CircleAvatar(child: Icon(result.icon)),
-                              title: Text(
-                                result.title,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              subtitle: Text(
-                                '${result.type} · ${result.subtitle}',
-                              ),
-                              trailing: result.value == null
-                                  ? null
-                                  : Text(
-                                      result.value!,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                              onTap: () =>
-                                  ref.read(shellIndexProvider.notifier).state =
-                                      result.shellIndex,
-                            ),
-                          );
-                        },
-                      ),
+                child: CallbackShortcuts(
+                  bindings: {
+                    const SingleActivator(LogicalKeyboardKey.enter): () {
+                      if (results.isNotEmpty) {
+                        Navigator.pop(context, results.first);
+                      }
+                    },
+                  },
+                  child: TextField(
+                    autofocus: true,
+                    textInputAction: TextInputAction.search,
+                    onChanged: (value) => setState(() => _query = value),
+                    onSubmitted: (_) {
+                      if (results.isNotEmpty) {
+                        Navigator.pop(context, results.first);
+                      }
+                    },
+                    style: const TextStyle(fontSize: 17),
+                    decoration: const InputDecoration(
+                      hintText: 'Buchungen, Positionen, Konten suchen',
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                    ),
+                  ),
+                ),
               ),
+              if (!phone)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: colors.border),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Esc',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: colors.muted,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
-      ),
+        SizedBox(
+          height: 44,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            children: [
+              for (final type in _types)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text(type),
+                    selected: _type == type,
+                    showCheckmark: false,
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (_) => setState(() => _type = type),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Divider(height: 1, color: colors.border),
+        Flexible(
+          fit: phone ? FlexFit.tight : FlexFit.loose,
+          child: _query.trim().isEmpty
+              ? _Hint(
+                  text:
+                      'Name, Händler, Kategorie, Betrag, ISIN oder Kennzeichen',
+                )
+              : results.isEmpty
+              ? const _Hint(text: 'Keine Treffer')
+              : ListView(
+                  shrinkWrap: !phone,
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+                  children: [
+                    for (final (index, result) in results.indexed) ...[
+                      if (index == 0 || results[index - 1].type != result.type)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+                          child: Eyebrow(result.type),
+                        ),
+                      ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        leading: IconTile(icon: result.icon, size: 36),
+                        title: Text(
+                          result.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          result.subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: result.value,
+                        onTap: () => Navigator.pop(context, result),
+                      ),
+                    ],
+                  ],
+                ),
+        ),
+      ],
     );
   }
 
-  List<_SearchResult> _results(WidgetRef ref) {
-    if (_query.isEmpty) return const [];
+  List<_SearchResult> _results() {
+    final terms = _query
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .where((term) => term.isNotEmpty)
+        .toList();
+    if (terms.isEmpty) return const [];
+    bool matches(String text) {
+      final haystack = text.toLowerCase();
+      return terms.every(haystack.contains);
+    }
+
+    bool wanted(String type) => _type == 'Alle' || _type == type;
     final output = <_SearchResult>[];
-    bool matchesType(String type) => _type == 'Alle' || _type == type;
-    if (matchesType('Konten')) {
-      for (final item in ref.watch(accountsProvider).valueOrNull ?? const []) {
-        if ('${item.bankName} ${item.label} ${item.holder} ${item.iban}'
-            .toLowerCase()
-            .contains(_query)) {
-          output.add(
-            _SearchResult(
-              type: 'Konten',
-              title: item.label,
-              subtitle: item.bankName,
-              value: money(item.balance, currency: item.currency),
-              icon: Icons.account_balance_rounded,
-              shellIndex: 1,
-            ),
-          );
-        }
-      }
-    }
-    if (matchesType('Portfolio')) {
-      for (final item
-          in ref.watch(investmentsProvider).valueOrNull ?? const []) {
-        if ('${item.name} ${item.symbol} ${item.isin} ${item.wkn} ${item.broker} ${item.sector}'
-            .toLowerCase()
-            .contains(_query)) {
-          output.add(
-            _SearchResult(
-              type: 'Portfolio',
-              title: item.name,
-              subtitle: '${item.assetType} · ${item.symbol}',
-              value: money(
-                ref.read(currencyConverterProvider).investmentValue(item),
+    if (wanted('Buchungen')) {
+      final entries = [...?ref.watch(ledgerEntriesProvider).valueOrNull]
+        ..sort((a, b) => b.bookingDate.compareTo(a.bookingDate));
+      output.addAll(
+        entries
+            .where(
+              (item) => matches(
+                '${item.merchant} ${item.description} ${item.category} '
+                '${item.paymentMethod} ${money(item.amount)} '
+                '${shortDate(item.bookingDate)} ${item.bookingDate.year}',
               ),
-              icon: Icons.candlestick_chart_rounded,
-              shellIndex: 1,
+            )
+            .take(30)
+            .map(
+              (item) => _SearchResult(
+                type: 'Buchungen',
+                title: item.merchant.isNotEmpty
+                    ? item.merchant
+                    : item.description.isNotEmpty
+                    ? item.description
+                    : item.category,
+                subtitle: [
+                  if (item.category.isNotEmpty) item.category,
+                  '${shortDate(item.bookingDate)} ${item.bookingDate.year}',
+                ].join(' · '),
+                value: AmountText(item.amount, income: item.isIncome),
+                icon: item.isIncome
+                    ? Icons.south_west_rounded
+                    : Icons.north_east_rounded,
+                open: (context, ref) async {
+                  selectShellDestination(ref, 2);
+                  await showEntryEditor(context, ref, entry: item);
+                },
+              ),
             ),
-          );
-        }
-      }
+      );
     }
-    if (matchesType('Buchungen')) {
+    if (wanted('Depot')) {
+      final converter = ref.watch(currencyConverterProvider);
       for (final item
-          in ref.watch(ledgerEntriesProvider).valueOrNull ?? const []) {
-        if ('${item.merchant} ${item.description} ${item.category} ${item.paymentMethod}'
-            .toLowerCase()
-            .contains(_query)) {
-          output.add(
-            _SearchResult(
-              type: 'Buchungen',
-              title: item.merchant.isEmpty ? item.description : item.merchant,
-              subtitle:
-                  '${item.category} · ${DateFormat('dd.MM.yyyy').format(item.bookingDate)}',
-              value: '${item.isIncome ? '+' : '−'}${money(item.amount)}',
-              icon: Icons.receipt_long_rounded,
-              shellIndex: 2,
-            ),
-          );
+          in ref.watch(investmentsProvider).valueOrNull ??
+              const <Investment>[]) {
+        if (!matches(
+          '${item.name} ${item.symbol} ${item.isin} ${item.wkn} '
+          '${item.assetType} ${item.broker} ${item.sector} ${item.country}',
+        )) {
+          continue;
         }
+        output.add(
+          _SearchResult(
+            type: 'Depot',
+            title: item.name,
+            subtitle: [
+              item.assetType,
+              if (item.symbol.isNotEmpty) item.symbol,
+              '${quantityText(item.quantity)} Stück',
+            ].join(' · '),
+            value: Text(
+              money(converter.investmentValue(item)),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            icon: Icons.candlestick_chart_rounded,
+            open: (context, ref) async {
+              openFinance(ref, 1);
+              await showInvestmentDetails(context, ref, item);
+            },
+          ),
+        );
       }
     }
-    if (matchesType('Fahrzeuge')) {
-      for (final item in ref.watch(vehiclesProvider).valueOrNull ?? const []) {
-        if ('${item.make} ${item.model} ${item.licensePlate} ${item.fuelType}'
-            .toLowerCase()
-            .contains(_query)) {
-          output.add(
-            _SearchResult(
-              type: 'Fahrzeuge',
-              title: '${item.make} ${item.model}',
-              subtitle: '${item.vehicleType} · ${item.licensePlate}',
-              icon: item.vehicleType == 'Motorrad'
-                  ? Icons.two_wheeler_rounded
-                  : Icons.directions_car_rounded,
-              shellIndex: 5,
-            ),
-          );
+    if (wanted('Konten')) {
+      for (final item
+          in ref.watch(accountsProvider).valueOrNull ?? const <Account>[]) {
+        if (!matches(
+          '${item.bankName} ${item.label} ${item.holder} ${item.iban}',
+        )) {
+          continue;
         }
+        output.add(
+          _SearchResult(
+            type: 'Konten',
+            title: item.label,
+            subtitle: item.bankName,
+            value: Text(
+              money(item.balance, currency: item.currency),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            icon: Icons.account_balance_rounded,
+            open: (context, ref) async => openFinance(ref, 0),
+          ),
+        );
       }
     }
-    return output.take(100).toList();
+    if (wanted('Fahrzeuge')) {
+      for (final item
+          in ref.watch(vehiclesProvider).valueOrNull ?? const <Vehicle>[]) {
+        if (!matches(
+          '${item.make} ${item.model} ${item.licensePlate} ${item.fuelType}',
+        )) {
+          continue;
+        }
+        output.add(
+          _SearchResult(
+            type: 'Fahrzeuge',
+            title: '${item.make} ${item.model}',
+            subtitle: [
+              item.vehicleType,
+              if (item.licensePlate.isNotEmpty) item.licensePlate,
+            ].join(' · '),
+            icon: item.vehicleType == 'Motorrad'
+                ? Icons.two_wheeler_rounded
+                : Icons.directions_car_rounded,
+            open: (context, ref) async => selectShellDestination(ref, 5),
+          ),
+        );
+      }
+    }
+    return output;
   }
+}
+
+class _Hint extends StatelessWidget {
+  const _Hint({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+    child: Text(
+      text,
+      textAlign: TextAlign.center,
+      style: TextStyle(color: WealthColors.of(context).muted),
+    ),
+  );
 }
 
 class _SearchResult {
@@ -217,13 +352,14 @@ class _SearchResult {
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.shellIndex,
+    required this.open,
     this.value,
   });
+
   final String type;
   final String title;
   final String subtitle;
-  final String? value;
+  final Widget? value;
   final IconData icon;
-  final int shellIndex;
+  final Future<void> Function(BuildContext context, WidgetRef ref) open;
 }

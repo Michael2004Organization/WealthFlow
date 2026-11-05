@@ -1731,6 +1731,21 @@ class _InvestmentTile extends ConsumerWidget {
   }
 }
 
+/// Opens the purchase history of [investment], e.g. from the search.
+Future<void> showInvestmentDetails(
+  BuildContext context,
+  WidgetRef ref,
+  Investment investment,
+) => _showInvestmentDetails(
+  context,
+  ref,
+  investment,
+  (ref.read(investmentPurchasesProvider).valueOrNull ??
+          const <InvestmentPurchase>[])
+      .where((purchase) => purchase.investmentId == investment.id)
+      .toList(),
+);
+
 Future<void> _showInvestmentDetails(
   BuildContext context,
   WidgetRef ref,

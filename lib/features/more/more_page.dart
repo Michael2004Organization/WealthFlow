@@ -67,10 +67,10 @@ class _MorePageState extends ConsumerState<MorePage> {
     ),
     _MoreDestination(
       'search',
-      'Globale Suche',
-      'Alle Daten zentral durchsuchen',
+      'Suche',
+      'Buchungen, Positionen, Konten und Fahrzeuge',
       Icons.manage_search_rounded,
-      SearchPage(),
+      null,
     ),
     _MoreDestination(
       'masterData',
@@ -283,7 +283,9 @@ class _MorePageState extends ConsumerState<MorePage> {
 
   void _open(_MoreDestination destination) {
     final shellIndex = destination.shellIndex;
-    if (shellIndex != null) {
+    if (destination.key == 'search') {
+      showSearchOverlay(context, ref);
+    } else if (shellIndex != null) {
       selectShellDestination(ref, shellIndex);
     } else {
       ref.read(moreDestinationProvider.notifier).state = destination.key;

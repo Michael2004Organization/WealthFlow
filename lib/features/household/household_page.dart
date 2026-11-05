@@ -73,10 +73,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
       purchases: purchases,
       sales: sales,
     );
-    final selectedAccountId = _effectiveAccountId(
-      bookingAccounts,
-      preference,
-    );
+    final selectedAccountId = _effectiveAccountId(bookingAccounts, preference);
     final padding = MediaQuery.sizeOf(context).width < 600 ? 16.0 : 24.0;
     final newEntry = selectedAccountId == null
         ? null
