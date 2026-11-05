@@ -8,6 +8,7 @@ import 'package:wealthflow_core/finance/account_balance_math.dart';
 import 'package:wealthflow_core/finance/amount_input.dart';
 import 'package:wealthflow_core/finance/budget_period.dart';
 
+import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/save_feedback.dart';
@@ -93,8 +94,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
           padding: EdgeInsets.all(padding),
           children: [
             PageHeader(
-              title: 'Haushaltsbuch',
-              subtitle: '',
+              title: 'Haushalt',
               action: Wrap(
                 spacing: 10,
                 runSpacing: 10,
@@ -242,22 +242,26 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                       ),
                     )
                   else
-                    Card(
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        children: [
-                          for (
-                            var index = 0;
-                            index < entries.length;
-                            index++
-                          ) ...[
-                            _EntryTile(entry: entries[index]),
-                            if (index < entries.length - 1)
-                              const Divider(height: 1, indent: 72),
+                    for (final day in _groupByDay(entries)) ...[
+                      _DayHeader(day: day.day, entries: day.entries),
+                      Card(
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < day.entries.length;
+                              index++
+                            ) ...[
+                              _EntryTile(entry: day.entries[index]),
+                              if (index < day.entries.length - 1)
+                                const Divider(height: 1, indent: 68),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                    ],
                 ];
               },
             ),
@@ -413,9 +417,9 @@ class _MonthButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final colors = WealthColors.of(context);
     return Material(
-      color: selected ? colors.primaryContainer : Colors.transparent,
+      color: selected ? colors.incomeSoft : Colors.transparent,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -429,7 +433,8 @@ class _MonthButton extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected ? colors.income : null,
                 ),
               ),
               Text(
@@ -456,70 +461,155 @@ class _MonthSummary extends StatelessWidget {
   final double saved;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final width = constraints.maxWidth < 700
-          ? (constraints.maxWidth - 16) / 2
-          : (constraints.maxWidth - 48) / 4;
-      final savingsRate = income <= 0
-          ? 0
-          : (income - expense).clamp(0, double.infinity) / income * 100;
-      return Wrap(
-        spacing: 16,
-        runSpacing: 16,
+  Widget build(BuildContext context) {
+    final colors = WealthColors.of(context);
+    final balance = income - expense;
+    final savingsRate = income <= 0
+        ? null
+        : balance.clamp(0, double.infinity) / income * 100;
+    Widget figure(String label, Widget value, {String? tooltip}) {
+      final child = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: width,
-            child: MetricCard(
-              title: 'Einnahmen',
-              value: money(income),
-              icon: Icons.south_west_rounded,
-              color: Colors.green,
-            ),
-          ),
-          SizedBox(
-            width: width,
-            child: MetricCard(
-              title: 'Ausgaben',
-              value: money(expense),
-              icon: Icons.north_east_rounded,
-              color: Colors.orange,
-            ),
-          ),
-          SizedBox(
-            width: width,
-            child: MetricCard(
-              title: 'Saldo',
-              value: money(income - expense),
-              icon: Icons.balance_rounded,
-              color: income >= expense
-                  ? Colors.teal
-                  : Theme.of(context).colorScheme.error,
-            ),
-          ),
-          SizedBox(
-            width: width,
-            child: Tooltip(
-              message: saved > 0
-                  ? '${money(saved)} wurden als Sparen/Investieren markiert. '
-                        'Umbuchungen senken die Sparquote nicht.'
-                  : 'Umbuchungen zwischen eigenen Konten werden nicht als Ausgabe gewertet.',
-              child: MetricCard(
-                title: 'Sparquote',
-                value: income <= 0
-                    ? '–'
-                    : '${savingsRate.toStringAsFixed(1)} %',
-                icon: Icons.savings_rounded,
-                color: savingsRate >= 0
-                    ? Colors.purple
-                    : Theme.of(context).colorScheme.error,
-              ),
-            ),
+          Text(label, style: TextStyle(fontSize: 12, color: colors.muted)),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: value,
           ),
         ],
       );
-    },
-  );
+      return tooltip == null ? child : Tooltip(message: tooltip, child: child);
+    }
+
+    const valueStyle = TextStyle(fontSize: 17, fontWeight: FontWeight.w800);
+    final figures = [
+      figure('Einnahmen', AmountText(income, income: true, style: valueStyle)),
+      figure('Ausgaben', AmountText(expense, income: false, style: valueStyle)),
+      figure(
+        'Saldo',
+        AmountText(balance.abs(), income: balance >= 0, style: valueStyle),
+      ),
+      figure(
+        'Sparquote',
+        Text(
+          savingsRate == null
+              ? '–'
+              : '${savingsRate.toStringAsFixed(1).replaceAll('.', ',')} %',
+          style: valueStyle,
+        ),
+        tooltip: saved > 0
+            ? '${money(saved)} wurden als Sparen/Investieren markiert. '
+                  'Umbuchungen senken die Sparquote nicht.'
+            : 'Umbuchungen zwischen eigenen Konten werden nicht als Ausgabe gewertet.',
+      ),
+    ];
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 520) {
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: figures[0]),
+                      Expanded(child: figures[1]),
+                    ],
+                  ),
+                  Divider(height: 24, color: colors.border),
+                  Row(
+                    children: [
+                      Expanded(child: figures[2]),
+                      Expanded(child: figures[3]),
+                    ],
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                for (var index = 0; index < figures.length; index++) ...[
+                  Expanded(child: figures[index]),
+                  if (index < figures.length - 1)
+                    Container(
+                      width: 1,
+                      height: 36,
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      color: colors.border,
+                    ),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+List<({DateTime day, List<LedgerEntry> entries})> _groupByDay(
+  List<LedgerEntry> entries,
+) {
+  final groups = <DateTime, List<LedgerEntry>>{};
+  for (final entry in entries) {
+    final date = entry.bookingDate;
+    groups
+        .putIfAbsent(DateTime(date.year, date.month, date.day), () => [])
+        .add(entry);
+  }
+  final days = groups.keys.toList()..sort((a, b) => b.compareTo(a));
+  return [for (final day in days) (day: day, entries: groups[day]!)];
+}
+
+class _DayHeader extends StatelessWidget {
+  const _DayHeader({required this.day, required this.entries});
+
+  final DateTime day;
+  final List<LedgerEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WealthColors.of(context);
+    final today = DateTime.now();
+    final difference = day
+        .difference(DateTime(today.year, today.month, today.day))
+        .inDays;
+    final date = shortDate(day);
+    final label = switch (difference) {
+      0 => 'Heute, $date',
+      -1 => 'Gestern, $date',
+      1 => 'Morgen, $date',
+      _ => '${weekdayName(day)}, $date',
+    };
+    final total = entries
+        .where(
+          (entry) =>
+              entry.sourceType != 'transfer' && entry.sourceType != 'saving',
+        )
+        .fold<double>(
+          0,
+          (sum, entry) => sum + (entry.isIncome ? entry.amount : -entry.amount),
+        );
+    final style = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      letterSpacing: .5,
+      color: colors.muted,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 12, 6, 8),
+      child: Row(
+        children: [
+          Expanded(child: Text(label.toUpperCase(), style: style)),
+          if (total != 0)
+            Text(signedMoney(total, income: total > 0), style: style),
+        ],
+      ),
+    );
+  }
 }
 
 const _categories = [
@@ -551,65 +641,76 @@ class _EntryTile extends ConsumerWidget {
     final recurring = entry.recurrenceId.isNotEmpty;
     final linked =
         entry.sourceType == 'transfer' || entry.sourceType == 'saving';
+    final colors = WealthColors.of(context);
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      contentPadding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
       onTap: entry.sourceType == 'vehicle'
           ? null
           : () => showEntryEditor(context, ref, entry: entry),
-      leading: CircleAvatar(
-        backgroundColor: (positive ? Colors.green : Colors.orange).withValues(
-          alpha: .15,
-        ),
-        child: Icon(
-          entry.sourceType == 'vehicle'
-              ? Icons.directions_car_rounded
-              : linked
-              ? entry.sourceType == 'saving'
-                    ? Icons.savings_rounded
-                    : Icons.swap_horiz_rounded
-              : positive
-              ? Icons.south_west_rounded
-              : Icons.north_east_rounded,
-          color: positive ? Colors.green : Colors.orange,
-        ),
+      leading: IconTile(
+        icon: entry.sourceType == 'vehicle'
+            ? Icons.directions_car_outlined
+            : linked
+            ? entry.sourceType == 'saving'
+                  ? Icons.savings_outlined
+                  : Icons.swap_horiz_rounded
+            : positive
+            ? Icons.south_west_rounded
+            : Icons.north_east_rounded,
+        background: linked
+            ? colors.neutralSoft
+            : positive
+            ? colors.incomeSoft
+            : colors.expenseSoft,
+        foreground: linked
+            ? colors.neutral
+            : positive
+            ? colors.income
+            : colors.expense,
       ),
       title: Row(
         children: [
-          Expanded(
+          Flexible(
             child: Text(
               entry.merchant.isEmpty ? entry.description : entry.merchant,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
           if (recurring)
-            const Padding(
-              padding: EdgeInsets.only(left: 6),
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
               child: Tooltip(
                 message: 'Monatliche Serie',
-                child: Icon(Icons.repeat_rounded, size: 18),
+                child: Icon(
+                  Icons.repeat_rounded,
+                  size: 16,
+                  color: colors.muted,
+                ),
               ),
             ),
         ],
       ),
       subtitle: Text(
-        '${entry.category} · ${DateFormat('dd.MM.yyyy').format(entry.bookingDate)}'
-        '${entry.vehicleId.isEmpty ? '' : ' · Fahrzeug'}',
-        maxLines: 2,
+        [
+          if (entry.category.isNotEmpty) entry.category,
+          if (entry.merchant.isNotEmpty && entry.description.isNotEmpty)
+            entry.description,
+          if (entry.vehicleId.isNotEmpty) 'Fahrzeug',
+        ].join(' · '),
+        maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12, color: colors.muted),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            '${positive ? '+' : '−'}${money(entry.amount)}',
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              color: positive
-                  ? Colors.green
-                  : Theme.of(context).colorScheme.onSurface,
-            ),
+          AmountText(
+            entry.amount,
+            income: positive,
+            neutral: linked,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
           ),
           PopupMenuButton<String>(
             onSelected: (value) => _handleAction(context, ref, value),
@@ -733,6 +834,40 @@ class _EntryTile extends ConsumerWidget {
   }
 }
 
+/// Opens the booking editor from anywhere in the app, on the household
+/// account the user last chose.
+Future<void> startNewBooking(BuildContext context, WidgetRef ref) async {
+  final accounts = ref.read(accountsProvider).valueOrNull ?? const <Account>[];
+  final investments =
+      ref.read(allInvestmentsProvider).valueOrNull ?? const <Investment>[];
+  final physicalAssets =
+      ref.read(physicalAssetsProvider).valueOrNull ?? const <PhysicalAsset>[];
+  final preference = ref.read(preferencesProvider).valueOrNull;
+  final household = accounts.where((account) {
+    if (account.usageType == 'household') return true;
+    if (account.usageType != 'unassigned') return false;
+    return !investments.any((item) => item.accountId == account.id) &&
+        !physicalAssets.any((item) => item.accountId == account.id);
+  }).toList();
+  final preferred = household
+      .where((account) => account.id == preference?.selectedHouseholdAccountId)
+      .firstOrNull;
+  final account =
+      preferred ??
+      household.where((item) => item.usageType == 'household').firstOrNull ??
+      household.firstOrNull;
+  if (account == null) {
+    selectShellDestination(ref, 2);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Lege zuerst ein Haushaltskonto unter Vermögen an.'),
+      ),
+    );
+    return;
+  }
+  await showEntryEditor(context, ref, defaultAccountId: account.id);
+}
+
 Future<void> showEntryEditor(
   BuildContext context,
   WidgetRef ref, {
@@ -749,21 +884,28 @@ Future<void> showEntryEditor(
       ref.read(ledgerEntriesProvider).valueOrNull ?? const <LedgerEntry>[];
   Future<void> persist(_EntrySubmission result) =>
       _persistSubmission(ref, result, entry: entry, editSeries: editSeries);
-  final result = await showDialog<_EntrySubmission>(
-    context: context,
-    builder: (_) => _EntryEditor(
-      entry: entry,
-      initialDate: initialDate,
-      vehicles: vehicles,
-      accounts: accounts,
-      defaultAccountId: defaultAccountId,
-      masterData: masterData,
-      ledgerEntries: ledgerEntries,
-      editSeries: editSeries,
-      fullscreen: MediaQuery.sizeOf(context).width < 600,
-      onSaveAndNext: entry == null ? persist : null,
-    ),
+  final phone = MediaQuery.sizeOf(context).width < 600;
+  Widget editor(BuildContext _) => _EntryEditor(
+    entry: entry,
+    initialDate: initialDate,
+    vehicles: vehicles,
+    accounts: accounts,
+    defaultAccountId: defaultAccountId,
+    masterData: masterData,
+    ledgerEntries: ledgerEntries,
+    editSeries: editSeries,
+    fullscreen: phone,
+    onSaveAndNext: entry == null ? persist : null,
   );
+  final result = phone
+      ? await showModalBottomSheet<_EntrySubmission>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          showDragHandle: false,
+          builder: editor,
+        )
+      : await showDialog<_EntrySubmission>(context: context, builder: editor);
   if (result != null && context.mounted) {
     await saveWithFeedback(
       context,
@@ -967,54 +1109,96 @@ class _EntryEditorState extends State<_EntryEditor> {
   Widget build(BuildContext context) {
     final form = Form(key: _formKey, child: _formFields(context));
     if (widget.fullscreen) {
-      return Dialog.fullscreen(
-        child: Scaffold(
-          appBar: AppBar(
-            leading: IconButton(
-              tooltip: 'Abbrechen',
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.close_rounded),
-            ),
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_title),
-                Text(
-                  _accountLine,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
+      final colors = WealthColors.of(context);
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * .94,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: colors.border,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
-              ],
-            ),
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: form,
-          ),
-          bottomNavigationBar: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: Row(
-                children: [
-                  if (widget.onSaveAndNext != null) ...[
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _saving ? null : _saveAndNext,
-                        child: const Text('Speichern & nächste'),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                child: Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Abbrechen',
+                        style: TextStyle(color: colors.neutral),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                  ],
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _saving ? null : _save,
-                      child: const Text('Speichern'),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            _title,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            _accountLine,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, color: colors.muted),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 88),
+                  ],
+                ),
               ),
-            ),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                  child: form,
+                ),
+              ),
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                  child: Row(
+                    children: [
+                      if (widget.onSaveAndNext != null) ...[
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _saving ? null : _saveAndNext,
+                            child: const Text('Speichern & nächste'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _saving ? null : _save,
+                          child: const Text('Speichern'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -1080,6 +1264,18 @@ class _EntryEditorState extends State<_EntryEditor> {
           autofocus: _isNew,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           textInputAction: TextInputAction.next,
+          style: widget.fullscreen
+              ? TextStyle(
+                  fontFamily: AppTheme.displayFont,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: _kind == 'expense'
+                      ? WealthColors.of(context).expense
+                      : _kind == 'income'
+                      ? WealthColors.of(context).income
+                      : null,
+                )
+              : null,
           decoration: InputDecoration(
             labelText: 'Betrag *',
             hintText: '0,00',

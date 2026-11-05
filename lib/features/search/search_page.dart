@@ -26,11 +26,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const PageHeader(
-                title: 'Globale Suche',
-                subtitle:
-                    'Durchsuche Konten, Portfolio, Buchungen und Fahrzeuge.',
-              ),
+              const PageHeader(title: 'Globale Suche'),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,

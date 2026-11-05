@@ -1,11 +1,11 @@
 {
-    "name": "wealthflow",
-    "short_name": "wealthflow",
+    "name": "WealthFlow",
+    "short_name": "WealthFlow",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0E6E66",
+    "theme_color": "#0E6E66",
+    "description": "WealthFlow – Haushaltsbuch, Konten, Depot und Dividenden an einem Ort.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -32,11 +32,7 @@ class MasterDataPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              PageHeader(
-                title: 'Stammdaten',
-                subtitle:
-                    'Wiederkehrende Eingaben verwalten. Neue Händler und Zahlungsarten werden beim Buchen automatisch ergänzt.',
-              ),
+              PageHeader(title: 'Stammdaten'),
               Expanded(
                 child: data.when(
                   loading: () =>

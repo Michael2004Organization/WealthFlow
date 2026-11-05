@@ -8,6 +8,7 @@ import 'package:wealthflow_core/finance/account_balance_math.dart';
 import 'package:wealthflow_core/finance/amount_input.dart';
 import 'package:wealthflow_core/finance/currencies.dart';
 
+import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/save_feedback.dart';
@@ -48,7 +49,6 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
             children: [
               PageHeader(
                 title: 'Konten',
-                subtitle: '',
                 action: FilledButton.icon(
                   onPressed: () => showAccountEditor(context, ref),
                   icon: const Icon(Icons.add_rounded),
@@ -573,8 +573,8 @@ class _AccountActivityDialogState extends State<_AccountActivityDialog> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.w800,
                                   color: entry.isIncome
-                                      ? Colors.green
-                                      : Colors.redAccent,
+                                      ? WealthColors.of(context).income
+                                      : WealthColors.of(context).expense,
                                 ),
                               ),
                             ),

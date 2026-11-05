@@ -19,6 +19,7 @@ class MorePage extends ConsumerStatefulWidget {
 class _MorePageState extends ConsumerState<MorePage> {
   String _sortMode = 'default';
   final List<String> _customOrder = const [
+    'statistics',
     'calculators',
     'vehicles',
     'reminders',
@@ -31,11 +32,19 @@ class _MorePageState extends ConsumerState<MorePage> {
 
   static const _destinations = [
     _MoreDestination(
+      'statistics',
+      'Statistik',
+      'Auswertungen und Verläufe',
+      Icons.query_stats_rounded,
+      null,
+      shellIndex: 3,
+      phoneOnly: true,
+    ),
+    _MoreDestination(
       'calculators',
       'Rechner',
       'Sparplan, Entnahme und Preisvergleich',
       Icons.calculate_rounded,
-      Colors.teal,
       null,
       shellIndex: 4,
       phoneOnly: true,
@@ -45,7 +54,6 @@ class _MorePageState extends ConsumerState<MorePage> {
       'Fahrzeuge',
       'Fahrzeuge und ihre Kosten',
       Icons.directions_car_rounded,
-      Colors.blueGrey,
       null,
       shellIndex: 5,
       phoneOnly: true,
@@ -55,7 +63,6 @@ class _MorePageState extends ConsumerState<MorePage> {
       'Erinnerungen',
       'Termine und Benachrichtigungen',
       Icons.notifications_active_rounded,
-      Colors.deepPurple,
       RemindersPage(),
     ),
     _MoreDestination(
@@ -63,7 +70,6 @@ class _MorePageState extends ConsumerState<MorePage> {
       'Globale Suche',
       'Alle Daten zentral durchsuchen',
       Icons.manage_search_rounded,
-      Colors.purple,
       SearchPage(),
     ),
     _MoreDestination(
@@ -71,7 +77,6 @@ class _MorePageState extends ConsumerState<MorePage> {
       'Stammdaten',
       'Händler, Zahlungsarten und Vorschläge',
       Icons.list_alt_rounded,
-      Colors.indigo,
       MasterDataPage(),
     ),
     _MoreDestination(
@@ -79,7 +84,6 @@ class _MorePageState extends ConsumerState<MorePage> {
       'Account',
       'Profil, Darstellung und Server',
       Icons.settings_rounded,
-      Colors.orange,
       SettingsPage(),
     ),
     _MoreDestination(
@@ -87,7 +91,6 @@ class _MorePageState extends ConsumerState<MorePage> {
       'Administration',
       'Benutzerrollen und Portfolio-Stammdaten',
       Icons.admin_panel_settings_rounded,
-      Colors.redAccent,
       AdministrationPage(),
       adminOnly: true,
     ),
@@ -149,41 +152,34 @@ class _MorePageState extends ConsumerState<MorePage> {
       );
     }
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 600 ? 16 : 24),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1000),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const PageHeader(title: 'Mehr', subtitle: ''),
-              Align(
-                alignment: Alignment.centerRight,
-                child: SizedBox(
-                  width: 250,
-                  child: SearchableDropdownButtonFormField<String>(
-                    initialValue: _sortMode,
-                    decoration: const InputDecoration(
-                      labelText: 'Sortierung',
-                      prefixIcon: Icon(Icons.sort_rounded),
+              PageHeader(
+                title: 'Mehr',
+                action: PopupMenuButton<String>(
+                  tooltip: 'Sortierung',
+                  icon: const Icon(Icons.sort_rounded),
+                  initialValue: _sortMode,
+                  onSelected: (value) {
+                    setState(() => _sortMode = value);
+                    _persistLayout();
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: 'default',
+                      child: Text('Standardreihenfolge'),
                     ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'default',
-                        child: Text('Standardreihenfolge'),
-                      ),
-                      DropdownMenuItem(value: 'name', child: Text('Name A–Z')),
-                      DropdownMenuItem(
-                        value: 'custom',
-                        child: Text('Eigene Reihenfolge'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => _sortMode = value);
-                      _persistLayout();
-                    },
-                  ),
+                    PopupMenuItem(value: 'name', child: Text('Name A–Z')),
+                    PopupMenuItem(
+                      value: 'custom',
+                      child: Text('Eigene Reihenfolge'),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 12),
@@ -201,27 +197,13 @@ class _MorePageState extends ConsumerState<MorePage> {
                           width: width,
                           child: Card(
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(22),
+                              borderRadius: BorderRadius.circular(20),
                               onTap: () => _open(indexed.$2),
                               child: Padding(
-                                padding: const EdgeInsets.all(22),
+                                padding: const EdgeInsets.all(16),
                                 child: Row(
                                   children: [
-                                    Container(
-                                      width: 54,
-                                      height: 54,
-                                      decoration: BoxDecoration(
-                                        color: indexed.$2.color.withValues(
-                                          alpha: .14,
-                                        ),
-                                        borderRadius: BorderRadius.circular(17),
-                                      ),
-                                      child: Icon(
-                                        indexed.$2.icon,
-                                        color: indexed.$2.color,
-                                        size: 29,
-                                      ),
-                                    ),
+                                    IconTile(icon: indexed.$2.icon, size: 46),
                                     const SizedBox(width: 16),
                                     Expanded(
                                       child: Column(
@@ -234,11 +216,16 @@ class _MorePageState extends ConsumerState<MorePage> {
                                                 .textTheme
                                                 .titleMedium
                                                 ?.copyWith(
-                                                  fontWeight: FontWeight.w800,
+                                                  fontWeight: FontWeight.w700,
                                                 ),
                                           ),
                                           const SizedBox(height: 3),
-                                          Text(indexed.$2.subtitle),
+                                          Text(
+                                            indexed.$2.subtitle,
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.bodySmall,
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -340,6 +327,7 @@ class _MorePageState extends ConsumerState<MorePage> {
   }
 
   static const _customOrderDefaults = [
+    'statistics',
     'calculators',
     'vehicles',
     'reminders',
@@ -356,7 +344,6 @@ class _MoreDestination {
     this.label,
     this.subtitle,
     this.icon,
-    this.color,
     this.page, {
     this.adminOnly = false,
     this.shellIndex,
@@ -366,7 +353,6 @@ class _MoreDestination {
   final String label;
   final String subtitle;
   final IconData icon;
-  final Color color;
   final Widget? page;
   final bool adminOnly;
 

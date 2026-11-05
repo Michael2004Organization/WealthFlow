@@ -467,7 +467,7 @@ class VehicleCosts extends Table {
 
 class UserPreferences extends Table {
   TextColumn get userId => text().references(Users, #id)();
-  TextColumn get themeMode => text().withDefault(const Constant('dark'))();
+  TextColumn get themeMode => text().withDefault(const Constant('system'))();
   TextColumn get locale => text().withDefault(const Constant('de'))();
   TextColumn get currency => text().withDefault(const Constant('EUR'))();
   TextColumn get dateFormat =>

@@ -9248,7 +9248,7 @@ class $UserPreferencesTable extends UserPreferences
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('dark'),
+    defaultValue: const Constant('system'),
   );
   static const VerificationMeta _localeMeta = const VerificationMeta('locale');
   @override
