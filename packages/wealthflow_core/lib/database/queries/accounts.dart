@@ -4,12 +4,14 @@ part of '../app_database.dart';
 extension AccountQueries on AppDatabase {
   /// Books entries whose date has arrived since the app was opened.
   Future<void> applyDueLedgerEntries(String userId) async {
+    await applyStandingOrders(userId);
     if (await _applyDueLedgerEntries(userId)) {
       await captureNetWorth(userId);
     }
   }
 
   Stream<List<Account>> watchAccounts(String userId) async* {
+    await applyStandingOrders(userId);
     if (await _applyDueLedgerEntries(userId)) {
       await captureNetWorth(userId);
     }

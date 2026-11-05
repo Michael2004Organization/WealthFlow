@@ -16615,6 +16615,1019 @@ class AppErrorLogsCompanion extends UpdateCompanion<AppErrorLog> {
   }
 }
 
+class $StandingOrdersTable extends StandingOrders
+    with TableInfo<$StandingOrdersTable, StandingOrder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StandingOrdersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES users (id)',
+    ),
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _targetAccountIdMeta = const VerificationMeta(
+    'targetAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> targetAccountId = GeneratedColumn<String>(
+    'target_account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('expense'),
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _merchantMeta = const VerificationMeta(
+    'merchant',
+  );
+  @override
+  late final GeneratedColumn<String> merchant = GeneratedColumn<String>(
+    'merchant',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _paymentMethodMeta = const VerificationMeta(
+    'paymentMethod',
+  );
+  @override
+  late final GeneratedColumn<String> paymentMethod = GeneratedColumn<String>(
+    'payment_method',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _intervalMeta = const VerificationMeta(
+    'interval',
+  );
+  @override
+  late final GeneratedColumn<String> interval = GeneratedColumn<String>(
+    'interval',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('monthly'),
+  );
+  static const VerificationMeta _dayOfMonthMeta = const VerificationMeta(
+    'dayOfMonth',
+  );
+  @override
+  late final GeneratedColumn<int> dayOfMonth = GeneratedColumn<int>(
+    'day_of_month',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startDateMeta = const VerificationMeta(
+    'startDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+    'start_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastDueDateMeta = const VerificationMeta(
+    'lastDueDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastDueDate = GeneratedColumn<DateTime>(
+    'last_due_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    accountId,
+    targetAccountId,
+    kind,
+    amount,
+    category,
+    merchant,
+    description,
+    paymentMethod,
+    interval,
+    dayOfMonth,
+    startDate,
+    endDate,
+    lastDueDate,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'standing_orders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StandingOrder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('target_account_id')) {
+      context.handle(
+        _targetAccountIdMeta,
+        targetAccountId.isAcceptableOrUnknown(
+          data['target_account_id']!,
+          _targetAccountIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    }
+    if (data.containsKey('merchant')) {
+      context.handle(
+        _merchantMeta,
+        merchant.isAcceptableOrUnknown(data['merchant']!, _merchantMeta),
+      );
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('payment_method')) {
+      context.handle(
+        _paymentMethodMeta,
+        paymentMethod.isAcceptableOrUnknown(
+          data['payment_method']!,
+          _paymentMethodMeta,
+        ),
+      );
+    }
+    if (data.containsKey('interval')) {
+      context.handle(
+        _intervalMeta,
+        interval.isAcceptableOrUnknown(data['interval']!, _intervalMeta),
+      );
+    }
+    if (data.containsKey('day_of_month')) {
+      context.handle(
+        _dayOfMonthMeta,
+        dayOfMonth.isAcceptableOrUnknown(
+          data['day_of_month']!,
+          _dayOfMonthMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_dayOfMonthMeta);
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(
+        _startDateMeta,
+        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startDateMeta);
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('last_due_date')) {
+      context.handle(
+        _lastDueDateMeta,
+        lastDueDate.isAcceptableOrUnknown(
+          data['last_due_date']!,
+          _lastDueDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StandingOrder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StandingOrder(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      )!,
+      targetAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_account_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      )!,
+      merchant: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}merchant'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      )!,
+      paymentMethod: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payment_method'],
+      )!,
+      interval: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}interval'],
+      )!,
+      dayOfMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}day_of_month'],
+      )!,
+      startDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start_date'],
+      )!,
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_date'],
+      ),
+      lastDueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_due_date'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $StandingOrdersTable createAlias(String alias) {
+    return $StandingOrdersTable(attachedDatabase, alias);
+  }
+}
+
+class StandingOrder extends DataClass implements Insertable<StandingOrder> {
+  final String id;
+  final String userId;
+  final String accountId;
+
+  /// Destination of a transfer or saving order; empty otherwise.
+  final String targetAccountId;
+
+  /// `expense`, `income`, `transfer` or `saving`.
+  final String kind;
+  final double amount;
+  final String category;
+  final String merchant;
+  final String description;
+  final String paymentMethod;
+
+  /// `monthly`, `quarterly` or `yearly`.
+  final String interval;
+
+  /// Day of the month; shorter months use their last day.
+  final int dayOfMonth;
+  final DateTime startDate;
+  final DateTime? endDate;
+
+  /// Due date of the newest booking created so far.
+  final DateTime? lastDueDate;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const StandingOrder({
+    required this.id,
+    required this.userId,
+    required this.accountId,
+    required this.targetAccountId,
+    required this.kind,
+    required this.amount,
+    required this.category,
+    required this.merchant,
+    required this.description,
+    required this.paymentMethod,
+    required this.interval,
+    required this.dayOfMonth,
+    required this.startDate,
+    this.endDate,
+    this.lastDueDate,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['account_id'] = Variable<String>(accountId);
+    map['target_account_id'] = Variable<String>(targetAccountId);
+    map['kind'] = Variable<String>(kind);
+    map['amount'] = Variable<double>(amount);
+    map['category'] = Variable<String>(category);
+    map['merchant'] = Variable<String>(merchant);
+    map['description'] = Variable<String>(description);
+    map['payment_method'] = Variable<String>(paymentMethod);
+    map['interval'] = Variable<String>(interval);
+    map['day_of_month'] = Variable<int>(dayOfMonth);
+    map['start_date'] = Variable<DateTime>(startDate);
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
+    if (!nullToAbsent || lastDueDate != null) {
+      map['last_due_date'] = Variable<DateTime>(lastDueDate);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  StandingOrdersCompanion toCompanion(bool nullToAbsent) {
+    return StandingOrdersCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      accountId: Value(accountId),
+      targetAccountId: Value(targetAccountId),
+      kind: Value(kind),
+      amount: Value(amount),
+      category: Value(category),
+      merchant: Value(merchant),
+      description: Value(description),
+      paymentMethod: Value(paymentMethod),
+      interval: Value(interval),
+      dayOfMonth: Value(dayOfMonth),
+      startDate: Value(startDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      lastDueDate: lastDueDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastDueDate),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory StandingOrder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StandingOrder(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      accountId: serializer.fromJson<String>(json['accountId']),
+      targetAccountId: serializer.fromJson<String>(json['targetAccountId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      amount: serializer.fromJson<double>(json['amount']),
+      category: serializer.fromJson<String>(json['category']),
+      merchant: serializer.fromJson<String>(json['merchant']),
+      description: serializer.fromJson<String>(json['description']),
+      paymentMethod: serializer.fromJson<String>(json['paymentMethod']),
+      interval: serializer.fromJson<String>(json['interval']),
+      dayOfMonth: serializer.fromJson<int>(json['dayOfMonth']),
+      startDate: serializer.fromJson<DateTime>(json['startDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      lastDueDate: serializer.fromJson<DateTime?>(json['lastDueDate']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'accountId': serializer.toJson<String>(accountId),
+      'targetAccountId': serializer.toJson<String>(targetAccountId),
+      'kind': serializer.toJson<String>(kind),
+      'amount': serializer.toJson<double>(amount),
+      'category': serializer.toJson<String>(category),
+      'merchant': serializer.toJson<String>(merchant),
+      'description': serializer.toJson<String>(description),
+      'paymentMethod': serializer.toJson<String>(paymentMethod),
+      'interval': serializer.toJson<String>(interval),
+      'dayOfMonth': serializer.toJson<int>(dayOfMonth),
+      'startDate': serializer.toJson<DateTime>(startDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
+      'lastDueDate': serializer.toJson<DateTime?>(lastDueDate),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  StandingOrder copyWith({
+    String? id,
+    String? userId,
+    String? accountId,
+    String? targetAccountId,
+    String? kind,
+    double? amount,
+    String? category,
+    String? merchant,
+    String? description,
+    String? paymentMethod,
+    String? interval,
+    int? dayOfMonth,
+    DateTime? startDate,
+    Value<DateTime?> endDate = const Value.absent(),
+    Value<DateTime?> lastDueDate = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => StandingOrder(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    accountId: accountId ?? this.accountId,
+    targetAccountId: targetAccountId ?? this.targetAccountId,
+    kind: kind ?? this.kind,
+    amount: amount ?? this.amount,
+    category: category ?? this.category,
+    merchant: merchant ?? this.merchant,
+    description: description ?? this.description,
+    paymentMethod: paymentMethod ?? this.paymentMethod,
+    interval: interval ?? this.interval,
+    dayOfMonth: dayOfMonth ?? this.dayOfMonth,
+    startDate: startDate ?? this.startDate,
+    endDate: endDate.present ? endDate.value : this.endDate,
+    lastDueDate: lastDueDate.present ? lastDueDate.value : this.lastDueDate,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  StandingOrder copyWithCompanion(StandingOrdersCompanion data) {
+    return StandingOrder(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      targetAccountId: data.targetAccountId.present
+          ? data.targetAccountId.value
+          : this.targetAccountId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      category: data.category.present ? data.category.value : this.category,
+      merchant: data.merchant.present ? data.merchant.value : this.merchant,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      paymentMethod: data.paymentMethod.present
+          ? data.paymentMethod.value
+          : this.paymentMethod,
+      interval: data.interval.present ? data.interval.value : this.interval,
+      dayOfMonth: data.dayOfMonth.present
+          ? data.dayOfMonth.value
+          : this.dayOfMonth,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      lastDueDate: data.lastDueDate.present
+          ? data.lastDueDate.value
+          : this.lastDueDate,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StandingOrder(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('accountId: $accountId, ')
+          ..write('targetAccountId: $targetAccountId, ')
+          ..write('kind: $kind, ')
+          ..write('amount: $amount, ')
+          ..write('category: $category, ')
+          ..write('merchant: $merchant, ')
+          ..write('description: $description, ')
+          ..write('paymentMethod: $paymentMethod, ')
+          ..write('interval: $interval, ')
+          ..write('dayOfMonth: $dayOfMonth, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('lastDueDate: $lastDueDate, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    accountId,
+    targetAccountId,
+    kind,
+    amount,
+    category,
+    merchant,
+    description,
+    paymentMethod,
+    interval,
+    dayOfMonth,
+    startDate,
+    endDate,
+    lastDueDate,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StandingOrder &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.accountId == this.accountId &&
+          other.targetAccountId == this.targetAccountId &&
+          other.kind == this.kind &&
+          other.amount == this.amount &&
+          other.category == this.category &&
+          other.merchant == this.merchant &&
+          other.description == this.description &&
+          other.paymentMethod == this.paymentMethod &&
+          other.interval == this.interval &&
+          other.dayOfMonth == this.dayOfMonth &&
+          other.startDate == this.startDate &&
+          other.endDate == this.endDate &&
+          other.lastDueDate == this.lastDueDate &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class StandingOrdersCompanion extends UpdateCompanion<StandingOrder> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> accountId;
+  final Value<String> targetAccountId;
+  final Value<String> kind;
+  final Value<double> amount;
+  final Value<String> category;
+  final Value<String> merchant;
+  final Value<String> description;
+  final Value<String> paymentMethod;
+  final Value<String> interval;
+  final Value<int> dayOfMonth;
+  final Value<DateTime> startDate;
+  final Value<DateTime?> endDate;
+  final Value<DateTime?> lastDueDate;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const StandingOrdersCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.targetAccountId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.category = const Value.absent(),
+    this.merchant = const Value.absent(),
+    this.description = const Value.absent(),
+    this.paymentMethod = const Value.absent(),
+    this.interval = const Value.absent(),
+    this.dayOfMonth = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.lastDueDate = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  StandingOrdersCompanion.insert({
+    required String id,
+    required String userId,
+    required String accountId,
+    this.targetAccountId = const Value.absent(),
+    this.kind = const Value.absent(),
+    required double amount,
+    this.category = const Value.absent(),
+    this.merchant = const Value.absent(),
+    this.description = const Value.absent(),
+    this.paymentMethod = const Value.absent(),
+    this.interval = const Value.absent(),
+    required int dayOfMonth,
+    required DateTime startDate,
+    this.endDate = const Value.absent(),
+    this.lastDueDate = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       accountId = Value(accountId),
+       amount = Value(amount),
+       dayOfMonth = Value(dayOfMonth),
+       startDate = Value(startDate),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<StandingOrder> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? accountId,
+    Expression<String>? targetAccountId,
+    Expression<String>? kind,
+    Expression<double>? amount,
+    Expression<String>? category,
+    Expression<String>? merchant,
+    Expression<String>? description,
+    Expression<String>? paymentMethod,
+    Expression<String>? interval,
+    Expression<int>? dayOfMonth,
+    Expression<DateTime>? startDate,
+    Expression<DateTime>? endDate,
+    Expression<DateTime>? lastDueDate,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (accountId != null) 'account_id': accountId,
+      if (targetAccountId != null) 'target_account_id': targetAccountId,
+      if (kind != null) 'kind': kind,
+      if (amount != null) 'amount': amount,
+      if (category != null) 'category': category,
+      if (merchant != null) 'merchant': merchant,
+      if (description != null) 'description': description,
+      if (paymentMethod != null) 'payment_method': paymentMethod,
+      if (interval != null) 'interval': interval,
+      if (dayOfMonth != null) 'day_of_month': dayOfMonth,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+      if (lastDueDate != null) 'last_due_date': lastDueDate,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  StandingOrdersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? accountId,
+    Value<String>? targetAccountId,
+    Value<String>? kind,
+    Value<double>? amount,
+    Value<String>? category,
+    Value<String>? merchant,
+    Value<String>? description,
+    Value<String>? paymentMethod,
+    Value<String>? interval,
+    Value<int>? dayOfMonth,
+    Value<DateTime>? startDate,
+    Value<DateTime?>? endDate,
+    Value<DateTime?>? lastDueDate,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return StandingOrdersCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      accountId: accountId ?? this.accountId,
+      targetAccountId: targetAccountId ?? this.targetAccountId,
+      kind: kind ?? this.kind,
+      amount: amount ?? this.amount,
+      category: category ?? this.category,
+      merchant: merchant ?? this.merchant,
+      description: description ?? this.description,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      interval: interval ?? this.interval,
+      dayOfMonth: dayOfMonth ?? this.dayOfMonth,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      lastDueDate: lastDueDate ?? this.lastDueDate,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (targetAccountId.present) {
+      map['target_account_id'] = Variable<String>(targetAccountId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (merchant.present) {
+      map['merchant'] = Variable<String>(merchant.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (paymentMethod.present) {
+      map['payment_method'] = Variable<String>(paymentMethod.value);
+    }
+    if (interval.present) {
+      map['interval'] = Variable<String>(interval.value);
+    }
+    if (dayOfMonth.present) {
+      map['day_of_month'] = Variable<int>(dayOfMonth.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (lastDueDate.present) {
+      map['last_due_date'] = Variable<DateTime>(lastDueDate.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StandingOrdersCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('accountId: $accountId, ')
+          ..write('targetAccountId: $targetAccountId, ')
+          ..write('kind: $kind, ')
+          ..write('amount: $amount, ')
+          ..write('category: $category, ')
+          ..write('merchant: $merchant, ')
+          ..write('description: $description, ')
+          ..write('paymentMethod: $paymentMethod, ')
+          ..write('interval: $interval, ')
+          ..write('dayOfMonth: $dayOfMonth, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('lastDueDate: $lastDueDate, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -16649,6 +17662,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PortfolioAuditLogsTable portfolioAuditLogs =
       $PortfolioAuditLogsTable(this);
   late final $AppErrorLogsTable appErrorLogs = $AppErrorLogsTable(this);
+  late final $StandingOrdersTable standingOrders = $StandingOrdersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -16675,6 +17689,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     portfolioSales,
     portfolioAuditLogs,
     appErrorLogs,
+    standingOrders,
   ];
 }
 
@@ -17000,6 +18015,24 @@ final class $$UsersTableReferences
     final cache = $_typedResult.readTableOrNull(
       _portfolioAuditLogsRefsTable($_db),
     );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$StandingOrdersTable, List<StandingOrder>>
+  _standingOrdersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.standingOrders,
+    aliasName: 'users__id__standing_orders__user_id',
+  );
+
+  $$StandingOrdersTableProcessedTableManager get standingOrdersRefs {
+    final manager = $$StandingOrdersTableTableManager(
+      $_db,
+      $_db.standingOrders,
+    ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_standingOrdersRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -17426,6 +18459,31 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
           }) => $$PortfolioAuditLogsTableFilterComposer(
             $db: $db,
             $table: $db.portfolioAuditLogs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> standingOrdersRefs(
+    Expression<bool> Function($$StandingOrdersTableFilterComposer f) f,
+  ) {
+    final $$StandingOrdersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.standingOrders,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StandingOrdersTableFilterComposer(
+            $db: $db,
+            $table: $db.standingOrders,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -17915,6 +18973,31 @@ class $$UsersTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> standingOrdersRefs<T extends Object>(
+    Expression<T> Function($$StandingOrdersTableAnnotationComposer a) f,
+  ) {
+    final $$StandingOrdersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.standingOrders,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StandingOrdersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.standingOrders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$UsersTableTableManager
@@ -17946,6 +19029,7 @@ class $$UsersTableTableManager
             bool physicalAssetsRefs,
             bool portfolioSalesRefs,
             bool portfolioAuditLogsRefs,
+            bool standingOrdersRefs,
           })
         > {
   $$UsersTableTableManager(_$AppDatabase db, $UsersTable table)
@@ -18030,6 +19114,7 @@ class $$UsersTableTableManager
                 physicalAssetsRefs = false,
                 portfolioSalesRefs = false,
                 portfolioAuditLogsRefs = false,
+                standingOrdersRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -18049,6 +19134,7 @@ class $$UsersTableTableManager
                     if (physicalAssetsRefs) db.physicalAssets,
                     if (portfolioSalesRefs) db.portfolioSales,
                     if (portfolioAuditLogsRefs) db.portfolioAuditLogs,
+                    if (standingOrdersRefs) db.standingOrders,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -18360,6 +19446,27 @@ class $$UsersTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (standingOrdersRefs)
+                        await $_getPrefetchedData<
+                          User,
+                          $UsersTable,
+                          StandingOrder
+                        >(
+                          currentTable: table,
+                          referencedTable: $$UsersTableReferences
+                              ._standingOrdersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$UsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).standingOrdersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -18396,6 +19503,7 @@ typedef $$UsersTableProcessedTableManager =
         bool physicalAssetsRefs,
         bool portfolioSalesRefs,
         bool portfolioAuditLogsRefs,
+        bool standingOrdersRefs,
       })
     >;
 typedef $$AccountsTableCreateCompanionBuilder =
@@ -28737,6 +29845,587 @@ typedef $$AppErrorLogsTableProcessedTableManager =
       AppErrorLog,
       PrefetchHooks Function()
     >;
+typedef $$StandingOrdersTableCreateCompanionBuilder =
+    StandingOrdersCompanion Function({
+      required String id,
+      required String userId,
+      required String accountId,
+      Value<String> targetAccountId,
+      Value<String> kind,
+      required double amount,
+      Value<String> category,
+      Value<String> merchant,
+      Value<String> description,
+      Value<String> paymentMethod,
+      Value<String> interval,
+      required int dayOfMonth,
+      required DateTime startDate,
+      Value<DateTime?> endDate,
+      Value<DateTime?> lastDueDate,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$StandingOrdersTableUpdateCompanionBuilder =
+    StandingOrdersCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> accountId,
+      Value<String> targetAccountId,
+      Value<String> kind,
+      Value<double> amount,
+      Value<String> category,
+      Value<String> merchant,
+      Value<String> description,
+      Value<String> paymentMethod,
+      Value<String> interval,
+      Value<int> dayOfMonth,
+      Value<DateTime> startDate,
+      Value<DateTime?> endDate,
+      Value<DateTime?> lastDueDate,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $$StandingOrdersTableReferences
+    extends BaseReferences<_$AppDatabase, $StandingOrdersTable, StandingOrder> {
+  $$StandingOrdersTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $UsersTable _userIdTable(_$AppDatabase db) =>
+      db.users.createAlias('standing_orders__user_id__users__id');
+
+  $$UsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$UsersTableTableManager(
+      $_db,
+      $_db.users,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$StandingOrdersTableFilterComposer
+    extends Composer<_$AppDatabase, $StandingOrdersTable> {
+  $$StandingOrdersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetAccountId => $composableBuilder(
+    column: $table.targetAccountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get merchant => $composableBuilder(
+    column: $table.merchant,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get paymentMethod => $composableBuilder(
+    column: $table.paymentMethod,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get interval => $composableBuilder(
+    column: $table.interval,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get dayOfMonth => $composableBuilder(
+    column: $table.dayOfMonth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastDueDate => $composableBuilder(
+    column: $table.lastDueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$UsersTableFilterComposer get userId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableFilterComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StandingOrdersTableOrderingComposer
+    extends Composer<_$AppDatabase, $StandingOrdersTable> {
+  $$StandingOrdersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetAccountId => $composableBuilder(
+    column: $table.targetAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get merchant => $composableBuilder(
+    column: $table.merchant,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get paymentMethod => $composableBuilder(
+    column: $table.paymentMethod,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get interval => $composableBuilder(
+    column: $table.interval,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get dayOfMonth => $composableBuilder(
+    column: $table.dayOfMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastDueDate => $composableBuilder(
+    column: $table.lastDueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$UsersTableOrderingComposer get userId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StandingOrdersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StandingOrdersTable> {
+  $$StandingOrdersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<String> get targetAccountId => $composableBuilder(
+    column: $table.targetAccountId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get merchant =>
+      $composableBuilder(column: $table.merchant, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get paymentMethod => $composableBuilder(
+    column: $table.paymentMethod,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get interval =>
+      $composableBuilder(column: $table.interval, builder: (column) => column);
+
+  GeneratedColumn<int> get dayOfMonth => $composableBuilder(
+    column: $table.dayOfMonth,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastDueDate => $composableBuilder(
+    column: $table.lastDueDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$UsersTableAnnotationComposer get userId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StandingOrdersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StandingOrdersTable,
+          StandingOrder,
+          $$StandingOrdersTableFilterComposer,
+          $$StandingOrdersTableOrderingComposer,
+          $$StandingOrdersTableAnnotationComposer,
+          $$StandingOrdersTableCreateCompanionBuilder,
+          $$StandingOrdersTableUpdateCompanionBuilder,
+          (StandingOrder, $$StandingOrdersTableReferences),
+          StandingOrder,
+          PrefetchHooks Function({bool userId})
+        > {
+  $$StandingOrdersTableTableManager(
+    _$AppDatabase db,
+    $StandingOrdersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StandingOrdersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StandingOrdersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StandingOrdersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
+                Value<String> targetAccountId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String> category = const Value.absent(),
+                Value<String> merchant = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                Value<String> paymentMethod = const Value.absent(),
+                Value<String> interval = const Value.absent(),
+                Value<int> dayOfMonth = const Value.absent(),
+                Value<DateTime> startDate = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<DateTime?> lastDueDate = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StandingOrdersCompanion(
+                id: id,
+                userId: userId,
+                accountId: accountId,
+                targetAccountId: targetAccountId,
+                kind: kind,
+                amount: amount,
+                category: category,
+                merchant: merchant,
+                description: description,
+                paymentMethod: paymentMethod,
+                interval: interval,
+                dayOfMonth: dayOfMonth,
+                startDate: startDate,
+                endDate: endDate,
+                lastDueDate: lastDueDate,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String accountId,
+                Value<String> targetAccountId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                required double amount,
+                Value<String> category = const Value.absent(),
+                Value<String> merchant = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                Value<String> paymentMethod = const Value.absent(),
+                Value<String> interval = const Value.absent(),
+                required int dayOfMonth,
+                required DateTime startDate,
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<DateTime?> lastDueDate = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StandingOrdersCompanion.insert(
+                id: id,
+                userId: userId,
+                accountId: accountId,
+                targetAccountId: targetAccountId,
+                kind: kind,
+                amount: amount,
+                category: category,
+                merchant: merchant,
+                description: description,
+                paymentMethod: paymentMethod,
+                interval: interval,
+                dayOfMonth: dayOfMonth,
+                startDate: startDate,
+                endDate: endDate,
+                lastDueDate: lastDueDate,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$StandingOrdersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({userId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (userId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.userId,
+                                referencedTable: $$StandingOrdersTableReferences
+                                    ._userIdTable(db),
+                                referencedColumn:
+                                    $$StandingOrdersTableReferences
+                                        ._userIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$StandingOrdersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StandingOrdersTable,
+      StandingOrder,
+      $$StandingOrdersTableFilterComposer,
+      $$StandingOrdersTableOrderingComposer,
+      $$StandingOrdersTableAnnotationComposer,
+      $$StandingOrdersTableCreateCompanionBuilder,
+      $$StandingOrdersTableUpdateCompanionBuilder,
+      (StandingOrder, $$StandingOrdersTableReferences),
+      StandingOrder,
+      PrefetchHooks Function({bool userId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -28786,4 +30475,6 @@ class $AppDatabaseManager {
       $$PortfolioAuditLogsTableTableManager(_db, _db.portfolioAuditLogs);
   $$AppErrorLogsTableTableManager get appErrorLogs =>
       $$AppErrorLogsTableTableManager(_db, _db.appErrorLogs);
+  $$StandingOrdersTableTableManager get standingOrders =>
+      $$StandingOrdersTableTableManager(_db, _db.standingOrders);
 }

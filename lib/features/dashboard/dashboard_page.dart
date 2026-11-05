@@ -11,6 +11,7 @@ import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 import '../../app/app_theme.dart';
 import '../../app/app_shell.dart' show desktopBreakpoint;
 import '../../core/providers.dart';
+import '../household/standing_orders_page.dart';
 import '../search/search_page.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -65,6 +66,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final sales =
         ref.watch(portfolioSalesProvider).valueOrNull ??
         const <PortfolioSale>[];
+    final standingOrders =
+        ref.watch(standingOrdersProvider).valueOrNull ??
+        const <StandingOrder>[];
     final userId = ref.watch(currentUserIdProvider);
     if (userId != null && _loadedForUser != userId) {
       _loadedForUser = userId;
@@ -195,9 +199,20 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         .where((snapshot) => !snapshot.capturedAt.isAfter(previousMonthEnd))
         .lastOrNull;
     final now = DateTime.now();
-    final plannedExpenses = thisMonth
-        .where((entry) => !entry.isIncome && entry.bookingDate.isAfter(now))
-        .fold<double>(0, (sum, entry) => sum + entry.amount);
+    final plannedExpenses =
+        thisMonth
+            .where((entry) => !entry.isIncome && entry.bookingDate.isAfter(now))
+            .fold<double>(0, (sum, entry) => sum + entry.amount) +
+        plannedStandingOrderBookings(
+              standingOrders,
+              // Only due dates inside the shown month.
+              after: _selectedMonth.isAfter(now)
+                  ? DateTime(_selectedMonth.year, _selectedMonth.month, 0)
+                  : now,
+              through: monthEnd,
+            )
+            .where((item) => item.order.kind != 'income')
+            .fold<double>(0, (sum, item) => sum + item.order.amount);
     final positions = investments
         .where(
           (item) =>
@@ -236,6 +251,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     );
     final upcoming = _Upcoming(
       entries: entries,
+      standingOrders: plannedStandingOrderBookings(
+        standingOrders,
+        after: now,
+        through: now.add(const Duration(days: 45)),
+      ),
       dividends: [
         ...projectionFor(now.year),
         if (now.month == 12) ...projectionFor(now.year + 1),
@@ -1374,9 +1394,16 @@ class _RecentEntries extends StatelessWidget {
 }
 
 class _Upcoming extends StatelessWidget {
-  const _Upcoming({required this.entries, required this.dividends});
+  const _Upcoming({
+    required this.entries,
+    required this.standingOrders,
+    required this.dividends,
+  });
 
   final List<LedgerEntry> entries;
+
+  /// Bookings standing orders will create; not stored as entries yet.
+  final List<({StandingOrder order, DateTime date})> standingOrders;
 
   /// Projected payouts with a known payment date, after taxes.
   final List<ProjectedDividend> dividends;
@@ -1412,6 +1439,27 @@ class _Upcoming extends StatelessWidget {
                       entry.sourceType == 'saving',
                 ),
               ),
+          for (final (:order, :date) in standingOrders)
+            (
+              date: date,
+              title: order.merchant.isNotEmpty
+                  ? order.merchant
+                  : order.description.isNotEmpty
+                  ? order.description
+                  : order.category,
+              subtitle: [
+                if (order.category.isNotEmpty &&
+                    order.kind != 'transfer' &&
+                    order.kind != 'saving')
+                  order.category,
+                'Dauerauftrag',
+              ].join(' · '),
+              amount: AmountText(
+                order.amount,
+                income: order.kind == 'income',
+                neutral: order.kind == 'transfer' || order.kind == 'saving',
+              ),
+            ),
           for (final payment in dividends)
             if (payment.date.isAfter(now) && payment.date.isBefore(until))
               (

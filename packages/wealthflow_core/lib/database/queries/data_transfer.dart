@@ -37,6 +37,9 @@ extension DataTransferQueries on AppDatabase {
     final costRows = await (select(
       vehicleCosts,
     )..where((r) => r.userId.equals(userId))).get();
+    final standingOrderRows = await (select(
+      standingOrders,
+    )..where((r) => r.userId.equals(userId))).get();
     final masterRows = await (select(
       masterData,
     )..where((r) => r.userId.equals(userId))).get();
@@ -79,6 +82,7 @@ extension DataTransferQueries on AppDatabase {
       'ledgerEntries': ledgerRows.map((e) => e.toJson()).toList(),
       'vehicles': vehicleRows.map((e) => e.toJson()).toList(),
       'vehicleCosts': costRows.map((e) => e.toJson()).toList(),
+      'standingOrders': standingOrderRows.map((e) => e.toJson()).toList(),
       'masterData': masterRows.map((e) => e.toJson()).toList(),
       'reminders': reminderRows.map((e) => e.toJson()).toList(),
       'netWorthSnapshots': snapshotRows.map((e) => e.toJson()).toList(),
@@ -350,6 +354,25 @@ extension DataTransferQueries on AppDatabase {
           await into(
             vehicleCosts,
           ).insertOnConflictUpdate(remote.toCompanion(false));
+        }
+      }
+      for (final json in rows('standingOrders')) {
+        final remote = StandingOrder.fromJson(json);
+        final local = await (select(
+          standingOrders,
+        )..where((row) => row.id.equals(remote.id))).getSingleOrNull();
+        if (local != null && local.userId != userId) continue;
+        if (local == null || remote.updatedAt.isAfter(local.updatedAt)) {
+          await into(
+            standingOrders,
+          ).insertOnConflictUpdate(remote.toCompanion(false));
+        } else if (_laterDate(remote.lastDueDate, local.lastDueDate)) {
+          // Bookings another device already created are not created again.
+          await (update(
+            standingOrders,
+          )..where((row) => row.id.equals(remote.id))).write(
+            StandingOrdersCompanion(lastDueDate: Value(remote.lastDueDate)),
+          );
         }
       }
       for (final json in rows('netWorthSnapshots')) {
@@ -634,4 +657,7 @@ extension DataTransferQueries on AppDatabase {
       }
     });
   }
+
+  bool _laterDate(DateTime? value, DateTime? than) =>
+      value != null && (than == null || value.isAfter(than));
 }

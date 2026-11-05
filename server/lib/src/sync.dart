@@ -55,6 +55,7 @@ final class ServerSync {
     'ledgerEntries': 'ledger_entries',
     'vehicles': 'vehicles',
     'vehicleCosts': 'vehicle_costs',
+    'standingOrders': 'standing_orders',
     'masterData': 'master_data',
     'reminders': 'reminders',
     'netWorthSnapshots': 'net_worth_snapshots',

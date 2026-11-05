@@ -12,6 +12,7 @@ import '../finance/currency_conversion.dart';
 import '../finance/dividend_math.dart';
 import '../finance/portfolio_master_data.dart';
 import '../finance/sale_tax.dart';
+import '../finance/standing_order_schedule.dart';
 
 part 'app_database.g.dart';
 part 'queries/admin.dart';
@@ -20,6 +21,7 @@ part 'queries/portfolio.dart';
 part 'queries/household.dart';
 part 'queries/data_transfer.dart';
 part 'queries/preferences.dart';
+part 'queries/standing_orders.dart';
 
 extension InvestmentPurchaseCash on InvestmentPurchase {
   /// Amount taken from the cash account, in the account's currency.
@@ -390,6 +392,42 @@ class Reminders extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// A booking rule without a fixed end (rent on the 1st, monthly savings).
+/// The bookings are created on their due day; see `applyStandingOrders`.
+class StandingOrders extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text().references(Users, #id)();
+  TextColumn get accountId => text()();
+
+  /// Destination of a transfer or saving order; empty otherwise.
+  TextColumn get targetAccountId => text().withDefault(const Constant(''))();
+
+  /// `expense`, `income`, `transfer` or `saving`.
+  TextColumn get kind => text().withDefault(const Constant('expense'))();
+  RealColumn get amount => real()();
+  TextColumn get category => text().withDefault(const Constant(''))();
+  TextColumn get merchant => text().withDefault(const Constant(''))();
+  TextColumn get description => text().withDefault(const Constant(''))();
+  TextColumn get paymentMethod => text().withDefault(const Constant(''))();
+
+  /// `monthly`, `quarterly` or `yearly`.
+  TextColumn get interval => text().withDefault(const Constant('monthly'))();
+
+  /// Day of the month; shorter months use their last day.
+  IntColumn get dayOfMonth => integer()();
+  DateTimeColumn get startDate => dateTime()();
+  DateTimeColumn get endDate => dateTime().nullable()();
+
+  /// Due date of the newest booking created so far.
+  DateTimeColumn get lastDueDate => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class Vehicles extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text().references(Users, #id)();
@@ -501,6 +539,7 @@ typedef DataFileWriter = Future<bool> Function(List<int> bytes, String path);
     PortfolioSales,
     PortfolioAuditLogs,
     AppErrorLogs,
+    StandingOrders,
   ],
 )
 final class AppDatabase extends _$AppDatabase {
@@ -635,7 +674,7 @@ final class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -938,6 +977,9 @@ final class AppDatabase extends _$AppDatabase {
             'ALTER TABLE country_tax_rates DROP COLUMN allow_manual_exchange_rate',
           );
         }
+      }
+      if (from < 22) {
+        await migrator.createTable(standingOrders);
       }
     },
   );

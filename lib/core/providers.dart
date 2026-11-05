@@ -19,7 +19,8 @@ export 'package:wealthflow_core/database/app_database.dart'
         DataTransferQueries,
         HouseholdQueries,
         PortfolioQueries,
-        PreferenceQueries;
+        PreferenceQueries,
+        StandingOrderQueries;
 
 final databaseProvider = Provider<AppDatabase>((ref) {
   final database = openAppDatabase();
@@ -171,6 +172,13 @@ final ledgerEntriesProvider = StreamProvider<List<LedgerEntry>>((ref) {
   return userId == null
       ? Stream.value(const <LedgerEntry>[])
       : ref.watch(databaseProvider).watchLedgerEntries(userId);
+});
+
+final standingOrdersProvider = StreamProvider<List<StandingOrder>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return userId == null
+      ? Stream.value(const <StandingOrder>[])
+      : ref.watch(databaseProvider).watchStandingOrders(userId);
 });
 
 final masterDataProvider = StreamProvider<List<MasterDataData>>((ref) {

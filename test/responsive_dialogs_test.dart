@@ -9,6 +9,7 @@ import 'package:wealthflow/features/calculators/calculators_page.dart';
 import 'package:wealthflow/features/finance/accounts_page.dart';
 import 'package:wealthflow/features/finance/investments_page.dart';
 import 'package:wealthflow/features/household/household_page.dart';
+import 'package:wealthflow/features/household/standing_orders_page.dart';
 import 'package:wealthflow/features/settings/administration_page.dart';
 import 'package:wealthflow/features/vehicles/vehicles_page.dart';
 import 'package:wealthflow_core/database/app_database.dart';
@@ -357,6 +358,60 @@ void main() {
         find.byType(size.width < 600 ? BottomSheet : Dialog),
         findsOneWidget,
       );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final size in [const Size(360, 800), const Size(1920, 1080)]) {
+    testWidgets('standing order editor fits at $size', (tester) async {
+      final now = DateTime.now();
+      Account account(String id) => Account(
+        id: id,
+        userId: 'responsive-user',
+        bankName: 'Testbank',
+        label: 'Konto $id mit langem Namen',
+        holder: '',
+        iban: '',
+        bic: '',
+        accountNumber: '',
+        currency: 'EUR',
+        balance: 1234.56,
+        availableBalance: 1234.56,
+        usageType: 'household',
+        notes: '',
+        displayOrder: 0,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await pumpPage(
+        tester,
+        const StandingOrdersPage(),
+        overrides: [
+          accountsProvider.overrideWith(
+            (_) => Stream.value([account('giro'), account('spar')]),
+          ),
+          standingOrdersProvider.overrideWith(
+            (_) => Stream.value(const <StandingOrder>[]),
+          ),
+          allInvestmentsProvider.overrideWith(
+            (_) => Stream.value(const <Investment>[]),
+          ),
+          physicalAssetsProvider.overrideWith(
+            (_) => Stream.value(const <PhysicalAsset>[]),
+          ),
+          preferencesProvider.overrideWith((_) => const Stream.empty()),
+        ],
+        size: size,
+      );
+
+      await tester.tap(find.text('Dauerauftrag anlegen'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sparen'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Vierteljährlich'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Zielkonto / Investkonto *'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }

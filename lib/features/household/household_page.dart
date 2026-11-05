@@ -11,6 +11,7 @@ import 'package:wealthflow_core/finance/budget_period.dart';
 import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../search/search_page.dart';
+import 'standing_orders_page.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/save_feedback.dart';
 
@@ -675,6 +676,7 @@ class _EntryTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final positive = entry.isIncome;
     final recurring = entry.recurrenceId.isNotEmpty;
+    final fromOrder = entry.id.startsWith('so-');
     final linked =
         entry.sourceType == 'transfer' || entry.sourceType == 'saving';
     final colors = WealthColors.of(context);
@@ -718,9 +720,9 @@ class _EntryTile extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(left: 6),
               child: Tooltip(
-                message: 'Monatliche Serie',
+                message: fromOrder ? 'Dauerauftrag' : 'Monatliche Serie',
                 child: Icon(
-                  Icons.repeat_rounded,
+                  fromOrder ? Icons.event_repeat_rounded : Icons.repeat_rounded,
                   size: 16,
                   color: colors.muted,
                 ),
@@ -753,13 +755,24 @@ class _EntryTile extends ConsumerWidget {
             itemBuilder: (_) => [
               if (entry.sourceType != 'vehicle')
                 const PopupMenuItem(value: 'edit', child: Text('Bearbeiten')),
-              if (recurring && entry.sourceType != 'vehicle' && !linked)
+              if (fromOrder)
                 const PopupMenuItem(
-                  value: 'edit-series',
-                  child: Text('Ganze Serie bearbeiten'),
+                  value: 'standing-order',
+                  child: Text('Dauerauftrag bearbeiten'),
+                )
+              else if (recurring && entry.sourceType != 'vehicle') ...[
+                if (!linked)
+                  const PopupMenuItem(
+                    value: 'edit-series',
+                    child: Text('Ganze Serie bearbeiten'),
+                  ),
+                const PopupMenuItem(
+                  value: 'convert',
+                  child: Text('In Dauerauftrag umwandeln'),
                 ),
+              ],
               const PopupMenuItem(value: 'delete', child: Text('Löschen')),
-              if (recurring)
+              if (recurring && !fromOrder)
                 const PopupMenuItem(
                   value: 'delete-series',
                   child: Text('Ganze Serie löschen'),
@@ -782,6 +795,23 @@ class _EntryTile extends ConsumerWidget {
     }
     if (value == 'edit-series') {
       await showEntryEditor(context, ref, entry: entry, editSeries: true);
+      return;
+    }
+    if (value == 'standing-order') {
+      final order = ref
+          .read(standingOrdersProvider)
+          .valueOrNull
+          ?.where((item) => item.id == entry.recurrenceId)
+          .firstOrNull;
+      if (order != null) {
+        await showStandingOrderEditor(context, ref, order: order);
+      } else {
+        openMore(ref, 'standingOrders');
+      }
+      return;
+    }
+    if (value == 'convert') {
+      await _convertToStandingOrder(context, ref);
       return;
     }
     final series = value == 'delete-series';
@@ -867,6 +897,58 @@ class _EntryTile extends ConsumerWidget {
                 ),
         ),
       );
+  }
+}
+
+extension on _EntryTile {
+  Future<void> _convertToStandingOrder(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.event_repeat_rounded),
+        title: const Text('In Dauerauftrag umwandeln?'),
+        content: const Text(
+          'Bereits gebuchte Monate bleiben. Die geplanten Buchungen der '
+          'Serie werden entfernt; der Dauerauftrag legt sie ab jetzt '
+          'jeden Monat selbst an, ohne festes Ende.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Umwandeln'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final done = await saveWithFeedback(
+      context,
+      () => ref
+          .read(databaseProvider)
+          .convertSeriesToStandingOrder(entry.recurrenceId, userId),
+      failure: 'Umwandeln fehlgeschlagen',
+      source: 'Serie umwandeln',
+    );
+    if (!done) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: const Text('Serie ist jetzt ein Dauerauftrag'),
+        action: SnackBarAction(
+          label: 'Anzeigen',
+          onPressed: () => openMore(ref, 'standingOrders'),
+        ),
+      ),
+    );
   }
 }
 
