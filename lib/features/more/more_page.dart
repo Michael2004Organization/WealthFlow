@@ -159,34 +159,27 @@ class _MorePageState extends ConsumerState<MorePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const PageHeader(title: 'Mehr'),
-              Align(
-                alignment: Alignment.centerRight,
-                child: SizedBox(
-                  width: 250,
-                  child: SearchableDropdownButtonFormField<String>(
-                    initialValue: _sortMode,
-                    decoration: const InputDecoration(
-                      labelText: 'Sortierung',
-                      prefixIcon: Icon(Icons.sort_rounded),
+              PageHeader(
+                title: 'Mehr',
+                action: PopupMenuButton<String>(
+                  tooltip: 'Sortierung',
+                  icon: const Icon(Icons.sort_rounded),
+                  initialValue: _sortMode,
+                  onSelected: (value) {
+                    setState(() => _sortMode = value);
+                    _persistLayout();
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: 'default',
+                      child: Text('Standardreihenfolge'),
                     ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'default',
-                        child: Text('Standardreihenfolge'),
-                      ),
-                      DropdownMenuItem(value: 'name', child: Text('Name A–Z')),
-                      DropdownMenuItem(
-                        value: 'custom',
-                        child: Text('Eigene Reihenfolge'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => _sortMode = value);
-                      _persistLayout();
-                    },
-                  ),
+                    PopupMenuItem(value: 'name', child: Text('Name A–Z')),
+                    PopupMenuItem(
+                      value: 'custom',
+                      child: Text('Eigene Reihenfolge'),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 12),

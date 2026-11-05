@@ -224,7 +224,10 @@ class PageHeader extends StatelessWidget {
         : Text(title, style: style);
     return Padding(
       padding: EdgeInsets.fromLTRB(4, compact ? 4 : 8, 4, compact ? 16 : 20),
-      child: compact || actionBelow
+      // Icon actions stay beside the title, wider ones move below on phones.
+      child:
+          (compact && action is! PopupMenuButton && action is! IconButton) ||
+              actionBelow
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

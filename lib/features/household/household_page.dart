@@ -706,7 +706,12 @@ class _EntryTile extends ConsumerWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AmountText(entry.amount, income: positive, neutral: linked),
+          AmountText(
+            entry.amount,
+            income: positive,
+            neutral: linked,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
           PopupMenuButton<String>(
             onSelected: (value) => _handleAction(context, ref, value),
             itemBuilder: (_) => [

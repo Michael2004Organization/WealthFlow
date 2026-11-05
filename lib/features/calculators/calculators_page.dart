@@ -9,6 +9,7 @@ import 'package:wealthflow_core/database/app_database.dart';
 import 'package:wealthflow_core/finance/amount_input.dart';
 import 'package:wealthflow_core/finance/budget_period.dart';
 
+import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -286,7 +287,7 @@ class _CompoundCalculatorState extends ConsumerState<_CompoundCalculator> {
               _Result(
                 label: 'Ertrag',
                 value: money(end - paid),
-                color: Colors.green,
+                color: WealthColors.of(context).income,
               ),
             ],
           ),
@@ -353,7 +354,7 @@ class _CompoundCalculatorState extends ConsumerState<_CompoundCalculator> {
                   LineChartBarData(
                     spots: paidSpots,
                     isCurved: false,
-                    color: Colors.teal,
+                    color: WealthColors.of(context).chart[2],
                     barWidth: 2,
                     dashArray: [7, 5],
                     dotData: const FlDotData(show: false),
@@ -726,13 +727,13 @@ class _FuelCalculatorState extends State<_FuelCalculator> {
                   label: 'PREIS A',
                   fuelPrice: _value(_price.text),
                   cost: costA,
-                  color: Colors.indigo,
+                  color: WealthColors.of(context).chart[3],
                 ),
                 _FuelPriceCard(
                   label: 'PREIS B',
                   fuelPrice: _value(_priceB.text),
                   cost: costB,
-                  color: Colors.teal,
+                  color: WealthColors.of(context).chart[2],
                 ),
               ];
               return constraints.maxWidth < 520
@@ -763,12 +764,12 @@ class _FuelCalculatorState extends State<_FuelCalculator> {
                     ? 'Ersparnis pro Jahr'
                     : 'Ersparnis je Tankfüllung',
                 value: money(annualDifference),
-                color: Colors.orange,
+                color: WealthColors.of(context).expense,
               ),
               _Result(
                 label: 'Direkte Differenz',
                 value: money(difference),
-                color: Colors.deepOrange,
+                color: WealthColors.of(context).warning,
               ),
             ],
           ),
@@ -1169,7 +1170,7 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
                     LineChartBarData(
                       spots: targetSpots,
                       barWidth: 2,
-                      color: Colors.orange,
+                      color: WealthColors.of(context).expense,
                       dashArray: [8, 5],
                       dotData: const FlDotData(show: false),
                     ),
@@ -1178,16 +1179,22 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
             ),
           ),
           const SizedBox(height: 8),
-          const Wrap(
+          Wrap(
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 4,
             runSpacing: 4,
             children: [
-              Icon(Icons.show_chart_rounded, color: Colors.indigo),
-              Text(' Vermögen  '),
-              Icon(Icons.remove_rounded, color: Colors.orange),
-              Text(' Zielkapital'),
+              Icon(
+                Icons.show_chart_rounded,
+                color: WealthColors.of(context).chart[3],
+              ),
+              const Text(' Vermögen  '),
+              Icon(
+                Icons.remove_rounded,
+                color: WealthColors.of(context).expense,
+              ),
+              const Text(' Zielkapital'),
             ],
           ),
         ],
@@ -1415,7 +1422,7 @@ class _AccountTargetCalculatorState
                       : Icons.flag_circle_rounded,
                   size: 54,
                   color: reachedAt == null
-                      ? Colors.orange
+                      ? WealthColors.of(context).expense
                       : Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(height: 10),
@@ -1445,7 +1452,9 @@ class _AccountTargetCalculatorState
                       label:
                           'Ende ${DateFormat('MM.yyyy').format(effectiveEnd)}',
                       value: money(projected),
-                      color: projected >= target ? Colors.green : Colors.orange,
+                      color: projected >= target
+                          ? WealthColors.of(context).income
+                          : WealthColors.of(context).expense,
                     ),
                   ],
                 ),
@@ -1466,7 +1475,9 @@ class _AccountTargetCalculatorState
                         item.$3.isIncome
                             ? Icons.add_circle_outline_rounded
                             : Icons.remove_circle_outline_rounded,
-                        color: item.$3.isIncome ? Colors.green : Colors.orange,
+                        color: item.$3.isIncome
+                            ? WealthColors.of(context).income
+                            : WealthColors.of(context).expense,
                       ),
                       title: Text(
                         item.$3.merchant.isEmpty

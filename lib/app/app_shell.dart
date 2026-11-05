@@ -164,27 +164,25 @@ class _PhoneNavigation extends ConsumerWidget {
                   child: Center(
                     child: Tooltip(
                       message: 'Neue Buchung',
-                      child: Material(
-                        color: scheme.primary,
-                        elevation: 0,
-                        shadowColor: scheme.primary,
-                        borderRadius: BorderRadius.circular(18),
-                        child: InkWell(
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: scheme.primary,
                           borderRadius: BorderRadius.circular(18),
-                          onTap: () => startNewBooking(context, ref),
-                          child: Ink(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: scheme.primary.withValues(alpha: .35),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
+                          boxShadow: [
+                            BoxShadow(
+                              color: scheme.primary.withValues(alpha: .35),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
                             ),
+                          ],
+                        ),
+                        child: Material(
+                          type: MaterialType.transparency,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(18),
+                            onTap: () => startNewBooking(context, ref),
                             child: Icon(
                               Icons.add_rounded,
                               size: 28,

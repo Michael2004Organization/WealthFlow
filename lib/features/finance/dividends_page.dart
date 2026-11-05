@@ -10,6 +10,7 @@ import 'package:wealthflow_core/finance/currencies.dart';
 import 'package:wealthflow_core/finance/dividend_math.dart';
 import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 
+import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 import 'investments_page.dart';
@@ -311,7 +312,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                               title: 'Pro Jahr',
                               value: yearly,
                               icon: Icons.calendar_today_rounded,
-                              color: Colors.green,
+                              color: WealthColors.of(context).income,
                               currency: baseCurrency,
                               payments: projection,
                               periodLabel: '${now.year}',
@@ -323,7 +324,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                               title: 'Pro Quartal',
                               value: quarterly,
                               icon: Icons.date_range_rounded,
-                              color: Colors.teal,
+                              color: WealthColors.of(context).chart[2],
                               currency: baseCurrency,
                               payments: projection
                                   .where(
@@ -342,7 +343,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                               title: 'Pro Monat',
                               value: monthly,
                               icon: Icons.today_rounded,
-                              color: Colors.cyan,
+                              color: WealthColors.of(context).chart[3],
                               currency: baseCurrency,
                               payments: projection
                                   .where(
@@ -735,14 +736,7 @@ class _DividendChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = [
-      Colors.indigo,
-      Colors.teal,
-      Colors.orange,
-      Colors.purple,
-      Colors.cyan,
-      Colors.pink,
-    ];
+    final palette = WealthColors.of(context).chart;
     final total = items.fold<double>(
       0,
       (sum, item) => sum + _annualDividend(projection, item.id),
@@ -1974,7 +1968,7 @@ class _DividendMonthCard extends StatelessWidget {
               Text(
                 money(total, currency: baseCurrency),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.green,
+                  color: WealthColors.of(context).income,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -2005,10 +1999,10 @@ class _DividendMonthCard extends StatelessWidget {
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
                                 color: !payment.paymentDateKnown
-                                    ? Colors.orange
+                                    ? WealthColors.of(context).expense
                                     : payment.date.isAfter(DateTime.now())
                                     ? Theme.of(context).colorScheme.primary
-                                    : Colors.green,
+                                    : WealthColors.of(context).income,
                                 fontWeight: FontWeight.w700,
                               ),
                         ),
@@ -2261,7 +2255,7 @@ class _DividendTaxRow extends StatelessWidget {
             textAlign: TextAlign.right,
             style: TextStyle(
               fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
-              color: value < 0 ? Theme.of(context).colorScheme.error : null,
+              color: value < 0 ? WealthColors.of(context).expense : null,
             ),
           ),
         );

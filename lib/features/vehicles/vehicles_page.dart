@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'package:wealthflow_core/database/app_database.dart';
 import 'package:wealthflow_core/finance/amount_input.dart';
 
+import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/save_feedback.dart';
@@ -82,7 +83,7 @@ class VehiclesPage extends ConsumerWidget {
                                     value: money(fleetValue),
                                     caption: '${items.length} Fahrzeuge',
                                     icon: Icons.directions_car_filled_rounded,
-                                    color: Colors.teal,
+                                    color: WealthColors.of(context).chart[2],
                                   ),
                                 ),
                                 SizedBox(
@@ -92,7 +93,7 @@ class VehiclesPage extends ConsumerWidget {
                                     value: money(total),
                                     caption: '${costs.length} Kosteneinträge',
                                     icon: Icons.car_repair_rounded,
-                                    color: Colors.orange,
+                                    color: WealthColors.of(context).expense,
                                   ),
                                 ),
                               ],

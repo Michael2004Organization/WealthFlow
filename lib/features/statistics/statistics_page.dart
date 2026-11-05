@@ -7,6 +7,7 @@ import 'package:wealthflow_core/database/app_database.dart';
 import 'package:wealthflow_core/finance/budget_period.dart';
 import 'package:wealthflow_core/finance/currency_conversion.dart';
 
+import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -632,7 +633,9 @@ class _AccountsChart extends StatelessWidget {
                     title:
                         '${accounts[index].label}\n${money(accounts[index].balance, currency: accounts[index].currency)}',
                     radius: 62,
-                    color: Colors.primaries[index % Colors.primaries.length],
+                    color: WealthColors.of(
+                      context,
+                    ).chart[index % WealthColors.of(context).chart.length],
                     titleStyle: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -799,7 +802,9 @@ class _CategoryChart extends StatelessWidget {
                       title:
                           '${sorted[index].key}\n${money(sorted[index].value)}',
                       radius: 64,
-                      color: Colors.primaries[index % Colors.primaries.length],
+                      color: WealthColors.of(
+                        context,
+                      ).chart[index % WealthColors.of(context).chart.length],
                       titleStyle: const TextStyle(
                         color: Colors.white,
                         fontSize: 9,
@@ -873,9 +878,15 @@ class _CashflowChartState extends State<_CashflowChart> {
         children: [
           Row(
             children: [
-              _LegendDot(color: Colors.green, label: 'Einnahmen'),
+              _LegendDot(
+                color: WealthColors.of(context).income,
+                label: 'Einnahmen',
+              ),
               const SizedBox(width: 18),
-              _LegendDot(color: Colors.redAccent, label: 'Ausgaben'),
+              _LegendDot(
+                color: WealthColors.of(context).expense,
+                label: 'Ausgaben',
+              ),
               const Spacer(),
               SizedBox(
                 width: 116,
@@ -993,13 +1004,13 @@ class _CashflowChartState extends State<_CashflowChart> {
                               BarChartRodData(
                                 toY: income[i],
                                 width: 14,
-                                color: Colors.green,
+                                color: WealthColors.of(context).income,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               BarChartRodData(
                                 toY: expense[i],
                                 width: 14,
-                                color: Colors.redAccent,
+                                color: WealthColors.of(context).expense,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                             ],
@@ -1044,14 +1055,14 @@ class _CashflowChartState extends State<_CashflowChart> {
                       Text(
                         'Einnahmen  ${money(income[sourceIndex])}',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Colors.green,
+                          color: WealthColors.of(context).income,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
                         'Ausgaben  ${money(expense[sourceIndex])}',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Colors.redAccent,
+                          color: WealthColors.of(context).expense,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -1059,8 +1070,8 @@ class _CashflowChartState extends State<_CashflowChart> {
                         'Saldo  ${money(income[sourceIndex] - expense[sourceIndex])}',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: income[sourceIndex] - expense[sourceIndex] >= 0
-                              ? Colors.green
-                              : Colors.redAccent,
+                              ? WealthColors.of(context).income
+                              : WealthColors.of(context).expense,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

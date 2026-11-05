@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:wealthflow_core/database/app_database.dart';
 
+import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -79,11 +80,16 @@ class _ReminderTile extends ConsumerWidget {
       child: ListTile(
         onTap: () => showReminderEditor(context, ref, reminder: reminder),
         leading: CircleAvatar(
-          backgroundColor: (overdue ? Colors.grey : Colors.deepPurple)
-              .withValues(alpha: .14),
+          backgroundColor:
+              (overdue
+                      ? WealthColors.of(context).muted
+                      : WealthColors.of(context).income)
+                  .withValues(alpha: .14),
           child: Icon(
             overdue ? Icons.notifications_off_outlined : Icons.alarm_rounded,
-            color: overdue ? Colors.grey : Colors.deepPurple,
+            color: overdue
+                ? WealthColors.of(context).muted
+                : WealthColors.of(context).income,
           ),
         ),
         title: Text(

@@ -11,6 +11,7 @@ import 'package:wealthflow_core/finance/currencies.dart';
 import 'package:wealthflow_core/finance/portfolio_master_data.dart';
 import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 
+import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/save_feedback.dart';
@@ -917,8 +918,8 @@ class _PortfolioSummary extends StatelessWidget {
               tooltip:
                   'Aktueller theoretischer Gewinn oder Verlust der gehaltenen Aktien. Verkäufe und physische Werte sind nicht enthalten.',
               color: positive
-                  ? Colors.green
-                  : Theme.of(context).colorScheme.error,
+                  ? WealthColors.of(context).income
+                  : WealthColors.of(context).expense,
             ),
             _SummaryValue(
               label: 'Performance',
@@ -926,8 +927,8 @@ class _PortfolioSummary extends StatelessWidget {
                   ? '–'
                   : '${positive ? '+' : ''}${(gain / performanceBase * 100).toStringAsFixed(2)} %',
               color: positive
-                  ? Colors.green
-                  : Theme.of(context).colorScheme.error,
+                  ? WealthColors.of(context).income
+                  : WealthColors.of(context).expense,
             ),
             _SummaryValue(label: 'Positionen', value: '$positions'),
             _SummaryValue(label: 'Cash', value: money(cash)),
@@ -1137,8 +1138,8 @@ Future<void> _showTaxAllowanceInfo(
                               ? Icons.receipt_long_outlined
                               : Icons.check_circle_outline_rounded,
                           color: event.taxPaid > 0
-                              ? Colors.orange
-                              : Colors.green,
+                              ? WealthColors.of(context).expense
+                              : WealthColors.of(context).income,
                         ),
                       ),
                 ],
@@ -1347,8 +1348,8 @@ class _PhysicalAssetTile extends ConsumerWidget {
                   '${positive ? '+' : ''}${money(gain)}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: positive
-                        ? Colors.green
-                        : Theme.of(context).colorScheme.error,
+                        ? WealthColors.of(context).income
+                        : WealthColors.of(context).expense,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1689,8 +1690,8 @@ class _InvestmentTile extends ConsumerWidget {
                   '${positive ? '+' : ''}${money(gain)}',
                   style: TextStyle(
                     color: positive
-                        ? Colors.green
-                        : Theme.of(context).colorScheme.error,
+                        ? WealthColors.of(context).income
+                        : WealthColors.of(context).expense,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -3962,10 +3963,12 @@ Future<void> _showPortfolioActivity(
                                           .bodyMedium
                                           ?.copyWith(
                                             color: positive
-                                                ? Colors.green
-                                                : Theme.of(
+                                                ? WealthColors.of(
                                                     context,
-                                                  ).colorScheme.error,
+                                                  ).income
+                                                : WealthColors.of(
+                                                    context,
+                                                  ).expense,
                                             fontWeight: FontWeight.w800,
                                           ),
                                     ),
@@ -4152,8 +4155,8 @@ Future<void> _showSaleDetail(
                         value:
                             '${sale.realizedGain >= 0 ? '+' : ''}${money(sale.realizedGain, currency: baseCurrency)}',
                         color: sale.realizedGain >= 0
-                            ? Colors.green
-                            : Theme.of(context).colorScheme.error,
+                            ? WealthColors.of(context).income
+                            : WealthColors.of(context).expense,
                       ),
                     ),
                   ],

@@ -214,7 +214,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       previousMonth: _dashboardMonths[previousMonthEnd.month - 1],
       accounts: accountBalance,
       portfolio: portfolio,
-      tangible: vehicleValue,
       snapshots: snapshots,
       onTap: () => openFinance(ref, 0),
     );
@@ -1097,7 +1096,6 @@ class _NetWorthHero extends StatelessWidget {
     required this.previousMonth,
     required this.accounts,
     required this.portfolio,
-    required this.tangible,
     required this.snapshots,
     required this.onTap,
   });
@@ -1107,7 +1105,6 @@ class _NetWorthHero extends StatelessWidget {
   final String previousMonth;
   final double accounts;
   final double portfolio;
-  final double tangible;
   final List<NetWorthSnapshot> snapshots;
   final VoidCallback onTap;
 
@@ -1241,10 +1238,12 @@ class _NetWorthHero extends StatelessWidget {
                 children: [
                   Expanded(child: figure('Konten', accounts, colors.chart[0])),
                   const SizedBox(width: 12),
-                  Expanded(child: figure('Depot', portfolio, colors.chart[2])),
-                  const SizedBox(width: 12),
                   Expanded(
-                    child: figure('Fahrzeuge', tangible, colors.chart[1]),
+                    child: figure(
+                      'Depot & Sachwerte',
+                      portfolio,
+                      colors.chart[2],
+                    ),
                   ),
                 ],
               ),
