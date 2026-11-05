@@ -139,18 +139,6 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
           (sum, payment) => sum + payment.tax.net,
         );
         final current = DateTime.now();
-        final now = DateTime(_selectedYear, current.month, current.day);
-        final quarterStart = ((now.month - 1) ~/ 3) * 3 + 1;
-        final quarterly = projection
-            .where(
-              (payment) =>
-                  payment.month >= quarterStart &&
-                  payment.month < quarterStart + 3,
-            )
-            .fold<double>(0, (sum, payment) => sum + payment.tax.net);
-        final monthly = projection
-            .where((payment) => payment.month == now.month)
-            .fold<double>(0, (sum, payment) => sum + payment.tax.net);
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Center(
@@ -160,9 +148,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   PageHeader(
-                    title:
-                        'Dividenden – Erträge und Ausschüttungsrhythmus deiner Positionen',
-                    titleSingleLine: true,
+                    title: 'Dividenden',
                     actionBelow: true,
                     action: Wrap(
                       spacing: 10,
@@ -298,66 +284,23 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                       ],
                     ),
                   ),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final width = constraints.maxWidth < 700
-                          ? constraints.maxWidth
-                          : (constraints.maxWidth - 32) / 3;
-                      return Wrap(
-                        spacing: 16,
-                        runSpacing: 16,
-                        children: [
-                          SizedBox(
-                            width: width,
-                            child: _DividendMetric(
-                              title: 'Pro Jahr',
-                              value: yearly,
-                              icon: Icons.calendar_today_rounded,
-                              color: WealthColors.of(context).income,
-                              currency: baseCurrency,
-                              payments: projection,
-                              periodLabel: '${now.year}',
-                            ),
-                          ),
-                          SizedBox(
-                            width: width,
-                            child: _DividendMetric(
-                              title: 'Pro Quartal',
-                              value: quarterly,
-                              icon: Icons.date_range_rounded,
-                              color: WealthColors.of(context).chart[2],
-                              currency: baseCurrency,
-                              payments: projection
-                                  .where(
-                                    (payment) =>
-                                        payment.month >= quarterStart &&
-                                        payment.month < quarterStart + 3,
-                                  )
-                                  .toList(),
-                              periodLabel:
-                                  '${((now.month - 1) ~/ 3) + 1}. Quartal ${now.year}',
-                            ),
-                          ),
-                          SizedBox(
-                            width: width,
-                            child: _DividendMetric(
-                              title: 'Pro Monat',
-                              value: monthly,
-                              icon: Icons.today_rounded,
-                              color: WealthColors.of(context).chart[3],
-                              currency: baseCurrency,
-                              payments: projection
-                                  .where(
-                                    (payment) => payment.month == now.month,
-                                  )
-                                  .toList(),
-                              periodLabel: monthLabel(now),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+                  if (dividendItems.isNotEmpty)
+                    _DividendHero(
+                      year: _selectedYear,
+                      yearly: yearly,
+                      projection: projection,
+                      baseCurrency: baseCurrency,
+                      taxPaid: taxYear.taxPaid,
+                      allowanceRemaining: taxYear.allowanceRemaining,
+                      onTaxTap: () => _showDividendTaxInfo(
+                        context,
+                        taxYear,
+                        projection,
+                        sales,
+                        _selectedYear,
+                        taxThrough,
+                      ),
+                    ),
                   const SizedBox(height: 16),
                   if (dividendItems.isEmpty)
                     SizedBox(
@@ -375,122 +318,80 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
                       ),
                     )
                   else
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final chartWidth = constraints.maxWidth < 820
-                            ? constraints.maxWidth
-                            : (constraints.maxWidth - 16) * .48;
-                        final listWidth = constraints.maxWidth < 820
-                            ? constraints.maxWidth
-                            : (constraints.maxWidth - 16) * .52;
-                        return Wrap(
-                          spacing: 16,
-                          runSpacing: 16,
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(
-                              width: chartWidth,
-                              height: 390,
-                              child: _DividendChart(
-                                items: visibleItems,
-                                projection: projection,
-                              ),
+                            Text(
+                              'Nach Unternehmen',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
                             ),
-                            SizedBox(
-                              width: listWidth,
-                              child: Card(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(20),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Nach Unternehmen',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      for (final item in visibleItems)
-                                        ListTile(
-                                          contentPadding: EdgeInsets.zero,
-                                          onTap: () => showInvestmentEditor(
-                                            context,
-                                            ref,
-                                            investment: item,
-                                          ),
-                                          leading: CircleAvatar(
-                                            child: Text(
-                                              item.symbol.isEmpty
-                                                  ? item.name[0]
-                                                  : item.symbol[0],
-                                            ),
-                                          ),
-                                          title: Text(item.name),
-                                          subtitle: Text(
-                                            '${item.dividendFrequency} · '
-                                            '${_perShareSummary(item, schedules)} je Stück',
-                                          ),
-                                          trailing: Text(
-                                            '${money(_annualDividend(projection, item.id) / 12, currency: baseCurrency)}/Monat',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 15,
-                                            ),
-                                          ),
-                                        ),
-                                      const Divider(height: 24),
-                                      InkWell(
-                                        borderRadius: BorderRadius.circular(14),
-                                        onTap: () => _showDividendTaxInfo(
-                                          context,
-                                          taxYear,
-                                          projection,
-                                          sales,
-                                          _selectedYear,
-                                          taxThrough,
-                                        ),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(12),
-                                          child: Wrap(
-                                            spacing: 22,
-                                            runSpacing: 10,
-                                            children: [
-                                              _CompactTaxMetric(
-                                                label: 'Steuern',
-                                                value: money(taxYear.taxPaid),
-                                                icon:
-                                                    Icons.receipt_long_outlined,
-                                              ),
-                                              _CompactTaxMetric(
-                                                label: 'Freistellung verwendet',
-                                                value: money(
-                                                  taxYear.allowanceUsed,
-                                                ),
-                                                icon: Icons.savings_outlined,
-                                              ),
-                                              _CompactTaxMetric(
-                                                label: 'Freistellung frei',
-                                                value: money(
-                                                  taxYear.allowanceRemaining,
-                                                ),
-                                                icon: Icons.shield_outlined,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                            const SizedBox(height: 4),
+                            for (final item in visibleItems)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                onTap: () => showInvestmentEditor(
+                                  context,
+                                  ref,
+                                  investment: item,
+                                ),
+                                leading: IconTile(
+                                  size: 40,
+                                  label:
+                                      (item.symbol.isEmpty
+                                              ? item.name
+                                              : item.symbol)
+                                          .substring(
+                                            0,
+                                            (item.symbol.isEmpty
+                                                    ? item.name
+                                                    : item.symbol)
+                                                .length
+                                                .clamp(1, 4),
+                                          )
+                                          .toUpperCase(),
+                                ),
+                                title: Text(
+                                  item.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
+                                subtitle: Text(
+                                  '${item.dividendFrequency} · '
+                                  '${_perShareSummary(item, schedules)} je Stück',
+                                ),
+                                trailing: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      money(
+                                        _annualDividend(projection, item.id),
+                                        currency: baseCurrency,
+                                      ),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${money(_annualDividend(projection, item.id) / 12, currency: baseCurrency)}/Monat',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: WealthColors.of(context).muted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
                           ],
-                        );
-                      },
+                        ),
+                      ),
                     ),
                   if (dividendItems.isNotEmpty) ...[
                     const SizedBox(height: 16),
@@ -518,47 +419,6 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
       },
     );
   }
-}
-
-class _DividendMetric extends StatelessWidget {
-  const _DividendMetric({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.currency,
-    required this.payments,
-    required this.periodLabel,
-  });
-
-  final String title;
-  final double value;
-  final IconData icon;
-  final Color color;
-  final String currency;
-  final List<ProjectedDividend> payments;
-  final String periodLabel;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: '$title Details',
-    child: InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: () => _showDividendPayments(
-        context,
-        title: '$title · $periodLabel',
-        payments: payments,
-        baseCurrency: currency,
-      ),
-      child: MetricCard(
-        title: title,
-        value: money(value, currency: currency),
-        icon: icon,
-        color: color,
-      ),
-    ),
-  );
 }
 
 class _CompactTaxMetric extends StatelessWidget {
@@ -729,104 +589,6 @@ Future<void> _showDividendTaxInfo(
   );
 }
 
-class _DividendChart extends StatelessWidget {
-  const _DividendChart({required this.items, required this.projection});
-  final List<Investment> items;
-  final List<ProjectedDividend> projection;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = WealthColors.of(context).chart;
-    final total = items.fold<double>(
-      0,
-      (sum, item) => sum + _annualDividend(projection, item.id),
-    );
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Verteilung',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: PieChart(
-                PieChartData(
-                  centerSpaceRadius: 58,
-                  sectionsSpace: 3,
-                  sections: [
-                    for (var index = 0; index < items.length; index++)
-                      PieChartSectionData(
-                        value: _annualDividend(projection, items[index].id),
-                        title: items[index].symbol.isEmpty
-                            ? items[index].name
-                            : items[index].symbol,
-                        color: palette[index % palette.length],
-                        radius: 72,
-                        titleStyle: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            ExpansionTile(
-              initiallyExpanded: true,
-              tilePadding: EdgeInsets.zero,
-              childrenPadding: EdgeInsets.zero,
-              title: const Text('Betrag · Anteil im Dividendenportfolio'),
-              children: [
-                SizedBox(
-                  height: 94,
-                  child: ListView.builder(
-                    itemCount: items.length,
-                    itemBuilder: (context, index) => Padding(
-                      padding: const EdgeInsets.only(top: 5),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: palette[index % palette.length],
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              items[index].name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Text(
-                            '${money(_annualDividend(projection, items[index].id))} · '
-                            '${(total <= 0 ? 0 : _annualDividend(projection, items[index].id) / total * 100).toStringAsFixed(1)} %',
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 double _annualDividend(
   List<ProjectedDividend> projection,
   String investmentId,
@@ -981,31 +743,6 @@ class _DividendCalendar extends ConsumerWidget {
                   ],
                 );
               },
-            ),
-            const SizedBox(height: 20),
-            Text(
-              '${selected?.name ?? 'Alle Aktien'} im Jahresverlauf',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 230,
-              child: _AnnualDividendChart(
-                investment: selected,
-                projection: projection,
-                baseCurrency: baseCurrency,
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 190,
-              child: _AnnualDividendLineChart(
-                investment: selected,
-                projection: projection,
-                baseCurrency: baseCurrency,
-              ),
             ),
             const SizedBox(height: 12),
             if (selected == null)
@@ -1533,105 +1270,6 @@ class _AnnualDividendChart extends StatelessWidget {
                 ),
               ],
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AnnualDividendLineChart extends StatelessWidget {
-  const _AnnualDividendLineChart({
-    required this.investment,
-    required this.projection,
-    required this.baseCurrency,
-  });
-
-  final Investment? investment;
-  final List<ProjectedDividend> projection;
-  final String baseCurrency;
-
-  @override
-  Widget build(BuildContext context) {
-    final values = List.generate(
-      12,
-      (index) => projection
-          .where(
-            (payment) =>
-                (investment == null ||
-                    payment.investment.id == investment!.id) &&
-                payment.month == index + 1,
-          )
-          .fold<double>(0, (sum, payment) => sum + payment.tax.net),
-    );
-    final maximum = values.fold<double>(
-      0,
-      (max, value) => value > max ? value : max,
-    );
-    final color = Theme.of(context).colorScheme.primary;
-    return LineChart(
-      LineChartData(
-        minX: 0,
-        maxX: 11,
-        minY: 0,
-        maxY: maximum <= 0 ? 1 : maximum * 1.2,
-        borderData: FlBorderData(show: false),
-        gridData: FlGridData(
-          drawVerticalLine: false,
-          getDrawingHorizontalLine: (_) => FlLine(
-            color: Theme.of(context).dividerColor.withValues(alpha: .18),
-          ),
-        ),
-        titlesData: FlTitlesData(
-          leftTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: 1,
-              getTitlesWidget: (value, meta) => Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(monthNames[value.toInt()].substring(0, 3)),
-              ),
-            ),
-          ),
-        ),
-        lineTouchData: LineTouchData(
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipItems: (spots) => spots
-                .map(
-                  (spot) => LineTooltipItem(
-                    '${monthNames[spot.x.toInt()]}\n'
-                    '${money(spot.y, currency: baseCurrency)} netto',
-                    const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-        ),
-        lineBarsData: [
-          LineChartBarData(
-            spots: values.indexed
-                .map((item) => FlSpot(item.$1.toDouble(), item.$2))
-                .toList(),
-            isCurved: true,
-            barWidth: 4,
-            color: color,
-            dotData: const FlDotData(show: true),
-            belowBarData: BarAreaData(
-              show: true,
-              color: color.withValues(alpha: .12),
-            ),
-          ),
         ],
       ),
     );
@@ -2380,5 +2018,96 @@ Future<void> _deleteSchedule(
     await ref
         .read(databaseProvider)
         .deleteDividendSchedule(schedule.id, userId);
+  }
+}
+
+/// Year total after taxes with the monthly bars on top of the page.
+class _DividendHero extends StatelessWidget {
+  const _DividendHero({
+    required this.year,
+    required this.yearly,
+    required this.projection,
+    required this.baseCurrency,
+    required this.taxPaid,
+    required this.allowanceRemaining,
+    required this.onTaxTap,
+  });
+
+  final int year;
+  final double yearly;
+  final List<ProjectedDividend> projection;
+  final String baseCurrency;
+  final double taxPaid;
+  final double allowanceRemaining;
+  final VoidCallback onTaxTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WealthColors.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Eyebrow('Dividenden $year · nach Steuern'),
+            const SizedBox(height: 6),
+            Text(
+              money(yearly, currency: baseCurrency),
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                fontSize: 36,
+                letterSpacing: -.5,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '≈ ${money(yearly / 12, currency: baseCurrency)} pro Monat',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: colors.income,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 200,
+              child: _AnnualDividendChart(
+                investment: null,
+                projection: projection,
+                baseCurrency: baseCurrency,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Divider(height: 1, color: colors.border),
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: onTaxTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Wrap(
+                  spacing: 28,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _CompactTaxMetric(
+                      label: 'Steuern',
+                      value: money(taxPaid),
+                      icon: Icons.receipt_long_outlined,
+                    ),
+                    _CompactTaxMetric(
+                      label: 'Freistellung frei',
+                      value: money(allowanceRemaining),
+                      icon: Icons.shield_outlined,
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: colors.muted),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
