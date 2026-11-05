@@ -49,7 +49,6 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
         ref.watch(physicalAssetsProvider).valueOrNull ??
         const <PhysicalAsset>[];
     final preference = ref.watch(preferencesProvider).valueOrNull;
-    final isAdmin = ref.watch(isAdminProvider);
     final purchases =
         ref.watch(investmentPurchasesProvider).valueOrNull ??
         const <InvestmentPurchase>[];
@@ -138,8 +137,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                     ),
                     FilledButton.tonalIcon(
                       style: _portfolioActionButtonStyle,
-                      onPressed: () =>
-                          _showExchangeRates(context, ref, isAdmin: isAdmin),
+                      onPressed: () => _showExchangeRates(context, ref),
                       icon: const Icon(Icons.currency_exchange_rounded),
                       label: const Text('Wechselkurse'),
                     ),
@@ -528,21 +526,13 @@ class _PortfolioHeaderActions extends StatelessWidget {
   }
 }
 
-Future<void> _showExchangeRates(
-  BuildContext context,
-  WidgetRef ref, {
-  required bool isAdmin,
-}) async {
+Future<void> _showExchangeRates(BuildContext context, WidgetRef ref) async {
   final userId = ref.read(currentUserIdProvider);
   if (userId == null) return;
   final database = ref.read(databaseProvider);
   final countries = await database.availableCountries();
   final rates =
       ref.read(countryTaxRatesProvider).valueOrNull ?? const <CountryTaxRate>[];
-  final apiKey = await ref
-      .read(secureSessionStoreProvider)
-      .readExchangeApiKey(userId);
-  final hasApiKey = apiKey?.trim().isNotEmpty ?? false;
   final baseCurrency =
       ref.read(preferencesProvider).valueOrNull?.currency ?? 'EUR';
   if (!context.mounted) return;
@@ -575,21 +565,12 @@ Future<void> _showExchangeRates(
                     baseCurrency: baseCurrency,
                     initialCurrency: stored?.currency ?? baseCurrency,
                     initialRate: stored?.exchangeRate ?? 1,
-                    allowManual: stored?.allowManualExchangeRate ?? true,
-                    hasApiKey: hasApiKey,
-                    isAdmin: isAdmin,
-                    onSave:
-                        ({
-                          required currency,
-                          required exchangeRate,
-                          required allowManual,
-                        }) => database.saveCountryExchangeRate(
+                    onSave: ({required currency, required exchangeRate}) =>
+                        database.saveCountryExchangeRate(
                           actorUserId: userId,
                           country: country,
                           currency: currency,
                           exchangeRate: exchangeRate,
-                          allowManualExchangeRate: isAdmin ? allowManual : null,
-                          apiKeyConfigured: hasApiKey,
                         ),
                   );
                 },
@@ -766,9 +747,6 @@ class _ExchangeRateEditorRow extends StatefulWidget {
     required this.baseCurrency,
     required this.initialCurrency,
     required this.initialRate,
-    required this.allowManual,
-    required this.hasApiKey,
-    required this.isAdmin,
     required this.onSave,
   });
 
@@ -776,13 +754,9 @@ class _ExchangeRateEditorRow extends StatefulWidget {
   final String baseCurrency;
   final String initialCurrency;
   final double initialRate;
-  final bool allowManual;
-  final bool hasApiKey;
-  final bool isAdmin;
   final Future<void> Function({
     required String currency,
     required double exchangeRate,
-    required bool allowManual,
   })
   onSave;
 
@@ -797,10 +771,7 @@ class _ExchangeRateEditorRowState extends State<_ExchangeRateEditorRow> {
   late final TextEditingController _rate = TextEditingController(
     text: widget.initialRate.toStringAsFixed(6),
   );
-  late bool _allowManual = widget.allowManual;
   bool _saving = false;
-
-  bool get _readOnly => widget.hasApiKey && !_allowManual;
 
   @override
   void dispose() {
@@ -819,7 +790,6 @@ class _ExchangeRateEditorRowState extends State<_ExchangeRateEditorRow> {
           width: 82,
           child: TextField(
             controller: _currency,
-            readOnly: _readOnly,
             maxLength: 3,
             textCapitalization: TextCapitalization.characters,
             decoration: const InputDecoration(
@@ -833,24 +803,15 @@ class _ExchangeRateEditorRowState extends State<_ExchangeRateEditorRow> {
           flex: 2,
           child: TextField(
             controller: _rate,
-            readOnly: _readOnly,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
               labelText: 'Kurs zu ${widget.baseCurrency}',
             ),
           ),
         ),
-        if (widget.isAdmin)
-          Tooltip(
-            message: 'Manuelle Eingabe trotz API erlauben',
-            child: Switch.adaptive(
-              value: _allowManual,
-              onChanged: (value) => setState(() => _allowManual = value),
-            ),
-          ),
         IconButton(
           tooltip: 'Wechselkurs speichern',
-          onPressed: _saving || _readOnly
+          onPressed: _saving
               ? null
               : () async {
                   final parsed = _parseNumber(_rate.text);
@@ -866,7 +827,6 @@ class _ExchangeRateEditorRowState extends State<_ExchangeRateEditorRow> {
                   await widget.onSave(
                     currency: _currency.text.toUpperCase(),
                     exchangeRate: parsed,
-                    allowManual: _allowManual,
                   );
                   if (mounted) setState(() => _saving = false);
                 },
@@ -1758,12 +1718,6 @@ Future<void> _showInvestmentDetails(
   Investment investment,
   List<InvestmentPurchase> purchases,
 ) async {
-  final userId = ref.read(currentUserIdProvider);
-  final apiKey = userId == null
-      ? null
-      : await ref.read(secureSessionStoreProvider).readMarketApiKey(userId);
-  final hasApiKey = apiKey?.trim().isNotEmpty ?? false;
-  if (!context.mounted) return;
   await showDialog<void>(
     context: context,
     builder: (context) {
@@ -1818,20 +1772,14 @@ Future<void> _showInvestmentDetails(
                       'Kurs ${money(investment.currentPrice, currency: _instrumentCurrency(investment))}',
                     ),
                   ),
-                  if (!hasApiKey)
-                    ActionChip(
-                      avatar: const Icon(Icons.edit_rounded, size: 18),
-                      label: const Text('Aktuellen Kurs bearbeiten'),
-                      onPressed: () async {
-                        await _editCurrentPrice(context, ref, investment);
-                        if (context.mounted) Navigator.pop(context);
-                      },
-                    )
-                  else
-                    const Chip(
-                      avatar: Icon(Icons.cloud_done_outlined, size: 18),
-                      label: Text('Kurs automatisch verwaltet'),
-                    ),
+                  ActionChip(
+                    avatar: const Icon(Icons.edit_rounded, size: 18),
+                    label: const Text('Aktuellen Kurs bearbeiten'),
+                    onPressed: () async {
+                      await _editCurrentPrice(context, ref, investment);
+                      if (context.mounted) Navigator.pop(context);
+                    },
+                  ),
                   if (investment.isin.isNotEmpty)
                     Chip(label: Text('ISIN ${investment.isin}')),
                 ],
@@ -2137,17 +2085,6 @@ Future<void> showInvestmentEditor(
     accountCurrency,
     if (investment != null) investment.dividendCurrency.toUpperCase(),
   }.where((value) => value.trim().isNotEmpty).toList()..sort();
-  final userIdForApi = ref.read(currentUserIdProvider);
-  final marketApiKey = investment == null || userIdForApi == null
-      ? null
-      : await ref
-            .read(secureSessionStoreProvider)
-            .readMarketApiKey(userIdForApi);
-  final exchangeApiKey = investment == null || userIdForApi == null
-      ? null
-      : await ref
-            .read(secureSessionStoreProvider)
-            .readExchangeApiKey(userIdForApi);
   if (!context.mounted) return;
   final saved = await showDialog<({InvestmentsCompanion investment, bool buy})>(
     context: context,
@@ -2161,8 +2098,6 @@ Future<void> showInvestmentEditor(
       accountId: resolvedAccountId,
       accountCurrency: accountCurrency,
       defaultFee: defaultFee,
-      hasMarketApiKey: marketApiKey?.trim().isNotEmpty ?? false,
-      hasExchangeApiKey: exchangeApiKey?.trim().isNotEmpty ?? false,
     ),
   );
   if (saved != null && context.mounted) {
@@ -2316,15 +2251,6 @@ Future<void> showInvestmentEditor(
             fees: result.fees.value,
             buy: saved.buy,
           );
-          await _importCachedDividendHistory(
-            database: database,
-            userId: userId,
-            investmentId: targetId,
-            stockId: result.stockId.value,
-            purchaseDate: result.purchaseDate.value,
-            exchangeRate: result.dividendExchangeRate.value,
-            withholdingTaxRate: result.dividendWithholdingTaxRate.value,
-          );
         }
         for (final item in {
           'broker': result.broker.value,
@@ -2346,46 +2272,6 @@ Future<void> showInvestmentEditor(
   }
 }
 
-Future<void> _importCachedDividendHistory({
-  required AppDatabase database,
-  required String userId,
-  required String investmentId,
-  required String? stockId,
-  required DateTime purchaseDate,
-  required double exchangeRate,
-  required double withholdingTaxRate,
-}) async {
-  if (stockId == null) return;
-  final now = DateTime.now();
-  final createdAt = now.toUtc();
-  for (var year = purchaseDate.year; year <= now.year; year++) {
-    final dividends = await database.stockDividendsForYear(stockId, year);
-    for (final dividend in dividends) {
-      final paymentDate = dividend.paymentDate ?? dividend.exDate;
-      if (paymentDate.isBefore(purchaseDate) || paymentDate.isAfter(now)) {
-        continue;
-      }
-      await database.saveDividendSchedule(
-        DividendSchedulesCompanion.insert(
-          id: '$investmentId-api-${dividend.id}',
-          userId: userId,
-          investmentId: investmentId,
-          paymentMonth: paymentDate.month,
-          amountPerShare: dividend.amount,
-          exDate: Value(dividend.exDate),
-          paymentDate: Value(dividend.paymentDate),
-          paymentYear: Value(year),
-          currency: Value(dividend.currency),
-          exchangeRate: Value(exchangeRate),
-          withholdingTaxRate: Value(withholdingTaxRate),
-          createdAt: createdAt,
-          updatedAt: createdAt,
-        ),
-      );
-    }
-  }
-}
-
 class _InvestmentEditor extends StatefulWidget {
   const _InvestmentEditor({
     required this.stockMasters,
@@ -2396,8 +2282,6 @@ class _InvestmentEditor extends StatefulWidget {
     required this.accountId,
     required this.accountCurrency,
     required this.defaultFee,
-    required this.hasMarketApiKey,
-    required this.hasExchangeApiKey,
     this.investment,
   });
   final Investment? investment;
@@ -2409,8 +2293,6 @@ class _InvestmentEditor extends StatefulWidget {
   final String accountId;
   final String accountCurrency;
   final double defaultFee;
-  final bool hasMarketApiKey;
-  final bool hasExchangeApiKey;
   @override
   State<_InvestmentEditor> createState() => _InvestmentEditorState();
 }
@@ -2935,7 +2817,6 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                     'Aktueller Kurs',
                     number: true,
                     required: true,
-                    readOnly: widget.hasMarketApiKey && _usesSelectedMaster,
                   ),
                 ]),
                 if (_supportsDividends) ...[
@@ -2947,7 +2828,6 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
                       number: true,
                       required: true,
                       minimum: 0.000001,
-                      readOnly: _exchangeLocked,
                     ),
                     _field(
                       _dividendWithholdingTax,
@@ -3317,8 +3197,6 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
           : (value) => controller.text = value ?? widget.accountCurrency,
     );
   }
-
-  bool get _exchangeLocked => widget.hasExchangeApiKey;
 
   Future<void> _pickDate() async {
     final selected = await showDatePicker(

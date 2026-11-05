@@ -218,8 +218,6 @@ class CountryTaxRates extends Table {
   RealColumn get withholdingTaxRate => real().withDefault(const Constant(0))();
   TextColumn get currency => text().withDefault(const Constant('EUR'))();
   RealColumn get exchangeRate => real().withDefault(const Constant(1))();
-  BoolColumn get allowManualExchangeRate =>
-      boolean().withDefault(const Constant(true))();
   DateTimeColumn get exchangeRateUpdatedAt => dateTime().nullable()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -324,48 +322,6 @@ class AppErrorLogs extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-class StockPrices extends Table {
-  TextColumn get stockId => text().references(StockMasters, #id)();
-  RealColumn get price => real()();
-  TextColumn get currency => text().withDefault(const Constant('EUR'))();
-  DateTimeColumn get quotedAt => dateTime()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {stockId};
-}
-
-class StockDividends extends Table {
-  TextColumn get id => text()();
-  TextColumn get stockId => text().references(StockMasters, #id)();
-  DateTimeColumn get exDate => dateTime()();
-  DateTimeColumn get paymentDate => dateTime().nullable()();
-  RealColumn get amount => real()();
-  TextColumn get currency => text().withDefault(const Constant('EUR'))();
-  DateTimeColumn get fetchedAt => dateTime()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {id};
-}
-
-class MarketDataRefreshes extends Table {
-  TextColumn get dataType => text()();
-  TextColumn get scopeKey => text()();
-  DateTimeColumn get refreshedAt => dateTime()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {dataType, scopeKey};
-}
-
-class ApiRequestDays extends Table {
-  TextColumn get day => text()();
-  IntColumn get requestCount => integer().withDefault(const Constant(0))();
-  DateTimeColumn get updatedAt => dateTime()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {day};
-}
-
-@DataClassName('LedgerEntry')
 class LedgerEntries extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text().references(Users, #id)();
@@ -531,10 +487,6 @@ typedef DataFileWriter = Future<bool> Function(String content, String path);
     UserPreferences,
     NetWorthSnapshots,
     StockMasters,
-    StockPrices,
-    StockDividends,
-    MarketDataRefreshes,
-    ApiRequestDays,
     CountryTaxRates,
     AssetClasses,
     AppConfigurations,
@@ -652,7 +604,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -718,10 +670,6 @@ final class AppDatabase extends _$AppDatabase {
         );
         await migrator.addColumn(dividendSchedules, dividendSchedules.currency);
         await migrator.createTable(stockMasters);
-        await migrator.createTable(stockPrices);
-        await migrator.createTable(stockDividends);
-        await migrator.createTable(marketDataRefreshes);
-        await migrator.createTable(apiRequestDays);
       }
       if (from < 8) {
         await migrator.addColumn(investments, investments.dividendStartMonth);
@@ -826,10 +774,6 @@ final class AppDatabase extends _$AppDatabase {
         await migrator.addColumn(countryTaxRates, countryTaxRates.exchangeRate);
         await migrator.addColumn(
           countryTaxRates,
-          countryTaxRates.allowManualExchangeRate,
-        );
-        await migrator.addColumn(
-          countryTaxRates,
           countryTaxRates.exchangeRateUpdatedAt,
         );
         await migrator.createTable(assetClasses);
@@ -877,17 +821,9 @@ final class AppDatabase extends _$AppDatabase {
         // Recreate the catalogue once to remove the former global UNIQUE
         // constraint on symbol. Empty symbols are valid for bonds and
         // derivatives, while identity is now determined per asset class.
-        await customStatement(
-          'CREATE TABLE stock_prices_v17_cache AS '
-          'SELECT stock_id, price, currency, quoted_at FROM stock_prices',
-        );
-        await customStatement(
-          'CREATE TABLE stock_dividends_v17_cache AS '
-          'SELECT id, stock_id, ex_date, payment_date, amount, currency, '
-          'fetched_at FROM stock_dividends',
-        );
-        await customStatement('DROP TABLE stock_prices');
-        await customStatement('DROP TABLE stock_dividends');
+        // Market data caches referenced stock_masters and were never filled.
+        await customStatement('DROP TABLE IF EXISTS stock_prices');
+        await customStatement('DROP TABLE IF EXISTS stock_dividends');
         await customStatement(
           'ALTER TABLE stock_masters RENAME TO stock_masters_v17',
         );
@@ -910,21 +846,6 @@ final class AppDatabase extends _$AppDatabase {
           'ORDER BY investments.created_at LIMIT 1), asset_type)',
         );
         await customStatement('DROP TABLE stock_masters_v17');
-        await migrator.createTable(stockPrices);
-        await migrator.createTable(stockDividends);
-        await customStatement(
-          'INSERT INTO stock_prices (stock_id, price, currency, quoted_at) '
-          'SELECT stock_id, price, currency, quoted_at '
-          'FROM stock_prices_v17_cache',
-        );
-        await customStatement(
-          'INSERT INTO stock_dividends '
-          '(id, stock_id, ex_date, payment_date, amount, currency, fetched_at) '
-          'SELECT id, stock_id, ex_date, payment_date, amount, currency, '
-          'fetched_at FROM stock_dividends_v17_cache',
-        );
-        await customStatement('DROP TABLE stock_prices_v17_cache');
-        await customStatement('DROP TABLE stock_dividends_v17_cache');
         await _backfillCountryCurrencies();
         await _seedAssetClasses();
       }
@@ -962,6 +883,28 @@ final class AppDatabase extends _$AppDatabase {
           await migrator.addColumn(
             investmentPurchases,
             investmentPurchases.exchangeRate,
+          );
+        }
+      }
+      if (from < 21) {
+        // Unused market-data caches and the API lock of exchange rates: no
+        // provider was ever connected.
+        for (final table in const [
+          'stock_prices',
+          'stock_dividends',
+          'market_data_refreshes',
+          'api_request_days',
+        ]) {
+          await customStatement('DROP TABLE IF EXISTS $table');
+        }
+        final rateColumns = await customSelect(
+          "PRAGMA table_info('country_tax_rates')",
+        ).get();
+        if (rateColumns.any(
+          (row) => row.data['name'] == 'allow_manual_exchange_rate',
+        )) {
+          await customStatement(
+            'ALTER TABLE country_tax_rates DROP COLUMN allow_manual_exchange_rate',
           );
         }
       }
@@ -1408,8 +1351,6 @@ final class AppDatabase extends _$AppDatabase {
     required String country,
     required String currency,
     required double exchangeRate,
-    bool? allowManualExchangeRate,
-    bool apiKeyConfigured = false,
   }) async {
     if (country.trim().isEmpty ||
         currency.trim().isEmpty ||
@@ -1435,16 +1376,6 @@ final class AppDatabase extends _$AppDatabase {
         'Administration geändert werden.',
       );
     }
-    if (!isAdmin &&
-        apiKeyConfigured &&
-        !(existing?.allowManualExchangeRate ?? true)) {
-      throw StateError(
-        'Der Wechselkurs ist durch die Administration gesperrt.',
-      );
-    }
-    if (allowManualExchangeRate != null && !isAdmin) {
-      throw StateError('Nur Administratoren dürfen die Freigabe ändern.');
-    }
     final now = DateTime.now().toUtc();
     if (existing == null) {
       await into(countryTaxRates).insert(
@@ -1452,7 +1383,6 @@ final class AppDatabase extends _$AppDatabase {
           country: country.trim(),
           currency: Value(currency.trim().toUpperCase()),
           exchangeRate: Value(exchangeRate),
-          allowManualExchangeRate: Value(allowManualExchangeRate ?? true),
           exchangeRateUpdatedAt: Value(now),
           updatedAt: now,
         ),
@@ -1464,9 +1394,6 @@ final class AppDatabase extends _$AppDatabase {
         CountryTaxRatesCompanion(
           currency: Value(currency.trim().toUpperCase()),
           exchangeRate: Value(exchangeRate),
-          allowManualExchangeRate: Value(
-            allowManualExchangeRate ?? existing.allowManualExchangeRate,
-          ),
           exchangeRateUpdatedAt: Value(now),
           updatedAt: Value(now),
         ),
@@ -1581,74 +1508,6 @@ final class AppDatabase extends _$AppDatabase {
     await _requireAdmin(actorUserId);
     await delete(appErrorLogs).go();
   }
-
-  Future<StockPrice?> stockPrice(String stockId) => (select(
-    stockPrices,
-  )..where((row) => row.stockId.equals(stockId))).getSingleOrNull();
-
-  Future<void> saveStockPrice(StockPricesCompanion value) async {
-    await transaction(() async {
-      await into(stockPrices).insertOnConflictUpdate(value);
-      await (update(
-        investments,
-      )..where((row) => row.stockId.equals(value.stockId.value))).write(
-        InvestmentsCompanion(
-          currentPrice: Value(value.price.value),
-          updatedAt: Value(DateTime.now().toUtc()),
-        ),
-      );
-    });
-  }
-
-  Future<DateTime?> lastMarketRefresh(String type, String scope) async =>
-      (await (select(marketDataRefreshes)..where(
-                (row) => row.dataType.equals(type) & row.scopeKey.equals(scope),
-              ))
-              .getSingleOrNull())
-          ?.refreshedAt;
-
-  Future<void> markMarketRefresh(String type, String scope, DateTime at) =>
-      into(marketDataRefreshes).insertOnConflictUpdate(
-        MarketDataRefreshesCompanion.insert(
-          dataType: type,
-          scopeKey: scope,
-          refreshedAt: at,
-        ),
-      );
-
-  Future<int> apiRequestsForDay(String day) async =>
-      (await (select(
-            apiRequestDays,
-          )..where((row) => row.day.equals(day))).getSingleOrNull())
-          ?.requestCount ??
-      0;
-
-  Future<void> recordApiRequest(String day) async {
-    final current = await apiRequestsForDay(day);
-    await into(apiRequestDays).insertOnConflictUpdate(
-      ApiRequestDaysCompanion.insert(
-        day: day,
-        requestCount: Value(current + 1),
-        updatedAt: DateTime.now().toUtc(),
-      ),
-    );
-  }
-
-  Future<List<StockDividend>> stockDividendsForYear(String stockId, int year) =>
-      (select(stockDividends)..where(
-            (row) =>
-                row.stockId.equals(stockId) &
-                row.exDate.isBiggerOrEqualValue(DateTime(year)) &
-                row.exDate.isSmallerThanValue(DateTime(year + 1)),
-          ))
-          .get();
-
-  Future<void> saveStockDividends(Iterable<StockDividendsCompanion> values) =>
-      batch((batch) {
-        for (final value in values) {
-          batch.insert(stockDividends, value, mode: InsertMode.insertOrReplace);
-        }
-      });
 
   Future<void> updateUserPassword(String userId, String hash, String salt) =>
       (update(users)..where((row) => row.id.equals(userId))).write(
@@ -4340,11 +4199,6 @@ final class AppDatabase extends _$AppDatabase {
             ..where((row) => row.userId.equals(userId) & row.deletedAt.isNull())
             ..orderBy([(row) => OrderingTerm.desc(row.bookingDate)]))
           .watch();
-
-  Future<void> saveVehicleCost(VehicleCostsCompanion value) async {
-    await into(vehicleCosts).insertOnConflictUpdate(value);
-    _schedulePersist(value.userId.value);
-  }
 
   Future<void> saveVehicleCostWithLedger(
     VehicleCostsCompanion cost,

@@ -120,10 +120,20 @@ void main() {
 
     expect(master.assetType, 'ETF');
     expect(master.dividendPerShare, 0);
-    expect((await database.stockPrice('world-etf'))?.price, 123.45);
+    // The never-filled market data caches and the API lock are removed.
+    final tables = await database
+        .customSelect("SELECT name FROM sqlite_master WHERE type = 'table'")
+        .get();
     expect(
-      await database.stockDividendsForYear('world-etf', 1970),
-      hasLength(1),
+      tables.map((row) => row.read<String>('name')),
+      isNot(anyElement(anyOf('stock_prices', 'stock_dividends'))),
+    );
+    final rateColumns = await database
+        .customSelect("PRAGMA table_info('country_tax_rates')")
+        .get();
+    expect(
+      rateColumns.map((row) => row.read<String>('name')),
+      isNot(contains('allow_manual_exchange_rate')),
     );
     expect(rates.firstWhere((rate) => rate.country == 'USA').currency, 'USD');
     expect(

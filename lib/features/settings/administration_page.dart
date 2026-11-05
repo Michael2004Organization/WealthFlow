@@ -705,14 +705,7 @@ Future<void> _editAdminCountryExchange(
   final rate = TextEditingController(
     text: (current?.exchangeRate ?? 1).toStringAsFixed(6),
   );
-  var allowManual = current?.allowManualExchangeRate ?? true;
   final userId = ref.read(currentUserIdProvider);
-  final hasApiKey = userId == null
-      ? false
-      : (await ref.read(secureSessionStoreProvider).readExchangeApiKey(userId))
-                ?.isNotEmpty ??
-            false;
-  if (!context.mounted) return;
   final saved = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => StatefulBuilder(
@@ -744,7 +737,6 @@ Future<void> _editAdminCountryExchange(
                     ),
                     TextFormField(
                       controller: rate,
-                      readOnly: hasApiKey && !allowManual,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
@@ -776,18 +768,6 @@ Future<void> _editAdminCountryExchange(
                   );
                 },
               ),
-              const SizedBox(height: 8),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Manuelle Eingabe erlauben'),
-                subtitle: Text(
-                  hasApiKey
-                      ? 'Bei Deaktivierung liefert ausschließlich die API den Kurs.'
-                      : 'Wirkt, sobald ein Wechselkurs-API-Key hinterlegt ist.',
-                ),
-                value: allowManual,
-                onChanged: (value) => setState(() => allowManual = value),
-              ),
             ],
           ),
         ),
@@ -797,16 +777,14 @@ Future<void> _editAdminCountryExchange(
             child: const Text('Abbrechen'),
           ),
           FilledButton(
-            onPressed: hasApiKey && !allowManual
-                ? () => Navigator.pop(dialogContext, true)
-                : () {
-                    final parsed = parseAmount(rate.text);
-                    if (currency.text.trim().length == 3 &&
-                        parsed != null &&
-                        parsed > 0) {
-                      Navigator.pop(dialogContext, true);
-                    }
-                  },
+            onPressed: () {
+              final parsed = parseAmount(rate.text);
+              if (currency.text.trim().length == 3 &&
+                  parsed != null &&
+                  parsed > 0) {
+                Navigator.pop(dialogContext, true);
+              }
+            },
             child: const Text('Speichern'),
           ),
         ],
@@ -821,7 +799,6 @@ Future<void> _editAdminCountryExchange(
           country: country,
           currency: currency.text.trim().toUpperCase(),
           exchangeRate: parseAmount(rate.text) ?? current?.exchangeRate ?? 1,
-          allowManualExchangeRate: allowManual,
         );
   }
   currency.dispose();

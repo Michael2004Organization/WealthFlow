@@ -17,8 +17,6 @@ final class SecureSessionStore {
 
   static const _userKey = 'wealthflow.current_user_id';
   static const _dataKeyPrefix = 'wealthflow.data_key.';
-  static const _marketApiKeyPrefix = 'wealthflow.market_api_key.';
-  static const _exchangeApiKeyPrefix = 'wealthflow.exchange_api_key.';
   static const _backupKeyPrefix = 'wealthflow.backup_key.';
   static const _appPinPrefix = 'wealthflow.app_pin.';
   static const _serverLinkPrefix = 'wealthflow.server_link.';
@@ -184,52 +182,6 @@ final class SecureSessionStore {
       _volatileDataKeys.add(userId);
     }
     return created;
-  }
-
-  Future<String?> readMarketApiKey(String userId) async {
-    try {
-      return await _storage.read(key: _marketApiKeyPrefix + userId);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Stores the key only in the platform credential store. There is
-  /// deliberately no plaintext SharedPreferences fallback for this secret.
-  Future<bool> writeMarketApiKey(String userId, String value) async {
-    try {
-      final key = _marketApiKeyPrefix + userId;
-      if (value.trim().isEmpty) {
-        await _storage.delete(key: key);
-      } else {
-        await _storage.write(key: key, value: value.trim());
-      }
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<String?> readExchangeApiKey(String userId) async {
-    try {
-      return await _storage.read(key: _exchangeApiKeyPrefix + userId);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<bool> writeExchangeApiKey(String userId, String value) async {
-    try {
-      final key = _exchangeApiKeyPrefix + userId;
-      if (value.trim().isEmpty) {
-        await _storage.delete(key: key);
-      } else {
-        await _storage.write(key: key, value: value.trim());
-      }
-      return true;
-    } catch (_) {
-      return false;
-    }
   }
 
   /// Server connection of [userId] (address, certificate fingerprint,

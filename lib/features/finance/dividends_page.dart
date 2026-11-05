@@ -1131,13 +1131,6 @@ class _DividendCalendar extends ConsumerWidget {
                   icon: const Icon(Icons.edit_calendar_rounded),
                   label: const Text('Schnellerfassung'),
                 ),
-                OutlinedButton.icon(
-                  onPressed: selected == null
-                      ? null
-                      : () => _showHistoryLoader(context, ref, selected),
-                  icon: const Icon(Icons.history_rounded),
-                  label: const Text('Historie nachladen'),
-                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -1242,106 +1235,6 @@ class _DividendCalendar extends ConsumerWidget {
                 ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-Future<void> _showHistoryLoader(
-  BuildContext context,
-  WidgetRef ref,
-  Investment investment,
-) async {
-  var year = DateTime.now().year - 1;
-  final load = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (context, setDialogState) => AlertDialog(
-        title: Text('Dividendenhistorie · ${investment.name}'),
-        content: SizedBox(
-          width: 440,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SearchableDropdownButtonFormField<int>(
-                initialValue: year,
-                decoration: const InputDecoration(
-                  labelText: 'Historisches Jahr',
-                ),
-                items: List.generate(15, (index) => DateTime.now().year - index)
-                    .map(
-                      (value) =>
-                          DropdownMenuItem(value: value, child: Text('$value')),
-                    )
-                    .toList(),
-                onChanged: (value) =>
-                    setDialogState(() => year = value ?? year),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Bereits zentral abgerufene API-Daten dieses Jahres werden in die Dividendenhistorie übernommen.',
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Schließen'),
-          ),
-          FilledButton.icon(
-            onPressed: investment.stockId == null
-                ? null
-                : () => Navigator.pop(dialogContext, true),
-            icon: const Icon(Icons.cloud_download_outlined),
-            label: const Text('API-Daten übernehmen'),
-          ),
-        ],
-      ),
-    ),
-  );
-  if (load != true || investment.stockId == null) return;
-  final rows = await ref
-      .read(databaseProvider)
-      .stockDividendsForYear(investment.stockId!, year);
-  if (rows.isEmpty) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Für $year sind noch keine API-Daten im Cache.'),
-        ),
-      );
-    }
-    return;
-  }
-  final userId = ref.read(currentUserIdProvider);
-  if (userId == null) return;
-  final database = ref.read(databaseProvider);
-  final now = DateTime.now().toUtc();
-  for (final row in rows) {
-    await database.saveDividendSchedule(
-      DividendSchedulesCompanion.insert(
-        id: '${investment.id}-api-${row.id}',
-        userId: userId,
-        investmentId: investment.id,
-        paymentMonth: (row.paymentDate ?? row.exDate).month,
-        amountPerShare: row.amount,
-        exDate: Value(row.exDate),
-        paymentDate: Value(row.paymentDate),
-        paymentYear: Value(year),
-        currency: Value(row.currency),
-        exchangeRate: Value(investment.dividendExchangeRate),
-        withholdingTaxRate: Value(investment.dividendWithholdingTaxRate),
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
-  }
-  if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${rows.length} API-Zahlungen für $year übernommen.'),
       ),
     );
   }

@@ -12519,1332 +12519,6 @@ class StockMastersCompanion extends UpdateCompanion<StockMaster> {
   }
 }
 
-class $StockPricesTable extends StockPrices
-    with TableInfo<$StockPricesTable, StockPrice> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $StockPricesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _stockIdMeta = const VerificationMeta(
-    'stockId',
-  );
-  @override
-  late final GeneratedColumn<String> stockId = GeneratedColumn<String>(
-    'stock_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES stock_masters (id)',
-    ),
-  );
-  static const VerificationMeta _priceMeta = const VerificationMeta('price');
-  @override
-  late final GeneratedColumn<double> price = GeneratedColumn<double>(
-    'price',
-    aliasedName,
-    false,
-    type: DriftSqlType.double,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _currencyMeta = const VerificationMeta(
-    'currency',
-  );
-  @override
-  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
-    'currency',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('EUR'),
-  );
-  static const VerificationMeta _quotedAtMeta = const VerificationMeta(
-    'quotedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> quotedAt = GeneratedColumn<DateTime>(
-    'quoted_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [stockId, price, currency, quotedAt];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'stock_prices';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<StockPrice> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('stock_id')) {
-      context.handle(
-        _stockIdMeta,
-        stockId.isAcceptableOrUnknown(data['stock_id']!, _stockIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_stockIdMeta);
-    }
-    if (data.containsKey('price')) {
-      context.handle(
-        _priceMeta,
-        price.isAcceptableOrUnknown(data['price']!, _priceMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_priceMeta);
-    }
-    if (data.containsKey('currency')) {
-      context.handle(
-        _currencyMeta,
-        currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
-      );
-    }
-    if (data.containsKey('quoted_at')) {
-      context.handle(
-        _quotedAtMeta,
-        quotedAt.isAcceptableOrUnknown(data['quoted_at']!, _quotedAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_quotedAtMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {stockId};
-  @override
-  StockPrice map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return StockPrice(
-      stockId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}stock_id'],
-      )!,
-      price: attachedDatabase.typeMapping.read(
-        DriftSqlType.double,
-        data['${effectivePrefix}price'],
-      )!,
-      currency: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}currency'],
-      )!,
-      quotedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}quoted_at'],
-      )!,
-    );
-  }
-
-  @override
-  $StockPricesTable createAlias(String alias) {
-    return $StockPricesTable(attachedDatabase, alias);
-  }
-}
-
-class StockPrice extends DataClass implements Insertable<StockPrice> {
-  final String stockId;
-  final double price;
-  final String currency;
-  final DateTime quotedAt;
-  const StockPrice({
-    required this.stockId,
-    required this.price,
-    required this.currency,
-    required this.quotedAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['stock_id'] = Variable<String>(stockId);
-    map['price'] = Variable<double>(price);
-    map['currency'] = Variable<String>(currency);
-    map['quoted_at'] = Variable<DateTime>(quotedAt);
-    return map;
-  }
-
-  StockPricesCompanion toCompanion(bool nullToAbsent) {
-    return StockPricesCompanion(
-      stockId: Value(stockId),
-      price: Value(price),
-      currency: Value(currency),
-      quotedAt: Value(quotedAt),
-    );
-  }
-
-  factory StockPrice.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return StockPrice(
-      stockId: serializer.fromJson<String>(json['stockId']),
-      price: serializer.fromJson<double>(json['price']),
-      currency: serializer.fromJson<String>(json['currency']),
-      quotedAt: serializer.fromJson<DateTime>(json['quotedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'stockId': serializer.toJson<String>(stockId),
-      'price': serializer.toJson<double>(price),
-      'currency': serializer.toJson<String>(currency),
-      'quotedAt': serializer.toJson<DateTime>(quotedAt),
-    };
-  }
-
-  StockPrice copyWith({
-    String? stockId,
-    double? price,
-    String? currency,
-    DateTime? quotedAt,
-  }) => StockPrice(
-    stockId: stockId ?? this.stockId,
-    price: price ?? this.price,
-    currency: currency ?? this.currency,
-    quotedAt: quotedAt ?? this.quotedAt,
-  );
-  StockPrice copyWithCompanion(StockPricesCompanion data) {
-    return StockPrice(
-      stockId: data.stockId.present ? data.stockId.value : this.stockId,
-      price: data.price.present ? data.price.value : this.price,
-      currency: data.currency.present ? data.currency.value : this.currency,
-      quotedAt: data.quotedAt.present ? data.quotedAt.value : this.quotedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('StockPrice(')
-          ..write('stockId: $stockId, ')
-          ..write('price: $price, ')
-          ..write('currency: $currency, ')
-          ..write('quotedAt: $quotedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(stockId, price, currency, quotedAt);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is StockPrice &&
-          other.stockId == this.stockId &&
-          other.price == this.price &&
-          other.currency == this.currency &&
-          other.quotedAt == this.quotedAt);
-}
-
-class StockPricesCompanion extends UpdateCompanion<StockPrice> {
-  final Value<String> stockId;
-  final Value<double> price;
-  final Value<String> currency;
-  final Value<DateTime> quotedAt;
-  final Value<int> rowid;
-  const StockPricesCompanion({
-    this.stockId = const Value.absent(),
-    this.price = const Value.absent(),
-    this.currency = const Value.absent(),
-    this.quotedAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  StockPricesCompanion.insert({
-    required String stockId,
-    required double price,
-    this.currency = const Value.absent(),
-    required DateTime quotedAt,
-    this.rowid = const Value.absent(),
-  }) : stockId = Value(stockId),
-       price = Value(price),
-       quotedAt = Value(quotedAt);
-  static Insertable<StockPrice> custom({
-    Expression<String>? stockId,
-    Expression<double>? price,
-    Expression<String>? currency,
-    Expression<DateTime>? quotedAt,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (stockId != null) 'stock_id': stockId,
-      if (price != null) 'price': price,
-      if (currency != null) 'currency': currency,
-      if (quotedAt != null) 'quoted_at': quotedAt,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  StockPricesCompanion copyWith({
-    Value<String>? stockId,
-    Value<double>? price,
-    Value<String>? currency,
-    Value<DateTime>? quotedAt,
-    Value<int>? rowid,
-  }) {
-    return StockPricesCompanion(
-      stockId: stockId ?? this.stockId,
-      price: price ?? this.price,
-      currency: currency ?? this.currency,
-      quotedAt: quotedAt ?? this.quotedAt,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (stockId.present) {
-      map['stock_id'] = Variable<String>(stockId.value);
-    }
-    if (price.present) {
-      map['price'] = Variable<double>(price.value);
-    }
-    if (currency.present) {
-      map['currency'] = Variable<String>(currency.value);
-    }
-    if (quotedAt.present) {
-      map['quoted_at'] = Variable<DateTime>(quotedAt.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('StockPricesCompanion(')
-          ..write('stockId: $stockId, ')
-          ..write('price: $price, ')
-          ..write('currency: $currency, ')
-          ..write('quotedAt: $quotedAt, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $StockDividendsTable extends StockDividends
-    with TableInfo<$StockDividendsTable, StockDividend> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $StockDividendsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _stockIdMeta = const VerificationMeta(
-    'stockId',
-  );
-  @override
-  late final GeneratedColumn<String> stockId = GeneratedColumn<String>(
-    'stock_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES stock_masters (id)',
-    ),
-  );
-  static const VerificationMeta _exDateMeta = const VerificationMeta('exDate');
-  @override
-  late final GeneratedColumn<DateTime> exDate = GeneratedColumn<DateTime>(
-    'ex_date',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _paymentDateMeta = const VerificationMeta(
-    'paymentDate',
-  );
-  @override
-  late final GeneratedColumn<DateTime> paymentDate = GeneratedColumn<DateTime>(
-    'payment_date',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
-  @override
-  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
-    'amount',
-    aliasedName,
-    false,
-    type: DriftSqlType.double,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _currencyMeta = const VerificationMeta(
-    'currency',
-  );
-  @override
-  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
-    'currency',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('EUR'),
-  );
-  static const VerificationMeta _fetchedAtMeta = const VerificationMeta(
-    'fetchedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> fetchedAt = GeneratedColumn<DateTime>(
-    'fetched_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    stockId,
-    exDate,
-    paymentDate,
-    amount,
-    currency,
-    fetchedAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'stock_dividends';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<StockDividend> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
-    }
-    if (data.containsKey('stock_id')) {
-      context.handle(
-        _stockIdMeta,
-        stockId.isAcceptableOrUnknown(data['stock_id']!, _stockIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_stockIdMeta);
-    }
-    if (data.containsKey('ex_date')) {
-      context.handle(
-        _exDateMeta,
-        exDate.isAcceptableOrUnknown(data['ex_date']!, _exDateMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_exDateMeta);
-    }
-    if (data.containsKey('payment_date')) {
-      context.handle(
-        _paymentDateMeta,
-        paymentDate.isAcceptableOrUnknown(
-          data['payment_date']!,
-          _paymentDateMeta,
-        ),
-      );
-    }
-    if (data.containsKey('amount')) {
-      context.handle(
-        _amountMeta,
-        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_amountMeta);
-    }
-    if (data.containsKey('currency')) {
-      context.handle(
-        _currencyMeta,
-        currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
-      );
-    }
-    if (data.containsKey('fetched_at')) {
-      context.handle(
-        _fetchedAtMeta,
-        fetchedAt.isAcceptableOrUnknown(data['fetched_at']!, _fetchedAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_fetchedAtMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  StockDividend map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return StockDividend(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      stockId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}stock_id'],
-      )!,
-      exDate: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}ex_date'],
-      )!,
-      paymentDate: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}payment_date'],
-      ),
-      amount: attachedDatabase.typeMapping.read(
-        DriftSqlType.double,
-        data['${effectivePrefix}amount'],
-      )!,
-      currency: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}currency'],
-      )!,
-      fetchedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}fetched_at'],
-      )!,
-    );
-  }
-
-  @override
-  $StockDividendsTable createAlias(String alias) {
-    return $StockDividendsTable(attachedDatabase, alias);
-  }
-}
-
-class StockDividend extends DataClass implements Insertable<StockDividend> {
-  final String id;
-  final String stockId;
-  final DateTime exDate;
-  final DateTime? paymentDate;
-  final double amount;
-  final String currency;
-  final DateTime fetchedAt;
-  const StockDividend({
-    required this.id,
-    required this.stockId,
-    required this.exDate,
-    this.paymentDate,
-    required this.amount,
-    required this.currency,
-    required this.fetchedAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<String>(id);
-    map['stock_id'] = Variable<String>(stockId);
-    map['ex_date'] = Variable<DateTime>(exDate);
-    if (!nullToAbsent || paymentDate != null) {
-      map['payment_date'] = Variable<DateTime>(paymentDate);
-    }
-    map['amount'] = Variable<double>(amount);
-    map['currency'] = Variable<String>(currency);
-    map['fetched_at'] = Variable<DateTime>(fetchedAt);
-    return map;
-  }
-
-  StockDividendsCompanion toCompanion(bool nullToAbsent) {
-    return StockDividendsCompanion(
-      id: Value(id),
-      stockId: Value(stockId),
-      exDate: Value(exDate),
-      paymentDate: paymentDate == null && nullToAbsent
-          ? const Value.absent()
-          : Value(paymentDate),
-      amount: Value(amount),
-      currency: Value(currency),
-      fetchedAt: Value(fetchedAt),
-    );
-  }
-
-  factory StockDividend.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return StockDividend(
-      id: serializer.fromJson<String>(json['id']),
-      stockId: serializer.fromJson<String>(json['stockId']),
-      exDate: serializer.fromJson<DateTime>(json['exDate']),
-      paymentDate: serializer.fromJson<DateTime?>(json['paymentDate']),
-      amount: serializer.fromJson<double>(json['amount']),
-      currency: serializer.fromJson<String>(json['currency']),
-      fetchedAt: serializer.fromJson<DateTime>(json['fetchedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<String>(id),
-      'stockId': serializer.toJson<String>(stockId),
-      'exDate': serializer.toJson<DateTime>(exDate),
-      'paymentDate': serializer.toJson<DateTime?>(paymentDate),
-      'amount': serializer.toJson<double>(amount),
-      'currency': serializer.toJson<String>(currency),
-      'fetchedAt': serializer.toJson<DateTime>(fetchedAt),
-    };
-  }
-
-  StockDividend copyWith({
-    String? id,
-    String? stockId,
-    DateTime? exDate,
-    Value<DateTime?> paymentDate = const Value.absent(),
-    double? amount,
-    String? currency,
-    DateTime? fetchedAt,
-  }) => StockDividend(
-    id: id ?? this.id,
-    stockId: stockId ?? this.stockId,
-    exDate: exDate ?? this.exDate,
-    paymentDate: paymentDate.present ? paymentDate.value : this.paymentDate,
-    amount: amount ?? this.amount,
-    currency: currency ?? this.currency,
-    fetchedAt: fetchedAt ?? this.fetchedAt,
-  );
-  StockDividend copyWithCompanion(StockDividendsCompanion data) {
-    return StockDividend(
-      id: data.id.present ? data.id.value : this.id,
-      stockId: data.stockId.present ? data.stockId.value : this.stockId,
-      exDate: data.exDate.present ? data.exDate.value : this.exDate,
-      paymentDate: data.paymentDate.present
-          ? data.paymentDate.value
-          : this.paymentDate,
-      amount: data.amount.present ? data.amount.value : this.amount,
-      currency: data.currency.present ? data.currency.value : this.currency,
-      fetchedAt: data.fetchedAt.present ? data.fetchedAt.value : this.fetchedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('StockDividend(')
-          ..write('id: $id, ')
-          ..write('stockId: $stockId, ')
-          ..write('exDate: $exDate, ')
-          ..write('paymentDate: $paymentDate, ')
-          ..write('amount: $amount, ')
-          ..write('currency: $currency, ')
-          ..write('fetchedAt: $fetchedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    id,
-    stockId,
-    exDate,
-    paymentDate,
-    amount,
-    currency,
-    fetchedAt,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is StockDividend &&
-          other.id == this.id &&
-          other.stockId == this.stockId &&
-          other.exDate == this.exDate &&
-          other.paymentDate == this.paymentDate &&
-          other.amount == this.amount &&
-          other.currency == this.currency &&
-          other.fetchedAt == this.fetchedAt);
-}
-
-class StockDividendsCompanion extends UpdateCompanion<StockDividend> {
-  final Value<String> id;
-  final Value<String> stockId;
-  final Value<DateTime> exDate;
-  final Value<DateTime?> paymentDate;
-  final Value<double> amount;
-  final Value<String> currency;
-  final Value<DateTime> fetchedAt;
-  final Value<int> rowid;
-  const StockDividendsCompanion({
-    this.id = const Value.absent(),
-    this.stockId = const Value.absent(),
-    this.exDate = const Value.absent(),
-    this.paymentDate = const Value.absent(),
-    this.amount = const Value.absent(),
-    this.currency = const Value.absent(),
-    this.fetchedAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  StockDividendsCompanion.insert({
-    required String id,
-    required String stockId,
-    required DateTime exDate,
-    this.paymentDate = const Value.absent(),
-    required double amount,
-    this.currency = const Value.absent(),
-    required DateTime fetchedAt,
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       stockId = Value(stockId),
-       exDate = Value(exDate),
-       amount = Value(amount),
-       fetchedAt = Value(fetchedAt);
-  static Insertable<StockDividend> custom({
-    Expression<String>? id,
-    Expression<String>? stockId,
-    Expression<DateTime>? exDate,
-    Expression<DateTime>? paymentDate,
-    Expression<double>? amount,
-    Expression<String>? currency,
-    Expression<DateTime>? fetchedAt,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (stockId != null) 'stock_id': stockId,
-      if (exDate != null) 'ex_date': exDate,
-      if (paymentDate != null) 'payment_date': paymentDate,
-      if (amount != null) 'amount': amount,
-      if (currency != null) 'currency': currency,
-      if (fetchedAt != null) 'fetched_at': fetchedAt,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  StockDividendsCompanion copyWith({
-    Value<String>? id,
-    Value<String>? stockId,
-    Value<DateTime>? exDate,
-    Value<DateTime?>? paymentDate,
-    Value<double>? amount,
-    Value<String>? currency,
-    Value<DateTime>? fetchedAt,
-    Value<int>? rowid,
-  }) {
-    return StockDividendsCompanion(
-      id: id ?? this.id,
-      stockId: stockId ?? this.stockId,
-      exDate: exDate ?? this.exDate,
-      paymentDate: paymentDate ?? this.paymentDate,
-      amount: amount ?? this.amount,
-      currency: currency ?? this.currency,
-      fetchedAt: fetchedAt ?? this.fetchedAt,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<String>(id.value);
-    }
-    if (stockId.present) {
-      map['stock_id'] = Variable<String>(stockId.value);
-    }
-    if (exDate.present) {
-      map['ex_date'] = Variable<DateTime>(exDate.value);
-    }
-    if (paymentDate.present) {
-      map['payment_date'] = Variable<DateTime>(paymentDate.value);
-    }
-    if (amount.present) {
-      map['amount'] = Variable<double>(amount.value);
-    }
-    if (currency.present) {
-      map['currency'] = Variable<String>(currency.value);
-    }
-    if (fetchedAt.present) {
-      map['fetched_at'] = Variable<DateTime>(fetchedAt.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('StockDividendsCompanion(')
-          ..write('id: $id, ')
-          ..write('stockId: $stockId, ')
-          ..write('exDate: $exDate, ')
-          ..write('paymentDate: $paymentDate, ')
-          ..write('amount: $amount, ')
-          ..write('currency: $currency, ')
-          ..write('fetchedAt: $fetchedAt, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $MarketDataRefreshesTable extends MarketDataRefreshes
-    with TableInfo<$MarketDataRefreshesTable, MarketDataRefreshe> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $MarketDataRefreshesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _dataTypeMeta = const VerificationMeta(
-    'dataType',
-  );
-  @override
-  late final GeneratedColumn<String> dataType = GeneratedColumn<String>(
-    'data_type',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _scopeKeyMeta = const VerificationMeta(
-    'scopeKey',
-  );
-  @override
-  late final GeneratedColumn<String> scopeKey = GeneratedColumn<String>(
-    'scope_key',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _refreshedAtMeta = const VerificationMeta(
-    'refreshedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> refreshedAt = GeneratedColumn<DateTime>(
-    'refreshed_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [dataType, scopeKey, refreshedAt];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'market_data_refreshes';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<MarketDataRefreshe> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('data_type')) {
-      context.handle(
-        _dataTypeMeta,
-        dataType.isAcceptableOrUnknown(data['data_type']!, _dataTypeMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_dataTypeMeta);
-    }
-    if (data.containsKey('scope_key')) {
-      context.handle(
-        _scopeKeyMeta,
-        scopeKey.isAcceptableOrUnknown(data['scope_key']!, _scopeKeyMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_scopeKeyMeta);
-    }
-    if (data.containsKey('refreshed_at')) {
-      context.handle(
-        _refreshedAtMeta,
-        refreshedAt.isAcceptableOrUnknown(
-          data['refreshed_at']!,
-          _refreshedAtMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_refreshedAtMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {dataType, scopeKey};
-  @override
-  MarketDataRefreshe map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return MarketDataRefreshe(
-      dataType: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}data_type'],
-      )!,
-      scopeKey: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}scope_key'],
-      )!,
-      refreshedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}refreshed_at'],
-      )!,
-    );
-  }
-
-  @override
-  $MarketDataRefreshesTable createAlias(String alias) {
-    return $MarketDataRefreshesTable(attachedDatabase, alias);
-  }
-}
-
-class MarketDataRefreshe extends DataClass
-    implements Insertable<MarketDataRefreshe> {
-  final String dataType;
-  final String scopeKey;
-  final DateTime refreshedAt;
-  const MarketDataRefreshe({
-    required this.dataType,
-    required this.scopeKey,
-    required this.refreshedAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['data_type'] = Variable<String>(dataType);
-    map['scope_key'] = Variable<String>(scopeKey);
-    map['refreshed_at'] = Variable<DateTime>(refreshedAt);
-    return map;
-  }
-
-  MarketDataRefreshesCompanion toCompanion(bool nullToAbsent) {
-    return MarketDataRefreshesCompanion(
-      dataType: Value(dataType),
-      scopeKey: Value(scopeKey),
-      refreshedAt: Value(refreshedAt),
-    );
-  }
-
-  factory MarketDataRefreshe.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return MarketDataRefreshe(
-      dataType: serializer.fromJson<String>(json['dataType']),
-      scopeKey: serializer.fromJson<String>(json['scopeKey']),
-      refreshedAt: serializer.fromJson<DateTime>(json['refreshedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'dataType': serializer.toJson<String>(dataType),
-      'scopeKey': serializer.toJson<String>(scopeKey),
-      'refreshedAt': serializer.toJson<DateTime>(refreshedAt),
-    };
-  }
-
-  MarketDataRefreshe copyWith({
-    String? dataType,
-    String? scopeKey,
-    DateTime? refreshedAt,
-  }) => MarketDataRefreshe(
-    dataType: dataType ?? this.dataType,
-    scopeKey: scopeKey ?? this.scopeKey,
-    refreshedAt: refreshedAt ?? this.refreshedAt,
-  );
-  MarketDataRefreshe copyWithCompanion(MarketDataRefreshesCompanion data) {
-    return MarketDataRefreshe(
-      dataType: data.dataType.present ? data.dataType.value : this.dataType,
-      scopeKey: data.scopeKey.present ? data.scopeKey.value : this.scopeKey,
-      refreshedAt: data.refreshedAt.present
-          ? data.refreshedAt.value
-          : this.refreshedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('MarketDataRefreshe(')
-          ..write('dataType: $dataType, ')
-          ..write('scopeKey: $scopeKey, ')
-          ..write('refreshedAt: $refreshedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(dataType, scopeKey, refreshedAt);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is MarketDataRefreshe &&
-          other.dataType == this.dataType &&
-          other.scopeKey == this.scopeKey &&
-          other.refreshedAt == this.refreshedAt);
-}
-
-class MarketDataRefreshesCompanion extends UpdateCompanion<MarketDataRefreshe> {
-  final Value<String> dataType;
-  final Value<String> scopeKey;
-  final Value<DateTime> refreshedAt;
-  final Value<int> rowid;
-  const MarketDataRefreshesCompanion({
-    this.dataType = const Value.absent(),
-    this.scopeKey = const Value.absent(),
-    this.refreshedAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  MarketDataRefreshesCompanion.insert({
-    required String dataType,
-    required String scopeKey,
-    required DateTime refreshedAt,
-    this.rowid = const Value.absent(),
-  }) : dataType = Value(dataType),
-       scopeKey = Value(scopeKey),
-       refreshedAt = Value(refreshedAt);
-  static Insertable<MarketDataRefreshe> custom({
-    Expression<String>? dataType,
-    Expression<String>? scopeKey,
-    Expression<DateTime>? refreshedAt,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (dataType != null) 'data_type': dataType,
-      if (scopeKey != null) 'scope_key': scopeKey,
-      if (refreshedAt != null) 'refreshed_at': refreshedAt,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  MarketDataRefreshesCompanion copyWith({
-    Value<String>? dataType,
-    Value<String>? scopeKey,
-    Value<DateTime>? refreshedAt,
-    Value<int>? rowid,
-  }) {
-    return MarketDataRefreshesCompanion(
-      dataType: dataType ?? this.dataType,
-      scopeKey: scopeKey ?? this.scopeKey,
-      refreshedAt: refreshedAt ?? this.refreshedAt,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (dataType.present) {
-      map['data_type'] = Variable<String>(dataType.value);
-    }
-    if (scopeKey.present) {
-      map['scope_key'] = Variable<String>(scopeKey.value);
-    }
-    if (refreshedAt.present) {
-      map['refreshed_at'] = Variable<DateTime>(refreshedAt.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('MarketDataRefreshesCompanion(')
-          ..write('dataType: $dataType, ')
-          ..write('scopeKey: $scopeKey, ')
-          ..write('refreshedAt: $refreshedAt, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $ApiRequestDaysTable extends ApiRequestDays
-    with TableInfo<$ApiRequestDaysTable, ApiRequestDay> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $ApiRequestDaysTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _dayMeta = const VerificationMeta('day');
-  @override
-  late final GeneratedColumn<String> day = GeneratedColumn<String>(
-    'day',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _requestCountMeta = const VerificationMeta(
-    'requestCount',
-  );
-  @override
-  late final GeneratedColumn<int> requestCount = GeneratedColumn<int>(
-    'request_count',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
-    'updatedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-    'updated_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [day, requestCount, updatedAt];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'api_request_days';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<ApiRequestDay> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('day')) {
-      context.handle(
-        _dayMeta,
-        day.isAcceptableOrUnknown(data['day']!, _dayMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_dayMeta);
-    }
-    if (data.containsKey('request_count')) {
-      context.handle(
-        _requestCountMeta,
-        requestCount.isAcceptableOrUnknown(
-          data['request_count']!,
-          _requestCountMeta,
-        ),
-      );
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(
-        _updatedAtMeta,
-        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {day};
-  @override
-  ApiRequestDay map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return ApiRequestDay(
-      day: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}day'],
-      )!,
-      requestCount: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}request_count'],
-      )!,
-      updatedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}updated_at'],
-      )!,
-    );
-  }
-
-  @override
-  $ApiRequestDaysTable createAlias(String alias) {
-    return $ApiRequestDaysTable(attachedDatabase, alias);
-  }
-}
-
-class ApiRequestDay extends DataClass implements Insertable<ApiRequestDay> {
-  final String day;
-  final int requestCount;
-  final DateTime updatedAt;
-  const ApiRequestDay({
-    required this.day,
-    required this.requestCount,
-    required this.updatedAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['day'] = Variable<String>(day);
-    map['request_count'] = Variable<int>(requestCount);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
-    return map;
-  }
-
-  ApiRequestDaysCompanion toCompanion(bool nullToAbsent) {
-    return ApiRequestDaysCompanion(
-      day: Value(day),
-      requestCount: Value(requestCount),
-      updatedAt: Value(updatedAt),
-    );
-  }
-
-  factory ApiRequestDay.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return ApiRequestDay(
-      day: serializer.fromJson<String>(json['day']),
-      requestCount: serializer.fromJson<int>(json['requestCount']),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'day': serializer.toJson<String>(day),
-      'requestCount': serializer.toJson<int>(requestCount),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
-    };
-  }
-
-  ApiRequestDay copyWith({
-    String? day,
-    int? requestCount,
-    DateTime? updatedAt,
-  }) => ApiRequestDay(
-    day: day ?? this.day,
-    requestCount: requestCount ?? this.requestCount,
-    updatedAt: updatedAt ?? this.updatedAt,
-  );
-  ApiRequestDay copyWithCompanion(ApiRequestDaysCompanion data) {
-    return ApiRequestDay(
-      day: data.day.present ? data.day.value : this.day,
-      requestCount: data.requestCount.present
-          ? data.requestCount.value
-          : this.requestCount,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('ApiRequestDay(')
-          ..write('day: $day, ')
-          ..write('requestCount: $requestCount, ')
-          ..write('updatedAt: $updatedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(day, requestCount, updatedAt);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is ApiRequestDay &&
-          other.day == this.day &&
-          other.requestCount == this.requestCount &&
-          other.updatedAt == this.updatedAt);
-}
-
-class ApiRequestDaysCompanion extends UpdateCompanion<ApiRequestDay> {
-  final Value<String> day;
-  final Value<int> requestCount;
-  final Value<DateTime> updatedAt;
-  final Value<int> rowid;
-  const ApiRequestDaysCompanion({
-    this.day = const Value.absent(),
-    this.requestCount = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  ApiRequestDaysCompanion.insert({
-    required String day,
-    this.requestCount = const Value.absent(),
-    required DateTime updatedAt,
-    this.rowid = const Value.absent(),
-  }) : day = Value(day),
-       updatedAt = Value(updatedAt);
-  static Insertable<ApiRequestDay> custom({
-    Expression<String>? day,
-    Expression<int>? requestCount,
-    Expression<DateTime>? updatedAt,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (day != null) 'day': day,
-      if (requestCount != null) 'request_count': requestCount,
-      if (updatedAt != null) 'updated_at': updatedAt,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  ApiRequestDaysCompanion copyWith({
-    Value<String>? day,
-    Value<int>? requestCount,
-    Value<DateTime>? updatedAt,
-    Value<int>? rowid,
-  }) {
-    return ApiRequestDaysCompanion(
-      day: day ?? this.day,
-      requestCount: requestCount ?? this.requestCount,
-      updatedAt: updatedAt ?? this.updatedAt,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (day.present) {
-      map['day'] = Variable<String>(day.value);
-    }
-    if (requestCount.present) {
-      map['request_count'] = Variable<int>(requestCount.value);
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('ApiRequestDaysCompanion(')
-          ..write('day: $day, ')
-          ..write('requestCount: $requestCount, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $CountryTaxRatesTable extends CountryTaxRates
     with TableInfo<$CountryTaxRatesTable, CountryTaxRate> {
   @override
@@ -13898,21 +12572,6 @@ class $CountryTaxRatesTable extends CountryTaxRates
     requiredDuringInsert: false,
     defaultValue: const Constant(1),
   );
-  static const VerificationMeta _allowManualExchangeRateMeta =
-      const VerificationMeta('allowManualExchangeRate');
-  @override
-  late final GeneratedColumn<bool> allowManualExchangeRate =
-      GeneratedColumn<bool>(
-        'allow_manual_exchange_rate',
-        aliasedName,
-        false,
-        type: DriftSqlType.bool,
-        requiredDuringInsert: false,
-        defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'CHECK ("allow_manual_exchange_rate" IN (0, 1))',
-        ),
-        defaultValue: const Constant(true),
-      );
   static const VerificationMeta _exchangeRateUpdatedAtMeta =
       const VerificationMeta('exchangeRateUpdatedAt');
   @override
@@ -13941,7 +12600,6 @@ class $CountryTaxRatesTable extends CountryTaxRates
     withholdingTaxRate,
     currency,
     exchangeRate,
-    allowManualExchangeRate,
     exchangeRateUpdatedAt,
     updatedAt,
   ];
@@ -13989,15 +12647,6 @@ class $CountryTaxRatesTable extends CountryTaxRates
         ),
       );
     }
-    if (data.containsKey('allow_manual_exchange_rate')) {
-      context.handle(
-        _allowManualExchangeRateMeta,
-        allowManualExchangeRate.isAcceptableOrUnknown(
-          data['allow_manual_exchange_rate']!,
-          _allowManualExchangeRateMeta,
-        ),
-      );
-    }
     if (data.containsKey('exchange_rate_updated_at')) {
       context.handle(
         _exchangeRateUpdatedAtMeta,
@@ -14040,10 +12689,6 @@ class $CountryTaxRatesTable extends CountryTaxRates
         DriftSqlType.double,
         data['${effectivePrefix}exchange_rate'],
       )!,
-      allowManualExchangeRate: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}allow_manual_exchange_rate'],
-      )!,
       exchangeRateUpdatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}exchange_rate_updated_at'],
@@ -14066,7 +12711,6 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
   final double withholdingTaxRate;
   final String currency;
   final double exchangeRate;
-  final bool allowManualExchangeRate;
   final DateTime? exchangeRateUpdatedAt;
   final DateTime updatedAt;
   const CountryTaxRate({
@@ -14074,7 +12718,6 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
     required this.withholdingTaxRate,
     required this.currency,
     required this.exchangeRate,
-    required this.allowManualExchangeRate,
     this.exchangeRateUpdatedAt,
     required this.updatedAt,
   });
@@ -14085,7 +12728,6 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
     map['withholding_tax_rate'] = Variable<double>(withholdingTaxRate);
     map['currency'] = Variable<String>(currency);
     map['exchange_rate'] = Variable<double>(exchangeRate);
-    map['allow_manual_exchange_rate'] = Variable<bool>(allowManualExchangeRate);
     if (!nullToAbsent || exchangeRateUpdatedAt != null) {
       map['exchange_rate_updated_at'] = Variable<DateTime>(
         exchangeRateUpdatedAt,
@@ -14101,7 +12743,6 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
       withholdingTaxRate: Value(withholdingTaxRate),
       currency: Value(currency),
       exchangeRate: Value(exchangeRate),
-      allowManualExchangeRate: Value(allowManualExchangeRate),
       exchangeRateUpdatedAt: exchangeRateUpdatedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(exchangeRateUpdatedAt),
@@ -14121,9 +12762,6 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
       ),
       currency: serializer.fromJson<String>(json['currency']),
       exchangeRate: serializer.fromJson<double>(json['exchangeRate']),
-      allowManualExchangeRate: serializer.fromJson<bool>(
-        json['allowManualExchangeRate'],
-      ),
       exchangeRateUpdatedAt: serializer.fromJson<DateTime?>(
         json['exchangeRateUpdatedAt'],
       ),
@@ -14138,9 +12776,6 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
       'withholdingTaxRate': serializer.toJson<double>(withholdingTaxRate),
       'currency': serializer.toJson<String>(currency),
       'exchangeRate': serializer.toJson<double>(exchangeRate),
-      'allowManualExchangeRate': serializer.toJson<bool>(
-        allowManualExchangeRate,
-      ),
       'exchangeRateUpdatedAt': serializer.toJson<DateTime?>(
         exchangeRateUpdatedAt,
       ),
@@ -14153,7 +12788,6 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
     double? withholdingTaxRate,
     String? currency,
     double? exchangeRate,
-    bool? allowManualExchangeRate,
     Value<DateTime?> exchangeRateUpdatedAt = const Value.absent(),
     DateTime? updatedAt,
   }) => CountryTaxRate(
@@ -14161,8 +12795,6 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
     withholdingTaxRate: withholdingTaxRate ?? this.withholdingTaxRate,
     currency: currency ?? this.currency,
     exchangeRate: exchangeRate ?? this.exchangeRate,
-    allowManualExchangeRate:
-        allowManualExchangeRate ?? this.allowManualExchangeRate,
     exchangeRateUpdatedAt: exchangeRateUpdatedAt.present
         ? exchangeRateUpdatedAt.value
         : this.exchangeRateUpdatedAt,
@@ -14178,9 +12810,6 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
       exchangeRate: data.exchangeRate.present
           ? data.exchangeRate.value
           : this.exchangeRate,
-      allowManualExchangeRate: data.allowManualExchangeRate.present
-          ? data.allowManualExchangeRate.value
-          : this.allowManualExchangeRate,
       exchangeRateUpdatedAt: data.exchangeRateUpdatedAt.present
           ? data.exchangeRateUpdatedAt.value
           : this.exchangeRateUpdatedAt,
@@ -14195,7 +12824,6 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
           ..write('withholdingTaxRate: $withholdingTaxRate, ')
           ..write('currency: $currency, ')
           ..write('exchangeRate: $exchangeRate, ')
-          ..write('allowManualExchangeRate: $allowManualExchangeRate, ')
           ..write('exchangeRateUpdatedAt: $exchangeRateUpdatedAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -14208,7 +12836,6 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
     withholdingTaxRate,
     currency,
     exchangeRate,
-    allowManualExchangeRate,
     exchangeRateUpdatedAt,
     updatedAt,
   );
@@ -14220,7 +12847,6 @@ class CountryTaxRate extends DataClass implements Insertable<CountryTaxRate> {
           other.withholdingTaxRate == this.withholdingTaxRate &&
           other.currency == this.currency &&
           other.exchangeRate == this.exchangeRate &&
-          other.allowManualExchangeRate == this.allowManualExchangeRate &&
           other.exchangeRateUpdatedAt == this.exchangeRateUpdatedAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -14230,7 +12856,6 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
   final Value<double> withholdingTaxRate;
   final Value<String> currency;
   final Value<double> exchangeRate;
-  final Value<bool> allowManualExchangeRate;
   final Value<DateTime?> exchangeRateUpdatedAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -14239,7 +12864,6 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
     this.withholdingTaxRate = const Value.absent(),
     this.currency = const Value.absent(),
     this.exchangeRate = const Value.absent(),
-    this.allowManualExchangeRate = const Value.absent(),
     this.exchangeRateUpdatedAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -14249,7 +12873,6 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
     this.withholdingTaxRate = const Value.absent(),
     this.currency = const Value.absent(),
     this.exchangeRate = const Value.absent(),
-    this.allowManualExchangeRate = const Value.absent(),
     this.exchangeRateUpdatedAt = const Value.absent(),
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -14260,7 +12883,6 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
     Expression<double>? withholdingTaxRate,
     Expression<String>? currency,
     Expression<double>? exchangeRate,
-    Expression<bool>? allowManualExchangeRate,
     Expression<DateTime>? exchangeRateUpdatedAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -14271,8 +12893,6 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
         'withholding_tax_rate': withholdingTaxRate,
       if (currency != null) 'currency': currency,
       if (exchangeRate != null) 'exchange_rate': exchangeRate,
-      if (allowManualExchangeRate != null)
-        'allow_manual_exchange_rate': allowManualExchangeRate,
       if (exchangeRateUpdatedAt != null)
         'exchange_rate_updated_at': exchangeRateUpdatedAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -14285,7 +12905,6 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
     Value<double>? withholdingTaxRate,
     Value<String>? currency,
     Value<double>? exchangeRate,
-    Value<bool>? allowManualExchangeRate,
     Value<DateTime?>? exchangeRateUpdatedAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -14295,8 +12914,6 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
       withholdingTaxRate: withholdingTaxRate ?? this.withholdingTaxRate,
       currency: currency ?? this.currency,
       exchangeRate: exchangeRate ?? this.exchangeRate,
-      allowManualExchangeRate:
-          allowManualExchangeRate ?? this.allowManualExchangeRate,
       exchangeRateUpdatedAt:
           exchangeRateUpdatedAt ?? this.exchangeRateUpdatedAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -14319,11 +12936,6 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
     if (exchangeRate.present) {
       map['exchange_rate'] = Variable<double>(exchangeRate.value);
     }
-    if (allowManualExchangeRate.present) {
-      map['allow_manual_exchange_rate'] = Variable<bool>(
-        allowManualExchangeRate.value,
-      );
-    }
     if (exchangeRateUpdatedAt.present) {
       map['exchange_rate_updated_at'] = Variable<DateTime>(
         exchangeRateUpdatedAt.value,
@@ -14345,7 +12957,6 @@ class CountryTaxRatesCompanion extends UpdateCompanion<CountryTaxRate> {
           ..write('withholdingTaxRate: $withholdingTaxRate, ')
           ..write('currency: $currency, ')
           ..write('exchangeRate: $exchangeRate, ')
-          ..write('allowManualExchangeRate: $allowManualExchangeRate, ')
           ..write('exchangeRateUpdatedAt: $exchangeRateUpdatedAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -18027,11 +16638,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $NetWorthSnapshotsTable netWorthSnapshots =
       $NetWorthSnapshotsTable(this);
   late final $StockMastersTable stockMasters = $StockMastersTable(this);
-  late final $StockPricesTable stockPrices = $StockPricesTable(this);
-  late final $StockDividendsTable stockDividends = $StockDividendsTable(this);
-  late final $MarketDataRefreshesTable marketDataRefreshes =
-      $MarketDataRefreshesTable(this);
-  late final $ApiRequestDaysTable apiRequestDays = $ApiRequestDaysTable(this);
   late final $CountryTaxRatesTable countryTaxRates = $CountryTaxRatesTable(
     this,
   );
@@ -18062,10 +16668,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     userPreferences,
     netWorthSnapshots,
     stockMasters,
-    stockPrices,
-    stockDividends,
-    marketDataRefreshes,
-    apiRequestDays,
     countryTaxRates,
     assetClasses,
     appConfigurations,
@@ -26977,47 +25579,6 @@ typedef $$StockMastersTableUpdateCompanionBuilder =
       Value<int> rowid,
     });
 
-final class $$StockMastersTableReferences
-    extends BaseReferences<_$AppDatabase, $StockMastersTable, StockMaster> {
-  $$StockMastersTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static MultiTypedResultKey<$StockPricesTable, List<StockPrice>>
-  _stockPricesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.stockPrices,
-    aliasName: 'stock_masters__id__stock_prices__stock_id',
-  );
-
-  $$StockPricesTableProcessedTableManager get stockPricesRefs {
-    final manager = $$StockPricesTableTableManager(
-      $_db,
-      $_db.stockPrices,
-    ).filter((f) => f.stockId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_stockPricesRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<$StockDividendsTable, List<StockDividend>>
-  _stockDividendsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.stockDividends,
-    aliasName: 'stock_masters__id__stock_dividends__stock_id',
-  );
-
-  $$StockDividendsTableProcessedTableManager get stockDividendsRefs {
-    final manager = $$StockDividendsTableTableManager(
-      $_db,
-      $_db.stockDividends,
-    ).filter((f) => f.stockId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_stockDividendsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
 class $$StockMastersTableFilterComposer
     extends Composer<_$AppDatabase, $StockMastersTable> {
   $$StockMastersTableFilterComposer({
@@ -27181,56 +25742,6 @@ class $$StockMastersTableFilterComposer
     column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
-
-  Expression<bool> stockPricesRefs(
-    Expression<bool> Function($$StockPricesTableFilterComposer f) f,
-  ) {
-    final $$StockPricesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.stockPrices,
-      getReferencedColumn: (t) => t.stockId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$StockPricesTableFilterComposer(
-            $db: $db,
-            $table: $db.stockPrices,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> stockDividendsRefs(
-    Expression<bool> Function($$StockDividendsTableFilterComposer f) f,
-  ) {
-    final $$StockDividendsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.stockDividends,
-      getReferencedColumn: (t) => t.stockId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$StockDividendsTableFilterComposer(
-            $db: $db,
-            $table: $db.stockDividends,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$StockMastersTableOrderingComposer
@@ -27529,56 +26040,6 @@ class $$StockMastersTableAnnotationComposer
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
-
-  Expression<T> stockPricesRefs<T extends Object>(
-    Expression<T> Function($$StockPricesTableAnnotationComposer a) f,
-  ) {
-    final $$StockPricesTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.stockPrices,
-      getReferencedColumn: (t) => t.stockId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$StockPricesTableAnnotationComposer(
-            $db: $db,
-            $table: $db.stockPrices,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<T> stockDividendsRefs<T extends Object>(
-    Expression<T> Function($$StockDividendsTableAnnotationComposer a) f,
-  ) {
-    final $$StockDividendsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.stockDividends,
-      getReferencedColumn: (t) => t.stockId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$StockDividendsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.stockDividends,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$StockMastersTableTableManager
@@ -27592,12 +26053,12 @@ class $$StockMastersTableTableManager
           $$StockMastersTableAnnotationComposer,
           $$StockMastersTableCreateCompanionBuilder,
           $$StockMastersTableUpdateCompanionBuilder,
-          (StockMaster, $$StockMastersTableReferences),
+          (
+            StockMaster,
+            BaseReferences<_$AppDatabase, $StockMastersTable, StockMaster>,
+          ),
           StockMaster,
-          PrefetchHooks Function({
-            bool stockPricesRefs,
-            bool stockDividendsRefs,
-          })
+          PrefetchHooks Function()
         > {
   $$StockMastersTableTableManager(_$AppDatabase db, $StockMastersTable table)
     : super(
@@ -27747,70 +26208,9 @@ class $$StockMastersTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$StockMastersTableReferences(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback:
-              ({stockPricesRefs = false, stockDividendsRefs = false}) {
-                return PrefetchHooks(
-                  db: db,
-                  explicitlyWatchedTables: [
-                    if (stockPricesRefs) db.stockPrices,
-                    if (stockDividendsRefs) db.stockDividends,
-                  ],
-                  addJoins: null,
-                  getPrefetchedDataCallback: (items) async {
-                    return [
-                      if (stockPricesRefs)
-                        await $_getPrefetchedData<
-                          StockMaster,
-                          $StockMastersTable,
-                          StockPrice
-                        >(
-                          currentTable: table,
-                          referencedTable: $$StockMastersTableReferences
-                              ._stockPricesRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$StockMastersTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).stockPricesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.stockId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (stockDividendsRefs)
-                        await $_getPrefetchedData<
-                          StockMaster,
-                          $StockMastersTable,
-                          StockDividend
-                        >(
-                          currentTable: table,
-                          referencedTable: $$StockMastersTableReferences
-                              ._stockDividendsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$StockMastersTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).stockDividendsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.stockId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                    ];
-                  },
-                );
-              },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -27825,1016 +26225,11 @@ typedef $$StockMastersTableProcessedTableManager =
       $$StockMastersTableAnnotationComposer,
       $$StockMastersTableCreateCompanionBuilder,
       $$StockMastersTableUpdateCompanionBuilder,
-      (StockMaster, $$StockMastersTableReferences),
+      (
+        StockMaster,
+        BaseReferences<_$AppDatabase, $StockMastersTable, StockMaster>,
+      ),
       StockMaster,
-      PrefetchHooks Function({bool stockPricesRefs, bool stockDividendsRefs})
-    >;
-typedef $$StockPricesTableCreateCompanionBuilder =
-    StockPricesCompanion Function({
-      required String stockId,
-      required double price,
-      Value<String> currency,
-      required DateTime quotedAt,
-      Value<int> rowid,
-    });
-typedef $$StockPricesTableUpdateCompanionBuilder =
-    StockPricesCompanion Function({
-      Value<String> stockId,
-      Value<double> price,
-      Value<String> currency,
-      Value<DateTime> quotedAt,
-      Value<int> rowid,
-    });
-
-final class $$StockPricesTableReferences
-    extends BaseReferences<_$AppDatabase, $StockPricesTable, StockPrice> {
-  $$StockPricesTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $StockMastersTable _stockIdTable(_$AppDatabase db) =>
-      db.stockMasters.createAlias('stock_prices__stock_id__stock_masters__id');
-
-  $$StockMastersTableProcessedTableManager get stockId {
-    final $_column = $_itemColumn<String>('stock_id')!;
-
-    final manager = $$StockMastersTableTableManager(
-      $_db,
-      $_db.stockMasters,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_stockIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
-class $$StockPricesTableFilterComposer
-    extends Composer<_$AppDatabase, $StockPricesTable> {
-  $$StockPricesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<double> get price => $composableBuilder(
-    column: $table.price,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get currency => $composableBuilder(
-    column: $table.currency,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get quotedAt => $composableBuilder(
-    column: $table.quotedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  $$StockMastersTableFilterComposer get stockId {
-    final $$StockMastersTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.stockId,
-      referencedTable: $db.stockMasters,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$StockMastersTableFilterComposer(
-            $db: $db,
-            $table: $db.stockMasters,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$StockPricesTableOrderingComposer
-    extends Composer<_$AppDatabase, $StockPricesTable> {
-  $$StockPricesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<double> get price => $composableBuilder(
-    column: $table.price,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get currency => $composableBuilder(
-    column: $table.currency,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get quotedAt => $composableBuilder(
-    column: $table.quotedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  $$StockMastersTableOrderingComposer get stockId {
-    final $$StockMastersTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.stockId,
-      referencedTable: $db.stockMasters,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$StockMastersTableOrderingComposer(
-            $db: $db,
-            $table: $db.stockMasters,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$StockPricesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $StockPricesTable> {
-  $$StockPricesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<double> get price =>
-      $composableBuilder(column: $table.price, builder: (column) => column);
-
-  GeneratedColumn<String> get currency =>
-      $composableBuilder(column: $table.currency, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get quotedAt =>
-      $composableBuilder(column: $table.quotedAt, builder: (column) => column);
-
-  $$StockMastersTableAnnotationComposer get stockId {
-    final $$StockMastersTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.stockId,
-      referencedTable: $db.stockMasters,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$StockMastersTableAnnotationComposer(
-            $db: $db,
-            $table: $db.stockMasters,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$StockPricesTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $StockPricesTable,
-          StockPrice,
-          $$StockPricesTableFilterComposer,
-          $$StockPricesTableOrderingComposer,
-          $$StockPricesTableAnnotationComposer,
-          $$StockPricesTableCreateCompanionBuilder,
-          $$StockPricesTableUpdateCompanionBuilder,
-          (StockPrice, $$StockPricesTableReferences),
-          StockPrice,
-          PrefetchHooks Function({bool stockId})
-        > {
-  $$StockPricesTableTableManager(_$AppDatabase db, $StockPricesTable table)
-    : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$StockPricesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$StockPricesTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$StockPricesTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> stockId = const Value.absent(),
-                Value<double> price = const Value.absent(),
-                Value<String> currency = const Value.absent(),
-                Value<DateTime> quotedAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => StockPricesCompanion(
-                stockId: stockId,
-                price: price,
-                currency: currency,
-                quotedAt: quotedAt,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String stockId,
-                required double price,
-                Value<String> currency = const Value.absent(),
-                required DateTime quotedAt,
-                Value<int> rowid = const Value.absent(),
-              }) => StockPricesCompanion.insert(
-                stockId: stockId,
-                price: price,
-                currency: currency,
-                quotedAt: quotedAt,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$StockPricesTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: ({stockId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (stockId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.stockId,
-                                referencedTable: $$StockPricesTableReferences
-                                    ._stockIdTable(db),
-                                referencedColumn: $$StockPricesTableReferences
-                                    ._stockIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
-        ),
-      );
-}
-
-typedef $$StockPricesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $StockPricesTable,
-      StockPrice,
-      $$StockPricesTableFilterComposer,
-      $$StockPricesTableOrderingComposer,
-      $$StockPricesTableAnnotationComposer,
-      $$StockPricesTableCreateCompanionBuilder,
-      $$StockPricesTableUpdateCompanionBuilder,
-      (StockPrice, $$StockPricesTableReferences),
-      StockPrice,
-      PrefetchHooks Function({bool stockId})
-    >;
-typedef $$StockDividendsTableCreateCompanionBuilder =
-    StockDividendsCompanion Function({
-      required String id,
-      required String stockId,
-      required DateTime exDate,
-      Value<DateTime?> paymentDate,
-      required double amount,
-      Value<String> currency,
-      required DateTime fetchedAt,
-      Value<int> rowid,
-    });
-typedef $$StockDividendsTableUpdateCompanionBuilder =
-    StockDividendsCompanion Function({
-      Value<String> id,
-      Value<String> stockId,
-      Value<DateTime> exDate,
-      Value<DateTime?> paymentDate,
-      Value<double> amount,
-      Value<String> currency,
-      Value<DateTime> fetchedAt,
-      Value<int> rowid,
-    });
-
-final class $$StockDividendsTableReferences
-    extends BaseReferences<_$AppDatabase, $StockDividendsTable, StockDividend> {
-  $$StockDividendsTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static $StockMastersTable _stockIdTable(_$AppDatabase db) => db.stockMasters
-      .createAlias('stock_dividends__stock_id__stock_masters__id');
-
-  $$StockMastersTableProcessedTableManager get stockId {
-    final $_column = $_itemColumn<String>('stock_id')!;
-
-    final manager = $$StockMastersTableTableManager(
-      $_db,
-      $_db.stockMasters,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_stockIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
-class $$StockDividendsTableFilterComposer
-    extends Composer<_$AppDatabase, $StockDividendsTable> {
-  $$StockDividendsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get exDate => $composableBuilder(
-    column: $table.exDate,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get paymentDate => $composableBuilder(
-    column: $table.paymentDate,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<double> get amount => $composableBuilder(
-    column: $table.amount,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get currency => $composableBuilder(
-    column: $table.currency,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get fetchedAt => $composableBuilder(
-    column: $table.fetchedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  $$StockMastersTableFilterComposer get stockId {
-    final $$StockMastersTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.stockId,
-      referencedTable: $db.stockMasters,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$StockMastersTableFilterComposer(
-            $db: $db,
-            $table: $db.stockMasters,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$StockDividendsTableOrderingComposer
-    extends Composer<_$AppDatabase, $StockDividendsTable> {
-  $$StockDividendsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get exDate => $composableBuilder(
-    column: $table.exDate,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get paymentDate => $composableBuilder(
-    column: $table.paymentDate,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<double> get amount => $composableBuilder(
-    column: $table.amount,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get currency => $composableBuilder(
-    column: $table.currency,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get fetchedAt => $composableBuilder(
-    column: $table.fetchedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  $$StockMastersTableOrderingComposer get stockId {
-    final $$StockMastersTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.stockId,
-      referencedTable: $db.stockMasters,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$StockMastersTableOrderingComposer(
-            $db: $db,
-            $table: $db.stockMasters,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$StockDividendsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $StockDividendsTable> {
-  $$StockDividendsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get exDate =>
-      $composableBuilder(column: $table.exDate, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get paymentDate => $composableBuilder(
-    column: $table.paymentDate,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<double> get amount =>
-      $composableBuilder(column: $table.amount, builder: (column) => column);
-
-  GeneratedColumn<String> get currency =>
-      $composableBuilder(column: $table.currency, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get fetchedAt =>
-      $composableBuilder(column: $table.fetchedAt, builder: (column) => column);
-
-  $$StockMastersTableAnnotationComposer get stockId {
-    final $$StockMastersTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.stockId,
-      referencedTable: $db.stockMasters,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$StockMastersTableAnnotationComposer(
-            $db: $db,
-            $table: $db.stockMasters,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$StockDividendsTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $StockDividendsTable,
-          StockDividend,
-          $$StockDividendsTableFilterComposer,
-          $$StockDividendsTableOrderingComposer,
-          $$StockDividendsTableAnnotationComposer,
-          $$StockDividendsTableCreateCompanionBuilder,
-          $$StockDividendsTableUpdateCompanionBuilder,
-          (StockDividend, $$StockDividendsTableReferences),
-          StockDividend,
-          PrefetchHooks Function({bool stockId})
-        > {
-  $$StockDividendsTableTableManager(
-    _$AppDatabase db,
-    $StockDividendsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$StockDividendsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$StockDividendsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$StockDividendsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> id = const Value.absent(),
-                Value<String> stockId = const Value.absent(),
-                Value<DateTime> exDate = const Value.absent(),
-                Value<DateTime?> paymentDate = const Value.absent(),
-                Value<double> amount = const Value.absent(),
-                Value<String> currency = const Value.absent(),
-                Value<DateTime> fetchedAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => StockDividendsCompanion(
-                id: id,
-                stockId: stockId,
-                exDate: exDate,
-                paymentDate: paymentDate,
-                amount: amount,
-                currency: currency,
-                fetchedAt: fetchedAt,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String id,
-                required String stockId,
-                required DateTime exDate,
-                Value<DateTime?> paymentDate = const Value.absent(),
-                required double amount,
-                Value<String> currency = const Value.absent(),
-                required DateTime fetchedAt,
-                Value<int> rowid = const Value.absent(),
-              }) => StockDividendsCompanion.insert(
-                id: id,
-                stockId: stockId,
-                exDate: exDate,
-                paymentDate: paymentDate,
-                amount: amount,
-                currency: currency,
-                fetchedAt: fetchedAt,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$StockDividendsTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: ({stockId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (stockId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.stockId,
-                                referencedTable: $$StockDividendsTableReferences
-                                    ._stockIdTable(db),
-                                referencedColumn:
-                                    $$StockDividendsTableReferences
-                                        ._stockIdTable(db)
-                                        .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
-        ),
-      );
-}
-
-typedef $$StockDividendsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $StockDividendsTable,
-      StockDividend,
-      $$StockDividendsTableFilterComposer,
-      $$StockDividendsTableOrderingComposer,
-      $$StockDividendsTableAnnotationComposer,
-      $$StockDividendsTableCreateCompanionBuilder,
-      $$StockDividendsTableUpdateCompanionBuilder,
-      (StockDividend, $$StockDividendsTableReferences),
-      StockDividend,
-      PrefetchHooks Function({bool stockId})
-    >;
-typedef $$MarketDataRefreshesTableCreateCompanionBuilder =
-    MarketDataRefreshesCompanion Function({
-      required String dataType,
-      required String scopeKey,
-      required DateTime refreshedAt,
-      Value<int> rowid,
-    });
-typedef $$MarketDataRefreshesTableUpdateCompanionBuilder =
-    MarketDataRefreshesCompanion Function({
-      Value<String> dataType,
-      Value<String> scopeKey,
-      Value<DateTime> refreshedAt,
-      Value<int> rowid,
-    });
-
-class $$MarketDataRefreshesTableFilterComposer
-    extends Composer<_$AppDatabase, $MarketDataRefreshesTable> {
-  $$MarketDataRefreshesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get dataType => $composableBuilder(
-    column: $table.dataType,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get scopeKey => $composableBuilder(
-    column: $table.scopeKey,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get refreshedAt => $composableBuilder(
-    column: $table.refreshedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$MarketDataRefreshesTableOrderingComposer
-    extends Composer<_$AppDatabase, $MarketDataRefreshesTable> {
-  $$MarketDataRefreshesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get dataType => $composableBuilder(
-    column: $table.dataType,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get scopeKey => $composableBuilder(
-    column: $table.scopeKey,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get refreshedAt => $composableBuilder(
-    column: $table.refreshedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$MarketDataRefreshesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $MarketDataRefreshesTable> {
-  $$MarketDataRefreshesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get dataType =>
-      $composableBuilder(column: $table.dataType, builder: (column) => column);
-
-  GeneratedColumn<String> get scopeKey =>
-      $composableBuilder(column: $table.scopeKey, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get refreshedAt => $composableBuilder(
-    column: $table.refreshedAt,
-    builder: (column) => column,
-  );
-}
-
-class $$MarketDataRefreshesTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $MarketDataRefreshesTable,
-          MarketDataRefreshe,
-          $$MarketDataRefreshesTableFilterComposer,
-          $$MarketDataRefreshesTableOrderingComposer,
-          $$MarketDataRefreshesTableAnnotationComposer,
-          $$MarketDataRefreshesTableCreateCompanionBuilder,
-          $$MarketDataRefreshesTableUpdateCompanionBuilder,
-          (
-            MarketDataRefreshe,
-            BaseReferences<
-              _$AppDatabase,
-              $MarketDataRefreshesTable,
-              MarketDataRefreshe
-            >,
-          ),
-          MarketDataRefreshe,
-          PrefetchHooks Function()
-        > {
-  $$MarketDataRefreshesTableTableManager(
-    _$AppDatabase db,
-    $MarketDataRefreshesTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$MarketDataRefreshesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$MarketDataRefreshesTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$MarketDataRefreshesTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<String> dataType = const Value.absent(),
-                Value<String> scopeKey = const Value.absent(),
-                Value<DateTime> refreshedAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => MarketDataRefreshesCompanion(
-                dataType: dataType,
-                scopeKey: scopeKey,
-                refreshedAt: refreshedAt,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String dataType,
-                required String scopeKey,
-                required DateTime refreshedAt,
-                Value<int> rowid = const Value.absent(),
-              }) => MarketDataRefreshesCompanion.insert(
-                dataType: dataType,
-                scopeKey: scopeKey,
-                refreshedAt: refreshedAt,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$MarketDataRefreshesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $MarketDataRefreshesTable,
-      MarketDataRefreshe,
-      $$MarketDataRefreshesTableFilterComposer,
-      $$MarketDataRefreshesTableOrderingComposer,
-      $$MarketDataRefreshesTableAnnotationComposer,
-      $$MarketDataRefreshesTableCreateCompanionBuilder,
-      $$MarketDataRefreshesTableUpdateCompanionBuilder,
-      (
-        MarketDataRefreshe,
-        BaseReferences<
-          _$AppDatabase,
-          $MarketDataRefreshesTable,
-          MarketDataRefreshe
-        >,
-      ),
-      MarketDataRefreshe,
-      PrefetchHooks Function()
-    >;
-typedef $$ApiRequestDaysTableCreateCompanionBuilder =
-    ApiRequestDaysCompanion Function({
-      required String day,
-      Value<int> requestCount,
-      required DateTime updatedAt,
-      Value<int> rowid,
-    });
-typedef $$ApiRequestDaysTableUpdateCompanionBuilder =
-    ApiRequestDaysCompanion Function({
-      Value<String> day,
-      Value<int> requestCount,
-      Value<DateTime> updatedAt,
-      Value<int> rowid,
-    });
-
-class $$ApiRequestDaysTableFilterComposer
-    extends Composer<_$AppDatabase, $ApiRequestDaysTable> {
-  $$ApiRequestDaysTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get day => $composableBuilder(
-    column: $table.day,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get requestCount => $composableBuilder(
-    column: $table.requestCount,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$ApiRequestDaysTableOrderingComposer
-    extends Composer<_$AppDatabase, $ApiRequestDaysTable> {
-  $$ApiRequestDaysTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get day => $composableBuilder(
-    column: $table.day,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get requestCount => $composableBuilder(
-    column: $table.requestCount,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$ApiRequestDaysTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ApiRequestDaysTable> {
-  $$ApiRequestDaysTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get day =>
-      $composableBuilder(column: $table.day, builder: (column) => column);
-
-  GeneratedColumn<int> get requestCount => $composableBuilder(
-    column: $table.requestCount,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-}
-
-class $$ApiRequestDaysTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $ApiRequestDaysTable,
-          ApiRequestDay,
-          $$ApiRequestDaysTableFilterComposer,
-          $$ApiRequestDaysTableOrderingComposer,
-          $$ApiRequestDaysTableAnnotationComposer,
-          $$ApiRequestDaysTableCreateCompanionBuilder,
-          $$ApiRequestDaysTableUpdateCompanionBuilder,
-          (
-            ApiRequestDay,
-            BaseReferences<_$AppDatabase, $ApiRequestDaysTable, ApiRequestDay>,
-          ),
-          ApiRequestDay,
-          PrefetchHooks Function()
-        > {
-  $$ApiRequestDaysTableTableManager(
-    _$AppDatabase db,
-    $ApiRequestDaysTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$ApiRequestDaysTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$ApiRequestDaysTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$ApiRequestDaysTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> day = const Value.absent(),
-                Value<int> requestCount = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => ApiRequestDaysCompanion(
-                day: day,
-                requestCount: requestCount,
-                updatedAt: updatedAt,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String day,
-                Value<int> requestCount = const Value.absent(),
-                required DateTime updatedAt,
-                Value<int> rowid = const Value.absent(),
-              }) => ApiRequestDaysCompanion.insert(
-                day: day,
-                requestCount: requestCount,
-                updatedAt: updatedAt,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$ApiRequestDaysTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $ApiRequestDaysTable,
-      ApiRequestDay,
-      $$ApiRequestDaysTableFilterComposer,
-      $$ApiRequestDaysTableOrderingComposer,
-      $$ApiRequestDaysTableAnnotationComposer,
-      $$ApiRequestDaysTableCreateCompanionBuilder,
-      $$ApiRequestDaysTableUpdateCompanionBuilder,
-      (
-        ApiRequestDay,
-        BaseReferences<_$AppDatabase, $ApiRequestDaysTable, ApiRequestDay>,
-      ),
-      ApiRequestDay,
       PrefetchHooks Function()
     >;
 typedef $$CountryTaxRatesTableCreateCompanionBuilder =
@@ -28843,7 +26238,6 @@ typedef $$CountryTaxRatesTableCreateCompanionBuilder =
       Value<double> withholdingTaxRate,
       Value<String> currency,
       Value<double> exchangeRate,
-      Value<bool> allowManualExchangeRate,
       Value<DateTime?> exchangeRateUpdatedAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -28854,7 +26248,6 @@ typedef $$CountryTaxRatesTableUpdateCompanionBuilder =
       Value<double> withholdingTaxRate,
       Value<String> currency,
       Value<double> exchangeRate,
-      Value<bool> allowManualExchangeRate,
       Value<DateTime?> exchangeRateUpdatedAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -28886,11 +26279,6 @@ class $$CountryTaxRatesTableFilterComposer
 
   ColumnFilters<double> get exchangeRate => $composableBuilder(
     column: $table.exchangeRate,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get allowManualExchangeRate => $composableBuilder(
-    column: $table.allowManualExchangeRate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -28934,11 +26322,6 @@ class $$CountryTaxRatesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get allowManualExchangeRate => $composableBuilder(
-    column: $table.allowManualExchangeRate,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<DateTime> get exchangeRateUpdatedAt => $composableBuilder(
     column: $table.exchangeRateUpdatedAt,
     builder: (column) => ColumnOrderings(column),
@@ -28972,11 +26355,6 @@ class $$CountryTaxRatesTableAnnotationComposer
 
   GeneratedColumn<double> get exchangeRate => $composableBuilder(
     column: $table.exchangeRate,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<bool> get allowManualExchangeRate => $composableBuilder(
-    column: $table.allowManualExchangeRate,
     builder: (column) => column,
   );
 
@@ -29030,7 +26408,6 @@ class $$CountryTaxRatesTableTableManager
                 Value<double> withholdingTaxRate = const Value.absent(),
                 Value<String> currency = const Value.absent(),
                 Value<double> exchangeRate = const Value.absent(),
-                Value<bool> allowManualExchangeRate = const Value.absent(),
                 Value<DateTime?> exchangeRateUpdatedAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -29039,7 +26416,6 @@ class $$CountryTaxRatesTableTableManager
                 withholdingTaxRate: withholdingTaxRate,
                 currency: currency,
                 exchangeRate: exchangeRate,
-                allowManualExchangeRate: allowManualExchangeRate,
                 exchangeRateUpdatedAt: exchangeRateUpdatedAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -29050,7 +26426,6 @@ class $$CountryTaxRatesTableTableManager
                 Value<double> withholdingTaxRate = const Value.absent(),
                 Value<String> currency = const Value.absent(),
                 Value<double> exchangeRate = const Value.absent(),
-                Value<bool> allowManualExchangeRate = const Value.absent(),
                 Value<DateTime?> exchangeRateUpdatedAt = const Value.absent(),
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -29059,7 +26434,6 @@ class $$CountryTaxRatesTableTableManager
                 withholdingTaxRate: withholdingTaxRate,
                 currency: currency,
                 exchangeRate: exchangeRate,
-                allowManualExchangeRate: allowManualExchangeRate,
                 exchangeRateUpdatedAt: exchangeRateUpdatedAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -31398,14 +28772,6 @@ class $AppDatabaseManager {
       $$NetWorthSnapshotsTableTableManager(_db, _db.netWorthSnapshots);
   $$StockMastersTableTableManager get stockMasters =>
       $$StockMastersTableTableManager(_db, _db.stockMasters);
-  $$StockPricesTableTableManager get stockPrices =>
-      $$StockPricesTableTableManager(_db, _db.stockPrices);
-  $$StockDividendsTableTableManager get stockDividends =>
-      $$StockDividendsTableTableManager(_db, _db.stockDividends);
-  $$MarketDataRefreshesTableTableManager get marketDataRefreshes =>
-      $$MarketDataRefreshesTableTableManager(_db, _db.marketDataRefreshes);
-  $$ApiRequestDaysTableTableManager get apiRequestDays =>
-      $$ApiRequestDaysTableTableManager(_db, _db.apiRequestDays);
   $$CountryTaxRatesTableTableManager get countryTaxRates =>
       $$CountryTaxRatesTableTableManager(_db, _db.countryTaxRates);
   $$AssetClassesTableTableManager get assetClasses =>
