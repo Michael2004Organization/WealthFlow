@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../../core/widgets/common_widgets.dart';
 
 class AuthPage extends ConsumerStatefulWidget {
   const AuthPage({super.key});
@@ -89,15 +90,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
           children: [
             Row(
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(Icons.account_balance_wallet_rounded),
-                ),
+                const AppLogo(size: 44),
                 const SizedBox(width: 12),
                 Text(
                   'WealthFlow',

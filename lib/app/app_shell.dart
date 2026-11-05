@@ -10,6 +10,7 @@ import '../features/household/household_page.dart';
 import '../features/more/more_page.dart';
 import '../features/statistics/statistics_page.dart';
 import '../features/vehicles/vehicles_page.dart';
+import '../core/widgets/common_widgets.dart';
 import 'app_theme.dart';
 
 /// Width from which the sidebar replaces the bottom navigation.
@@ -232,19 +233,7 @@ class _Sidebar extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: scheme.primary,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.show_chart_rounded,
-                      size: 20,
-                      color: scheme.onPrimary,
-                    ),
-                  ),
+                  const AppLogo(),
                   const SizedBox(width: 10),
                   Text(
                     'WealthFlow',

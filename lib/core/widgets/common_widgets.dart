@@ -26,6 +26,68 @@ const _weekdays = [
   'Sonntag',
 ];
 
+/// The WealthFlow mark: a rising line on a petrol tile. The app icons in
+/// android/, web/ and windows/ are drawn from the same points
+/// (tool/generate_icons.py).
+class AppLogo extends StatelessWidget {
+  const AppLogo({this.size = 36, super.key});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      label: 'WealthFlow',
+      child: CustomPaint(
+        size: Size.square(size),
+        painter: _LogoPainter(tile: scheme.primary, line: scheme.onPrimary),
+      ),
+    );
+  }
+}
+
+/// Shared with tool/generate_icons.py; change both together.
+const logoLinePoints = [
+  Offset(.22, .66),
+  Offset(.40, .46),
+  Offset(.54, .58),
+  Offset(.78, .32),
+];
+
+class _LogoPainter extends CustomPainter {
+  const _LogoPainter({required this.tile, required this.line});
+
+  final Color tile;
+  final Color line;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final side = size.shortestSide;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(side * .28)),
+      Paint()..color = tile,
+    );
+    final path = Path()
+      ..moveTo(logoLinePoints.first.dx * side, logoLinePoints.first.dy * side);
+    for (final point in logoLinePoints.skip(1)) {
+      path.lineTo(point.dx * side, point.dy * side);
+    }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = line
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = side * .085
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_LogoPainter old) => old.tile != tile || old.line != line;
+}
+
 /// German month names, independent of loaded locale data.
 const monthNames = [
   'Januar',
