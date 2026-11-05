@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:drift/drift.dart' show Value;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -854,9 +854,11 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
   bool _usePortfolio = true;
   bool _considerTaxes = true;
   bool _considerInflation = true;
+  Timer? _saveTimer;
 
   @override
   void dispose() {
+    _saveTimer?.cancel();
     for (final controller in [
       _age,
       _start,
@@ -1207,32 +1209,22 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
     _saveFreedomPreference(preference);
   }
 
-  Future<void> _saveFreedomPreference(UserPreference? preference) async {
+  /// Stores only the calculator's own fields, half a second after the last
+  /// keystroke, so typing neither floods the database nor overwrites other
+  /// settings with an older copy.
+  void _saveFreedomPreference(UserPreference? preference) {
     if (preference == null) return;
-    await ref
-        .read(databaseProvider)
-        .savePreferences(
-          UserPreferencesCompanion.insert(
-            userId: preference.userId,
-            themeMode: Value(preference.themeMode),
-            locale: Value(preference.locale),
-            currency: Value(preference.currency),
-            dateFormat: Value(preference.dateFormat),
-            serverMode: Value(preference.serverMode),
-            serverUrl: Value(preference.serverUrl),
-            serverPort: Value(preference.serverPort),
-            serverUsername: Value(preference.serverUsername),
-            selectedHouseholdAccountId: Value(
-              preference.selectedHouseholdAccountId,
-            ),
-            dataFilePath: Value(preference.dataFilePath),
-            freedomAge: Value(_value(_age.text)),
-            freedomStartCapital: Value(_value(_start.text)),
-            freedomUsePortfolio: Value(_usePortfolio),
-            lastSyncAt: Value(preference.lastSyncAt),
-            updatedAt: DateTime.now().toUtc(),
-          ),
-        );
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 500), () {
+      ref
+          .read(databaseProvider)
+          .saveFreedomCalculator(
+            preference.userId,
+            age: _value(_age.text),
+            startCapital: _value(_start.text),
+            usePortfolio: _usePortfolio,
+          );
+    });
   }
 
   double _monthsToTarget({

@@ -4342,6 +4342,26 @@ final class AppDatabase extends _$AppDatabase {
     await into(userPreferences).insertOnConflictUpdate(value);
     _schedulePersist(value.userId.value);
   }
+
+  /// Updates only the saved inputs of the financial freedom calculator.
+  Future<void> saveFreedomCalculator(
+    String userId, {
+    required double age,
+    required double startCapital,
+    required bool usePortfolio,
+  }) async {
+    await (update(
+      userPreferences,
+    )..where((row) => row.userId.equals(userId))).write(
+      UserPreferencesCompanion(
+        freedomAge: Value(age),
+        freedomStartCapital: Value(startCapital),
+        freedomUsePortfolio: Value(usePortfolio),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+    _schedulePersist(userId);
+  }
 }
 
 /// Outcome of the most recent data file write in this session.
