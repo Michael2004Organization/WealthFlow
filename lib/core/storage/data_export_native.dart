@@ -62,6 +62,20 @@ Future<Uint8List?> chooseDataImport() async {
   return file?.readAsBytes();
 }
 
+/// Lets the user pick a bank's CSV export.
+Future<Uint8List?> chooseCsvFile() async {
+  final file = await openFile(
+    acceptedTypeGroups: const [
+      XTypeGroup(
+        label: 'Kontoauszug (CSV)',
+        extensions: ['csv', 'txt'],
+        mimeTypes: ['text/csv', 'text/plain'],
+      ),
+    ],
+  );
+  return file?.readAsBytes();
+}
+
 /// Saves a transfer file. Android keeps it in the app's own folder (see
 /// [_androidFolder]); returns the path, or null when cancelled.
 Future<String?> saveTransferFile(Uint8List bytes, String fileName) async {

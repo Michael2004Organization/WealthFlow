@@ -8,12 +8,14 @@ import 'package:wealthflow/features/auth/auth_page.dart';
 import 'package:wealthflow/features/calculators/calculators_page.dart';
 import 'package:wealthflow/features/finance/accounts_page.dart';
 import 'package:wealthflow/features/finance/investments_page.dart';
+import 'package:wealthflow/features/household/bank_import_page.dart';
 import 'package:wealthflow/features/household/budgets_page.dart';
 import 'package:wealthflow/features/household/household_page.dart';
 import 'package:wealthflow/features/household/standing_orders_page.dart';
 import 'package:wealthflow/features/settings/administration_page.dart';
 import 'package:wealthflow/features/vehicles/vehicles_page.dart';
 import 'package:wealthflow_core/database/app_database.dart';
+import 'package:wealthflow_core/finance/bank_csv.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -469,6 +471,53 @@ void main() {
     expect(find.text('Rest übertragen'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  for (final csv in [
+    'Buchungstag;Beguenstigter/Zahlungspflichtiger;Verwendungszweck;Betrag\n'
+        '03.11.2026;Ein sehr langer Händlername mit Filialnummer 1234;'
+        'Kartenzahlung;-42,17\n',
+    'Tag;Wert;Wer\n2026-10-01;12,50;Firma\n',
+  ]) {
+    testWidgets('bank import preview fits a phone: ${csv.split(';').first}', (
+      tester,
+    ) async {
+      final now = DateTime.now();
+      final account = Account(
+        id: 'giro',
+        userId: 'responsive-user',
+        bankName: 'Testbank',
+        label: 'Haushaltskonto mit langem Namen',
+        holder: '',
+        iban: '',
+        bic: '',
+        accountNumber: '',
+        currency: 'EUR',
+        balance: 0,
+        availableBalance: 0,
+        usageType: 'household',
+        notes: '',
+        displayOrder: 0,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await pumpPage(
+        tester,
+        Dialog.fullscreen(
+          child: BankImportDialog(
+            userId: 'responsive-user',
+            table: parseBankCsv(csv.codeUnits),
+            accounts: [account],
+            initialAccountId: 'giro',
+            existing: const [],
+          ),
+        ),
+        overrides: const [],
+      );
+
+      expect(find.textContaining('übernehmen'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 }
 
 /// Stands in for the "+" of the app's navigation bar, which opens the

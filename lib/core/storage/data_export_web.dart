@@ -28,9 +28,15 @@ Future<String?> saveTransferFile(Uint8List bytes, String fileName) async {
   return fileName;
 }
 
-Future<Uint8List?> chooseDataImport() async {
-  final input = html.FileUploadInputElement()
-    ..accept = '.wflow2,.wflow,.json,application/json,application/octet-stream';
+Future<Uint8List?> chooseDataImport() => _chooseFile(
+  '.wflow2,.wflow,.json,application/json,application/octet-stream',
+);
+
+/// Lets the user pick a bank's CSV export.
+Future<Uint8List?> chooseCsvFile() => _chooseFile('.csv,.txt,text/csv');
+
+Future<Uint8List?> _chooseFile(String accept) async {
+  final input = html.FileUploadInputElement()..accept = accept;
   final completer = Completer<Uint8List?>();
   input.onChange.first.then((_) {
     final file = input.files?.firstOrNull;
