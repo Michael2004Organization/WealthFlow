@@ -1580,6 +1580,25 @@ Future<void> _showPhysicalAssetEditor(
 }
 
 /// Currency in which prices of [investment] are entered.
+String _accountCurrencyOf(WidgetRef ref, Investment investment) =>
+    ((ref.read(accountsProvider).valueOrNull ?? const <Account>[])
+                .where((account) => account.id == investment.accountId)
+                .firstOrNull
+                ?.currency ??
+            moneyCurrency)
+        .toUpperCase();
+
+/// Purchases in a foreign currency saved before the rate was recorded carry
+/// a rate of exactly 1, which books the wrong amount on the account.
+bool _missingPurchaseRate(
+  WidgetRef ref,
+  Investment investment,
+  InvestmentPurchase purchase,
+) =>
+    purchase.exchangeRate == 1 &&
+    _instrumentCurrency(investment).toUpperCase() !=
+        _accountCurrencyOf(ref, investment);
+
 String _instrumentCurrency(Investment investment) =>
     investment.instrumentCurrency.isEmpty
     ? moneyCurrency
@@ -1804,6 +1823,11 @@ Future<void> _showInvestmentDetails(
                         separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final purchase = sorted[index];
+                          final missingRate = _missingPurchaseRate(
+                            ref,
+                            investment,
+                            purchase,
+                          );
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: const CircleAvatar(
@@ -1812,13 +1836,27 @@ Future<void> _showInvestmentDetails(
                             title: Text(
                               '${quantityText(purchase.quantity)} Stück · ${money(purchase.purchasePrice, currency: _instrumentCurrency(investment))}',
                             ),
-                            subtitle: Text(
-                              DateFormat(
-                                    'dd.MM.yyyy',
-                                  ).format(purchase.purchaseDate) +
-                                  (purchase.fees == 0
-                                      ? ''
-                                      : ' · Gebühren ${money(purchase.fees, currency: _instrumentCurrency(investment))}'),
+                            subtitle: Text.rich(
+                              TextSpan(
+                                text:
+                                    DateFormat(
+                                      'dd.MM.yyyy',
+                                    ).format(purchase.purchaseDate) +
+                                    (purchase.fees == 0
+                                        ? ''
+                                        : ' · Gebühren ${money(purchase.fees, currency: _instrumentCurrency(investment))}'),
+                                children: [
+                                  if (missingRate)
+                                    TextSpan(
+                                      text:
+                                          '\nWechselkurs fehlt – bitte im Kauf eintragen',
+                                      style: TextStyle(
+                                        color: WealthColors.of(context).expense,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -3635,6 +3673,14 @@ Future<void> _showPurchaseEditor(
   final dividend = TextEditingController(
     text: investment?.annualDividend.toString() ?? '0',
   );
+  final instrumentCurrency = investment == null
+      ? moneyCurrency
+      : _instrumentCurrency(investment);
+  final accountCurrency = investment == null
+      ? moneyCurrency
+      : _accountCurrencyOf(ref, investment);
+  final foreign = instrumentCurrency.toUpperCase() != accountCurrency;
+  final rate = TextEditingController(text: purchase.exchangeRate.toString());
   final key = GlobalKey<FormState>();
   var date = purchase.purchaseDate;
   final saved = await showDialog<bool>(
@@ -3660,9 +3706,9 @@ Future<void> _showPurchaseEditor(
               const SizedBox(height: 12),
               TextFormField(
                 controller: price,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Kaufkurs',
-                  suffixText: '€',
+                  suffixText: instrumentCurrency,
                 ),
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
@@ -3672,15 +3718,35 @@ Future<void> _showPurchaseEditor(
               const SizedBox(height: 12),
               TextFormField(
                 controller: fee,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Gebühren',
-                  suffixText: '€',
+                  suffixText: instrumentCurrency,
                 ),
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
                 validator: _positiveNumberValidator,
               ),
+              if (foreign) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: rate,
+                  decoration: InputDecoration(
+                    labelText: 'Wechselkurs am Kauftag',
+                    prefixText: '1 $instrumentCurrency = ',
+                    suffixText: accountCurrency,
+                    helperText: purchase.exchangeRate == 1
+                        ? 'Noch nicht erfasst. Den Kurs findest du in der Kaufabrechnung.'
+                        : null,
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (value) => (_parseNumber(value) ?? 0) <= 0
+                      ? 'Muss größer als 0 sein'
+                      : null,
+                ),
+              ],
               const SizedBox(height: 12),
               TextFormField(
                 controller: dividend,
@@ -3740,6 +3806,7 @@ Future<void> _showPurchaseEditor(
               purchasePrice: _parseNumber(price.text)!,
               quantity: _parseNumber(quantity.text)!,
               fees: _parseNumber(fee.text)!,
+              exchangeRate: foreign ? _parseNumber(rate.text) : null,
             );
         if (investment != null) {
           await ref
@@ -3758,6 +3825,7 @@ Future<void> _showPurchaseEditor(
   price.dispose();
   fee.dispose();
   dividend.dispose();
+  rate.dispose();
 }
 
 Future<void> _showPortfolioActivity(

@@ -165,6 +165,40 @@ void main() {
     expect((await cash('u', 'depot')).balance, closeTo(928, 1e-9));
   });
 
+  test('N2: Wechselkurs eines Kaufs nachträglich korrigieren', () async {
+    await user('u');
+    await account('depot', 'u');
+    await position('apple', 'u', 'depot', currency: 'USD', currentPrice: 120);
+    // Ohne hinterlegten Kurs wurde früher 1:1 gebucht.
+    await database.recordInvestmentPurchase(
+      userId: 'u',
+      investmentId: 'apple',
+      purchaseDate: now,
+      purchasePrice: 100,
+      quantity: 2,
+      fees: 0,
+      buy: true,
+    );
+    expect((await cash('u', 'depot')).balance, closeTo(800, 1e-9));
+    final purchase =
+        (await database.watchInvestmentPurchases('u').first).single;
+
+    await database.updateInvestmentPurchase(
+      userId: 'u',
+      purchaseId: purchase.id,
+      purchaseDate: now,
+      purchasePrice: 100,
+      quantity: 2,
+      fees: 0,
+      exchangeRate: .9,
+    );
+
+    // 200 USD × 0,90 = 180 EUR: 20 EUR gehen zurück aufs Konto.
+    expect((await cash('u', 'depot')).balance, closeTo(820, 1e-9));
+    final updated = (await database.watchInvestmentPurchases('u').first).single;
+    expect(updated.exchangeRate, .9);
+  });
+
   test('3: Bruchstücke aus Sparplänen bleiben erhalten', () async {
     await user('u');
     await account('depot', 'u');

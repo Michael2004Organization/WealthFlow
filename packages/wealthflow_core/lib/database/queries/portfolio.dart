@@ -174,9 +174,15 @@ extension PortfolioQueries on AppDatabase {
     required double purchasePrice,
     required double quantity,
     required double fees,
+    double? exchangeRate,
   }) async {
-    if (purchasePrice < 0 || quantity <= 0 || fees < 0) {
-      throw ArgumentError('Kaufkurs, Stückzahl und Gebühren sind ungültig.');
+    if (purchasePrice < 0 ||
+        quantity <= 0 ||
+        fees < 0 ||
+        (exchangeRate != null && exchangeRate <= 0)) {
+      throw ArgumentError(
+        'Kaufkurs, Stückzahl, Gebühren oder Wechselkurs sind ungültig.',
+      );
     }
     final purchase =
         await (select(investmentPurchases)..where(
@@ -192,6 +198,7 @@ extension PortfolioQueries on AppDatabase {
       purchasePrice: purchasePrice,
       quantity: quantity,
       fees: fees,
+      exchangeRate: exchangeRate ?? purchase.exchangeRate,
     );
     final investment = await (select(
       investments,
@@ -205,6 +212,7 @@ extension PortfolioQueries on AppDatabase {
           purchasePrice: Value(purchasePrice),
           quantity: Value(quantity),
           fees: Value(fees),
+          exchangeRate: Value(changed.exchangeRate),
           updatedAt: Value(DateTime.now().toUtc()),
         ),
       );
