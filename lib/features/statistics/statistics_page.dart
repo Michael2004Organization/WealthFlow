@@ -646,16 +646,17 @@ class _AccountsChart extends StatelessWidget {
   );
 }
 
-class _PortfolioChart extends StatelessWidget {
+class _PortfolioChart extends ConsumerWidget {
   const _PortfolioChart({required this.investments});
   final List<Investment> investments;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final converter = ref.watch(currencyConverterProvider);
     final visible = [...investments]
       ..sort(
-        (a, b) => (b.quantity * b.currentPrice).compareTo(
-          a.quantity * a.currentPrice,
-        ),
+        (a, b) => (converter.investmentValue(
+          b,
+        )).compareTo(converter.investmentValue(a)),
       );
     return _ChartCard(
       title: 'Depotentwicklung',
@@ -670,7 +671,7 @@ class _PortfolioChart extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
                 title: Text(item.name),
                 trailing: Text(
-                  money(item.quantity * item.currentPrice),
+                  money(converter.investmentValue(item)),
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
@@ -684,15 +685,16 @@ class _PortfolioChart extends StatelessWidget {
   }
 }
 
-class _PositionBars extends StatelessWidget {
+class _PositionBars extends ConsumerWidget {
   const _PositionBars({required this.investments});
 
   final List<Investment> investments;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final converter = ref.watch(currencyConverterProvider);
     final maximum = investments
-        .map((item) => item.quantity * item.currentPrice)
+        .map((item) => converter.investmentValue(item))
         .fold<double>(0, (max, value) => value > max ? value : max);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -704,7 +706,7 @@ class _PositionBars extends StatelessWidget {
               child: Column(
                 children: [
                   Text(
-                    money(item.quantity * item.currentPrice),
+                    money(converter.investmentValue(item)),
                     maxLines: 1,
                     overflow: TextOverflow.fade,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -718,8 +720,10 @@ class _PositionBars extends StatelessWidget {
                       child: FractionallySizedBox(
                         heightFactor: maximum <= 0
                             ? 0
-                            : (item.quantity * item.currentPrice / maximum)
-                                  .clamp(.04, 1),
+                            : (converter.investmentValue(item) / maximum).clamp(
+                                .04,
+                                1,
+                              ),
                         widthFactor: .62,
                         child: DecoratedBox(
                           decoration: BoxDecoration(

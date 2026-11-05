@@ -98,13 +98,15 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           0,
           (sum, item) =>
               sum +
-              investmentSharesAt(
-                    investment: item,
-                    date: monthEnd,
-                    purchases: purchases,
-                    sales: sales,
-                  ) *
-                  item.currentPrice,
+              converter.investmentValue(
+                item,
+                quantity: investmentSharesAt(
+                  investment: item,
+                  date: monthEnd,
+                  purchases: purchases,
+                  sales: sales,
+                ),
+              ),
         ) +
         physicalAssets.fold<double>(
           0,
@@ -134,8 +136,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             sales: sales,
           );
           return sum +
-              quantity * item.purchasePrice +
-              (item.quantity <= 0 ? 0 : item.fees * quantity / item.quantity);
+              converter.toBase(
+                quantity * item.purchasePrice +
+                    (item.quantity <= 0
+                        ? 0
+                        : item.fees * quantity / item.quantity),
+                item.instrumentCurrency,
+              );
         }) +
         physicalAssets.fold<double>(
           0,

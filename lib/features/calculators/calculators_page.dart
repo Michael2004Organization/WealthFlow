@@ -83,7 +83,8 @@ class _CompoundCalculatorState extends ConsumerState<_CompoundCalculator> {
         ref.watch(investmentsProvider).valueOrNull ?? const <Investment>[];
     final portfolio = investments.fold<double>(
       0,
-      (sum, item) => sum + item.quantity * item.currentPrice,
+      (sum, item) =>
+          sum + ref.read(currencyConverterProvider).investmentValue(item),
     );
     final start = _advanced ? 0.0 : _value(_start.text);
     final selected = investments
@@ -880,7 +881,9 @@ class _FreedomCalculatorState extends ConsumerState<_FreedomCalculator> {
             .valueOrNull
             ?.fold<double>(
               0,
-              (sum, item) => sum + item.quantity * item.currentPrice,
+              (sum, item) =>
+                  sum +
+                  ref.read(currencyConverterProvider).investmentValue(item),
             ) ??
         0;
     if (!_loadedPreferences && preference != null) {

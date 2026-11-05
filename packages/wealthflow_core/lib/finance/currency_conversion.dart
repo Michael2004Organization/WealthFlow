@@ -33,4 +33,28 @@ final class CurrencyConverter {
     if (code == baseCurrency) return amount;
     return amount * (_rates[code] ?? 1);
   }
+
+  /// Units of the standard currency for one unit of [currency].
+  double rateOf(String currency) {
+    final code = currency.toUpperCase();
+    if (code == baseCurrency || code.isEmpty) return 1;
+    return _rates[code] ?? 1;
+  }
+
+  /// Converts [amount] from one currency into another over the standard
+  /// currency; an empty currency counts as the standard currency.
+  double convert(double amount, String from, String to) {
+    final source = from.toUpperCase();
+    final target = to.toUpperCase();
+    if (source == target) return amount;
+    return amount * rateOf(source) / rateOf(target);
+  }
+
+  /// Current value of a position in the standard currency.
+  double investmentValue(Investment investment, {double? quantity}) => toBase(
+    (quantity ?? investment.quantity) * investment.currentPrice,
+    investment.instrumentCurrency.isEmpty
+        ? baseCurrency
+        : investment.instrumentCurrency,
+  );
 }

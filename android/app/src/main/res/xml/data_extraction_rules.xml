@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 und neuer: Nur der eigene Ordner mit der verschlüsselten
+     Datendatei wird gesichert und beim Gerätewechsel übertragen. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="external" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="external" path="." />
+    </device-transfer>
+</data-extraction-rules>

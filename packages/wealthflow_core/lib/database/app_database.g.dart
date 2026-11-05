@@ -4185,6 +4185,18 @@ class $InvestmentPurchasesTable extends InvestmentPurchases
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _exchangeRateMeta = const VerificationMeta(
+    'exchangeRate',
+  );
+  @override
+  late final GeneratedColumn<double> exchangeRate = GeneratedColumn<double>(
+    'exchange_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4228,6 +4240,7 @@ class $InvestmentPurchasesTable extends InvestmentPurchases
     quantity,
     fees,
     cashApplied,
+    exchangeRate,
     createdAt,
     updatedAt,
     deletedAt,
@@ -4313,6 +4326,15 @@ class $InvestmentPurchasesTable extends InvestmentPurchases
         ),
       );
     }
+    if (data.containsKey('exchange_rate')) {
+      context.handle(
+        _exchangeRateMeta,
+        exchangeRate.isAcceptableOrUnknown(
+          data['exchange_rate']!,
+          _exchangeRateMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -4374,6 +4396,10 @@ class $InvestmentPurchasesTable extends InvestmentPurchases
         DriftSqlType.bool,
         data['${effectivePrefix}cash_applied'],
       )!,
+      exchangeRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}exchange_rate'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4405,6 +4431,10 @@ class InvestmentPurchase extends DataClass
   final double quantity;
   final double fees;
   final bool cashApplied;
+
+  /// Units of the cash account's currency for one unit of the instrument
+  /// currency at the time of the purchase.
+  final double exchangeRate;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -4417,6 +4447,7 @@ class InvestmentPurchase extends DataClass
     required this.quantity,
     required this.fees,
     required this.cashApplied,
+    required this.exchangeRate,
     required this.createdAt,
     this.updatedAt,
     this.deletedAt,
@@ -4432,6 +4463,7 @@ class InvestmentPurchase extends DataClass
     map['quantity'] = Variable<double>(quantity);
     map['fees'] = Variable<double>(fees);
     map['cash_applied'] = Variable<bool>(cashApplied);
+    map['exchange_rate'] = Variable<double>(exchangeRate);
     map['created_at'] = Variable<DateTime>(createdAt);
     if (!nullToAbsent || updatedAt != null) {
       map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -4452,6 +4484,7 @@ class InvestmentPurchase extends DataClass
       quantity: Value(quantity),
       fees: Value(fees),
       cashApplied: Value(cashApplied),
+      exchangeRate: Value(exchangeRate),
       createdAt: Value(createdAt),
       updatedAt: updatedAt == null && nullToAbsent
           ? const Value.absent()
@@ -4476,6 +4509,7 @@ class InvestmentPurchase extends DataClass
       quantity: serializer.fromJson<double>(json['quantity']),
       fees: serializer.fromJson<double>(json['fees']),
       cashApplied: serializer.fromJson<bool>(json['cashApplied']),
+      exchangeRate: serializer.fromJson<double>(json['exchangeRate']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -4493,6 +4527,7 @@ class InvestmentPurchase extends DataClass
       'quantity': serializer.toJson<double>(quantity),
       'fees': serializer.toJson<double>(fees),
       'cashApplied': serializer.toJson<bool>(cashApplied),
+      'exchangeRate': serializer.toJson<double>(exchangeRate),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -4508,6 +4543,7 @@ class InvestmentPurchase extends DataClass
     double? quantity,
     double? fees,
     bool? cashApplied,
+    double? exchangeRate,
     DateTime? createdAt,
     Value<DateTime?> updatedAt = const Value.absent(),
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -4520,6 +4556,7 @@ class InvestmentPurchase extends DataClass
     quantity: quantity ?? this.quantity,
     fees: fees ?? this.fees,
     cashApplied: cashApplied ?? this.cashApplied,
+    exchangeRate: exchangeRate ?? this.exchangeRate,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -4542,6 +4579,9 @@ class InvestmentPurchase extends DataClass
       cashApplied: data.cashApplied.present
           ? data.cashApplied.value
           : this.cashApplied,
+      exchangeRate: data.exchangeRate.present
+          ? data.exchangeRate.value
+          : this.exchangeRate,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -4559,6 +4599,7 @@ class InvestmentPurchase extends DataClass
           ..write('quantity: $quantity, ')
           ..write('fees: $fees, ')
           ..write('cashApplied: $cashApplied, ')
+          ..write('exchangeRate: $exchangeRate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -4576,6 +4617,7 @@ class InvestmentPurchase extends DataClass
     quantity,
     fees,
     cashApplied,
+    exchangeRate,
     createdAt,
     updatedAt,
     deletedAt,
@@ -4592,6 +4634,7 @@ class InvestmentPurchase extends DataClass
           other.quantity == this.quantity &&
           other.fees == this.fees &&
           other.cashApplied == this.cashApplied &&
+          other.exchangeRate == this.exchangeRate &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -4606,6 +4649,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
   final Value<double> quantity;
   final Value<double> fees;
   final Value<bool> cashApplied;
+  final Value<double> exchangeRate;
   final Value<DateTime> createdAt;
   final Value<DateTime?> updatedAt;
   final Value<DateTime?> deletedAt;
@@ -4619,6 +4663,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
     this.quantity = const Value.absent(),
     this.fees = const Value.absent(),
     this.cashApplied = const Value.absent(),
+    this.exchangeRate = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -4633,6 +4678,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
     required double quantity,
     this.fees = const Value.absent(),
     this.cashApplied = const Value.absent(),
+    this.exchangeRate = const Value.absent(),
     required DateTime createdAt,
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -4653,6 +4699,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
     Expression<double>? quantity,
     Expression<double>? fees,
     Expression<bool>? cashApplied,
+    Expression<double>? exchangeRate,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
@@ -4667,6 +4714,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
       if (quantity != null) 'quantity': quantity,
       if (fees != null) 'fees': fees,
       if (cashApplied != null) 'cash_applied': cashApplied,
+      if (exchangeRate != null) 'exchange_rate': exchangeRate,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -4683,6 +4731,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
     Value<double>? quantity,
     Value<double>? fees,
     Value<bool>? cashApplied,
+    Value<double>? exchangeRate,
     Value<DateTime>? createdAt,
     Value<DateTime?>? updatedAt,
     Value<DateTime?>? deletedAt,
@@ -4697,6 +4746,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
       quantity: quantity ?? this.quantity,
       fees: fees ?? this.fees,
       cashApplied: cashApplied ?? this.cashApplied,
+      exchangeRate: exchangeRate ?? this.exchangeRate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -4731,6 +4781,9 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
     if (cashApplied.present) {
       map['cash_applied'] = Variable<bool>(cashApplied.value);
     }
+    if (exchangeRate.present) {
+      map['exchange_rate'] = Variable<double>(exchangeRate.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4757,6 +4810,7 @@ class InvestmentPurchasesCompanion extends UpdateCompanion<InvestmentPurchase> {
           ..write('quantity: $quantity, ')
           ..write('fees: $fees, ')
           ..write('cashApplied: $cashApplied, ')
+          ..write('exchangeRate: $exchangeRate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -22205,6 +22259,7 @@ typedef $$InvestmentPurchasesTableCreateCompanionBuilder =
       required double quantity,
       Value<double> fees,
       Value<bool> cashApplied,
+      Value<double> exchangeRate,
       required DateTime createdAt,
       Value<DateTime?> updatedAt,
       Value<DateTime?> deletedAt,
@@ -22220,6 +22275,7 @@ typedef $$InvestmentPurchasesTableUpdateCompanionBuilder =
       Value<double> quantity,
       Value<double> fees,
       Value<bool> cashApplied,
+      Value<double> exchangeRate,
       Value<DateTime> createdAt,
       Value<DateTime?> updatedAt,
       Value<DateTime?> deletedAt,
@@ -22311,6 +22367,11 @@ class $$InvestmentPurchasesTableFilterComposer
 
   ColumnFilters<bool> get cashApplied => $composableBuilder(
     column: $table.cashApplied,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get exchangeRate => $composableBuilder(
+    column: $table.exchangeRate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -22415,6 +22476,11 @@ class $$InvestmentPurchasesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get exchangeRate => $composableBuilder(
+    column: $table.exchangeRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -22507,6 +22573,11 @@ class $$InvestmentPurchasesTableAnnotationComposer
 
   GeneratedColumn<bool> get cashApplied => $composableBuilder(
     column: $table.cashApplied,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get exchangeRate => $composableBuilder(
+    column: $table.exchangeRate,
     builder: (column) => column,
   );
 
@@ -22610,6 +22681,7 @@ class $$InvestmentPurchasesTableTableManager
                 Value<double> quantity = const Value.absent(),
                 Value<double> fees = const Value.absent(),
                 Value<bool> cashApplied = const Value.absent(),
+                Value<double> exchangeRate = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -22623,6 +22695,7 @@ class $$InvestmentPurchasesTableTableManager
                 quantity: quantity,
                 fees: fees,
                 cashApplied: cashApplied,
+                exchangeRate: exchangeRate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -22638,6 +22711,7 @@ class $$InvestmentPurchasesTableTableManager
                 required double quantity,
                 Value<double> fees = const Value.absent(),
                 Value<bool> cashApplied = const Value.absent(),
+                Value<double> exchangeRate = const Value.absent(),
                 required DateTime createdAt,
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -22651,6 +22725,7 @@ class $$InvestmentPurchasesTableTableManager
                 quantity: quantity,
                 fees: fees,
                 cashApplied: cashApplied,
+                exchangeRate: exchangeRate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
