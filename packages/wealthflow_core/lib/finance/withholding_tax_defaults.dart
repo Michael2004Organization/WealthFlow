@@ -311,3 +311,12 @@ WithholdingTaxDefault? withholdingTaxDefaultFor(String? country) {
   }
   return null;
 }
+
+/// Share of the gross dividend, in percent, that German tax credits for
+/// [country] when [withheld] percent were deducted there. Unknown countries
+/// get the usual treaty rate of 15 %.
+double creditableTaxRateFor(String? country, double withheld) {
+  final known = withholdingTaxDefaultFor(country);
+  final cap = known?.creditable ?? 15;
+  return (withheld < cap ? withheld : cap).clamp(0, 25).toDouble();
+}

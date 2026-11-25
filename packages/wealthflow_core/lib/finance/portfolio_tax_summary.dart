@@ -1,5 +1,7 @@
 import '../database/app_database.dart';
 import 'dividend_math.dart';
+import 'sale_tax.dart';
+import 'withholding_tax_defaults.dart';
 
 final class PortfolioTaxSummary {
   const PortfolioTaxSummary({
@@ -174,7 +176,8 @@ List<PortfolioTaxEvent> calculatePortfolioTaxEvents({
       sales: sales,
     );
     if (quantity <= 0) continue;
-    final tax = calculateGermanDividendTax(
+    final tax = calculateInvestmentDividendTax(
+      investment,
       grossAmount:
           (schedule?.amountPerShare ?? investment.annualDividend) * quantity,
       exchangeRate: schedule?.exchangeRate ?? investment.dividendExchangeRate,
@@ -230,4 +233,32 @@ double investmentSharesAt({
       .where((sale) => !sale.soldAt.isAfter(date))
       .fold<double>(0, (sum, sale) => sum + sale.quantity);
   return (purchased - sold).clamp(0, double.infinity).toDouble();
+}
+
+/// German tax on a dividend of [investment], with the rules of its asset
+/// type and country: funds pay out without foreign tax at investor level and
+/// are partly tax-free (Teilfreistellung); for shares, foreign tax is only
+/// credited up to the treaty rate of the country.
+DividendTaxResult calculateInvestmentDividendTax(
+  Investment investment, {
+  required double grossAmount,
+  required double exchangeRate,
+  required double withholdingTaxRate,
+  required double allowanceRemaining,
+}) {
+  final fund = isFundAssetType(investment.assetType);
+  final withheld = fund ? 0.0 : withholdingTaxRate;
+  return calculateGermanDividendTax(
+    grossAmount: grossAmount,
+    exchangeRate: exchangeRate,
+    withholdingTaxRate: withheld,
+    allowanceRemaining: allowanceRemaining,
+    creditableRate: fund
+        ? 0
+        : creditableTaxRateFor(investment.country, withheld),
+    partialExemption: partialExemptionRate(
+      investment.assetType,
+      investment.name,
+    ),
+  );
 }

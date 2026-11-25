@@ -44,6 +44,8 @@ final class DividendTaxResult {
     required this.allowanceUsed,
     required this.allowanceRemaining,
     required this.net,
+    this.partialExemption = 0,
+    this.taxable = 0,
   });
 
   /// Gross payout in the dividend currency, rounded to cents.
@@ -62,15 +64,41 @@ final class DividendTaxResult {
   final double allowanceUsed;
   final double allowanceRemaining;
   final double net;
+
+  /// Tax-free part of a fund distribution (Teilfreistellung).
+  final double partialExemption;
+
+  /// Income subject to German tax after partial exemption and allowance.
+  final double taxable;
+
+  /// Foreign tax that German tax does not credit: only the source country
+  /// refunds it (e.g. 20 of the 35 % withheld in Switzerland), or the bank
+  /// credits it later in the year once the allowance is used up.
+  double get nonCreditableWithholdingTax => _cents(
+    (withholdingTax - creditableWithholdingTax).clamp(0, double.infinity),
+  );
+
+  /// All taxes on this payout, foreign and German.
+  double get totalTax => _cents(
+    withholdingTax + germanCapitalTax + solidaritySurcharge + churchTax,
+  );
 }
 
 /// Standard calculation for a German private investor without church tax.
 /// Tax components are rounded per payout, as they are on a bank statement.
+///
+/// [creditableRate] caps the foreign tax that is credited, in percent of the
+/// gross payout (column C of the BZSt overview: 15 for Switzerland although
+/// 35 are withheld). Without it, up to 25 % are credited.
+/// [partialExemption] is the tax-free share of a fund distribution (0.3 for
+/// equity funds); the saver allowance only covers the taxable rest.
 DividendTaxResult calculateGermanDividendTax({
   required double grossAmount,
   required double exchangeRate,
   required double withholdingTaxRate,
   required double allowanceRemaining,
+  double? creditableRate,
+  double partialExemption = 0,
   double churchTaxRate = 0,
 }) {
   // Foreign withholding tax is deducted in the dividend currency before the
@@ -83,16 +111,23 @@ DividendTaxResult calculateGermanDividendTax({
   final gross = _cents(grossSource * rate);
   final afterWithholding = _cents((grossSource - withholdingTaxSource) * rate);
   final withholdingTax = _cents(gross - afterWithholding);
-  // The allowance is consumed by the gross income; foreign withholding tax
-  // does not reduce the taxable dividend.
+  final exempt = _cents(gross * partialExemption.clamp(0, 1));
+  // The allowance is consumed by the taxable income; foreign withholding tax
+  // does not reduce it.
+  final beforeAllowance = _cents(gross - exempt);
   final taxExemptGross = _cents(
-    gross.clamp(0, allowanceRemaining.clamp(0, double.infinity)),
+    beforeAllowance.clamp(0, allowanceRemaining.clamp(0, double.infinity)),
   );
-  final taxable = (gross - taxExemptGross).clamp(0, double.infinity);
+  final taxable = _cents(
+    (beforeAllowance - taxExemptGross).clamp(0, double.infinity),
+  );
   final capitalTaxBeforeCredit = _cents(
     taxable * germanCapitalGainsTaxRate / 100,
   );
-  final maximumCreditable = _cents(gross * germanCapitalGainsTaxRate / 100);
+  final creditablePercent = (creditableRate ?? germanCapitalGainsTaxRate)
+      .clamp(0, germanCapitalGainsTaxRate)
+      .toDouble();
+  final maximumCreditable = _cents(gross * creditablePercent / 100);
   final creditable = _cents(
     withholdingTax.clamp(
       0,
@@ -123,6 +158,8 @@ DividendTaxResult calculateGermanDividendTax({
       (allowanceRemaining - taxExemptGross).clamp(0, double.infinity),
     ),
     net: net,
+    partialExemption: exempt,
+    taxable: taxable,
   );
 }
 

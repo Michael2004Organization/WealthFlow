@@ -12,6 +12,7 @@ import 'package:wealthflow_core/finance/currencies.dart';
 import 'package:wealthflow_core/finance/withholding_tax_defaults.dart';
 import 'package:wealthflow_core/finance/portfolio_master_data.dart';
 import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
+import 'package:wealthflow_core/finance/sale_tax.dart';
 
 import '../../app/app_theme.dart';
 import '../../core/providers.dart';

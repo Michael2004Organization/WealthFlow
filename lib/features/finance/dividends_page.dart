@@ -10,11 +10,13 @@ import 'package:wealthflow_core/finance/currencies.dart';
 import 'package:wealthflow_core/finance/dividend_math.dart';
 import 'package:wealthflow_core/finance/dividend_projection.dart';
 import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
+import 'package:wealthflow_core/finance/sale_tax.dart';
 
 import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 import 'dividend_prompt.dart';
+import 'dividend_tax_breakdown.dart';
 import 'investments_page.dart';
 
 final _dividendInvestmentFilterProvider = StateProvider<String?>((_) => null);
@@ -112,6 +114,8 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
           purchases,
           sales,
           {for (final account in accounts) account.id: account.currency},
+          includePhysicalAssets:
+              preference?.includePhysicalAssetsInTaxAllowance ?? false,
         );
         dividendItems.sort(
           (a, b) => _netForInvestment(
@@ -1481,171 +1485,29 @@ Future<void> _showDividendPaymentDetail(
   required ProjectedDividend payment,
 }) => showDialog<void>(
   context: context,
-  builder: (dialogContext) {
-    final tax = payment.tax;
-    final accountCurrency = payment.accountCurrency;
-    final rate =
-        payment.sourceCurrency.toUpperCase() == accountCurrency.toUpperCase()
-        ? 1.0
-        : payment.exchangeRate <= 0
-        ? 1.0
-        : payment.exchangeRate;
-    return AlertDialog(
-      title: Text('${payment.investment.name} · Brutto bis Netto'),
-      content: SizedBox(
-        width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 720.0),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _DividendTaxRow(
-                label: 'Brutto',
-                value: tax.grossSource,
-                currency: payment.sourceCurrency,
-                emphasized: true,
-              ),
-              _DividendTaxRow(
-                label:
-                    'Quellensteuer (${payment.withholdingTaxRate.toStringAsFixed(2)} % · ${payment.investment.country})',
-                value: -tax.withholdingTaxSource,
-                currency: payment.sourceCurrency,
-              ),
-              const SizedBox(height: 6),
-              _DividendTaxRow(
-                label: 'Zwischensumme nach Quellensteuer',
-                value: tax.grossSource - tax.withholdingTaxSource,
-                currency: payment.sourceCurrency,
-                emphasized: true,
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 2, bottom: 6),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    '${payment.sourceCurrency.toUpperCase()} → ${accountCurrency.toUpperCase()} · Kurs ${rate.toStringAsFixed(6)}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-              ),
-              _DividendTaxRow(
-                label: 'Nach Quellensteuer umgerechnet',
-                value: tax.gross - tax.withholdingTax,
-                currency: accountCurrency,
-              ),
-              if (tax.creditableWithholdingTax > 0)
-                _DividendTaxRow(
-                  label: 'Davon anrechenbare Quellensteuer',
-                  value: tax.creditableWithholdingTax,
-                  currency: accountCurrency,
-                  informational: true,
-                ),
-              _DividendTaxRow(
-                label: 'Kapitalertragsteuer ($germanCapitalGainsTaxRate %)',
-                value: -tax.germanCapitalTax,
-                currency: accountCurrency,
-              ),
-              _DividendTaxRow(
-                label:
-                    'Solidaritätszuschlag ($solidaritySurchargeRate % auf Kapitalertragsteuer)',
-                value: -tax.solidaritySurcharge,
-                currency: accountCurrency,
-              ),
-              if (tax.churchTax > 0)
-                _DividendTaxRow(
-                  label: 'Kirchensteuer',
-                  value: -tax.churchTax,
-                  currency: accountCurrency,
-                ),
-              if (tax.allowanceUsed > 0)
-                _DividendTaxRow(
-                  label: 'Genutzter Freistellungsauftrag',
-                  value: tax.allowanceUsed,
-                  currency: accountCurrency,
-                  informational: true,
-                ),
-              const Divider(height: 18),
-              _DividendTaxRow(
-                label: 'Netto',
-                value: tax.net,
-                currency: accountCurrency,
-                emphasized: true,
-              ),
-            ],
-          ),
+  builder: (dialogContext) => AlertDialog(
+    title: Text('${payment.investment.name} · Brutto bis Netto'),
+    content: SizedBox(
+      width: (MediaQuery.sizeOf(dialogContext).width - 80).clamp(280.0, 520.0),
+      child: SingleChildScrollView(
+        child: DividendTaxBreakdown(
+          tax: payment.tax,
+          sourceCurrency: payment.sourceCurrency,
+          accountCurrency: payment.accountCurrency,
+          exchangeRate: payment.exchangeRate <= 0 ? 1 : payment.exchangeRate,
+          withholdingTaxRate: payment.withholdingTaxRate,
+          country: payment.investment.country,
         ),
       ),
-      actions: [
-        FilledButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Fertig'),
-        ),
-      ],
-    );
-  },
-);
-
-class _DividendTaxRow extends StatelessWidget {
-  const _DividendTaxRow({
-    required this.label,
-    required this.value,
-    required this.currency,
-    this.emphasized = false,
-    this.informational = false,
-  });
-
-  final String label;
-  final double value;
-  final String currency;
-  final bool emphasized;
-  final bool informational;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 7),
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        final labelWidget = Text(
-          label,
-          style: TextStyle(
-            fontWeight: emphasized ? FontWeight.w800 : FontWeight.w500,
-            color: informational
-                ? Theme.of(context).colorScheme.onSurfaceVariant
-                : null,
-          ),
-        );
-        Widget amount(double value, String currency) => FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerRight,
-          child: Text(
-            _signedMoney(value, currency),
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
-              color: value < 0 ? WealthColors.of(context).expense : null,
-            ),
-          ),
-        );
-        final valueWidget = amount(value, currency);
-        if (constraints.maxWidth < 560) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [labelWidget, const SizedBox(height: 5), valueWidget],
-          );
-        }
-        return Row(
-          children: [
-            Expanded(flex: 3, child: labelWidget),
-            const SizedBox(width: 16),
-            Expanded(flex: 2, child: valueWidget),
-          ],
-        );
-      },
     ),
-  );
-}
-
-String _signedMoney(double value, String currency) =>
-    '${value < 0 ? '−' : ''}${money(value.abs(), currency: currency)}';
+    actions: [
+      FilledButton(
+        onPressed: () => Navigator.pop(dialogContext),
+        child: const Text('Fertig'),
+      ),
+    ],
+  ),
+);
 
 Future<void> _showScheduleEditor(
   BuildContext context,
@@ -1897,18 +1759,14 @@ Future<void> _showScheduleEditor(
                       final gross = parseAmount(amount.text) ?? 0;
                       final rate = parseAmount(exchangeRate.text) ?? 0;
                       final tax = parseAmount(taxRate.text) ?? 0;
-                      final allowance =
-                          ref
-                              .read(preferencesProvider)
-                              .valueOrNull
-                              ?.taxAllowance ??
-                          1000;
                       final sourceCurrency = currency.text.trim().toUpperCase();
-                      final result = calculateGermanDividendTax(
+                      // Without allowance: shows every tax that can apply.
+                      final result = calculateInvestmentDividendTax(
+                        investment,
                         grossAmount: gross * investment.quantity,
-                        exchangeRate: rate,
+                        exchangeRate: sourceCurrency == baseCurrency ? 1 : rate,
                         withholdingTaxRate: tax,
-                        allowanceRemaining: allowance,
+                        allowanceRemaining: 0,
                       );
                       return DecoratedBox(
                         decoration: BoxDecoration(
@@ -1923,30 +1781,26 @@ Future<void> _showScheduleEditor(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text(
-                                'Auszahlungsweg für die Position',
+                                'Brutto bis Netto für '
+                                '${investment.quantity.toStringAsFixed(6).replaceFirst(RegExp(r'\.?0+$'), '')} Stück',
                                 style: Theme.of(context).textTheme.titleSmall,
                               ),
+                              Text(
+                                'Ohne Freistellungsauftrag gerechnet',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
                               const SizedBox(height: 6),
-                              Text(
-                                '${investment.quantity.toStringAsFixed(6).replaceFirst(RegExp(r'\.?0+$'), '')} Stück × '
-                                '${amount.text.trim()} $sourceCurrency = '
-                                '${money(result.grossSource, currency: sourceCurrency)} brutto',
-                              ),
-                              Text(
-                                '− ${money(result.withholdingTaxSource, currency: sourceCurrency)} Quellensteuer = '
-                                '${money(result.grossSource - result.withholdingTaxSource, currency: sourceCurrency)}'
-                                ' × ${rate.toStringAsFixed(4)} = '
-                                '${money(result.gross - result.withholdingTax, currency: baseCurrency)}',
-                              ),
-                              Text(
-                                '− ${money(result.germanCapitalTax, currency: baseCurrency)} Kapitalertragsteuer · '
-                                '− ${money(result.solidaritySurcharge, currency: baseCurrency)} Soli',
-                              ),
-                              Text(
-                                '${money(result.net, currency: baseCurrency)} netto',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                ),
+                              DividendTaxBreakdown(
+                                tax: result,
+                                sourceCurrency: sourceCurrency,
+                                accountCurrency: baseCurrency,
+                                exchangeRate: rate,
+                                withholdingTaxRate:
+                                    isFundAssetType(investment.assetType)
+                                    ? 0
+                                    : tax,
+                                country: investment.country,
+                                dense: true,
                               ),
                             ],
                           ),

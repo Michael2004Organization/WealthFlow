@@ -10,6 +10,7 @@ import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/save_feedback.dart';
+import 'dividend_tax_breakdown.dart';
 
 String _autoBookKey(String userId) => 'dividends.autoBook.$userId';
 
@@ -283,7 +284,35 @@ Future<void> showDividendReceiptDialog(
                       ? 'Bitte einen positiven Betrag eingeben.'
                       : null,
                 ),
-                const SizedBox(height: 12),
+                Theme(
+                  data: Theme.of(
+                    context,
+                  ).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    key: const Key('dividend-breakdown'),
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: const EdgeInsets.only(bottom: 8),
+                    title: Text(
+                      'Brutto ${money(payment.tax.gross, currency: payment.accountCurrency)}'
+                      ' · Steuern ${money(payment.tax.totalTax, currency: payment.accountCurrency)}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    children: [
+                      DividendTaxBreakdown(
+                        tax: payment.tax,
+                        sourceCurrency: payment.sourceCurrency,
+                        accountCurrency: payment.accountCurrency,
+                        exchangeRate: payment.exchangeRate <= 0
+                            ? 1
+                            : payment.exchangeRate,
+                        withholdingTaxRate: payment.withholdingTaxRate,
+                        country: payment.investment.country,
+                        dense: true,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
                 SearchableDropdownButtonFormField<String>(
                   initialValue: accountId,
                   isExpanded: true,

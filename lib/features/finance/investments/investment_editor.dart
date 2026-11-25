@@ -1358,7 +1358,9 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     ));
   }
 
-  /// Stored rate for [country], else the standard value, else 0.
-  double _taxRateForCountry(String country) =>
-      withholdingTaxRateFor(country, widget.countryTaxRates);
+  /// Stored rate for [country], else the standard value, else 0. Funds
+  /// pay out without foreign tax at investor level.
+  double _taxRateForCountry(String country) => isFundAssetType(_normalizedType)
+      ? 0
+      : withholdingTaxRateFor(country, widget.countryTaxRates);
 }

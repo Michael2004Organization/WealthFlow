@@ -134,16 +134,12 @@ extension AdminQueries on AppDatabase {
           )
           .firstOrNull;
       final savedDividendCurrency = stock.dividendCurrency.toUpperCase();
-      final configuredRate = countryConfiguration?.withholdingTaxRate;
-      final fallbackRate =
-          const {
-            'usa',
-            'us',
-            'united states',
-            'vereinigte staaten',
-          }.contains(normalizedCountry)
-          ? 15.0
-          : 0.0;
+      // Funds pay out without foreign tax at investor level.
+      final countryRate = isFundAssetType(stock.assetType)
+          ? 0.0
+          : countryConfiguration?.withholdingTaxRate ??
+                withholdingTaxDefaultFor(stock.country)?.withheld ??
+                0.0;
       await (update(investments)..where(
             (row) => row.stockId.equals(stock.id) & row.deletedAt.isNull(),
           ))
@@ -173,7 +169,7 @@ extension AdminQueries on AppDatabase {
               annualDividend: Value(stock.dividendPerShare),
               dividendFrequency: Value(stock.dividendFrequency),
               dividendStartMonth: Value(stock.dividendStartMonth),
-              dividendWithholdingTaxRate: Value(configuredRate ?? fallbackRate),
+              dividendWithholdingTaxRate: Value(countryRate),
               updatedAt: Value(DateTime.now().toUtc()),
             ),
           );
@@ -339,7 +335,9 @@ extension AdminQueries on AppDatabase {
     final normalized = normalizeCountry(country);
     final affected = (await select(investments).get())
         .where(
-          (investment) => investment.country.trim().toLowerCase() == normalized,
+          (investment) =>
+              investment.country.trim().toLowerCase() == normalized &&
+              !isFundAssetType(investment.assetType),
         )
         .toList();
     await transaction(() async {

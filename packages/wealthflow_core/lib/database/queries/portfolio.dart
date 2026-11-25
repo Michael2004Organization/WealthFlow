@@ -445,7 +445,8 @@ extension PortfolioQueries on AppDatabase {
       final quantity = (purchased - sold).clamp(0, double.infinity);
       if (quantity <= 0) continue;
       final schedule = event.schedule;
-      final tax = calculateGermanDividendTax(
+      final tax = calculateInvestmentDividendTax(
+        event.investment,
         grossAmount:
             (schedule?.amountPerShare ?? event.investment.annualDividend) *
             quantity,

@@ -11,8 +11,10 @@ import '../finance/currencies.dart';
 import '../finance/currency_conversion.dart';
 import '../finance/dividend_math.dart';
 import '../finance/portfolio_master_data.dart';
+import '../finance/portfolio_tax_summary.dart';
 import '../finance/sale_tax.dart';
 import '../finance/standing_order_schedule.dart';
+import '../finance/withholding_tax_defaults.dart';
 
 part 'app_database.g.dart';
 part 'queries/admin.dart';

@@ -11,12 +11,16 @@ library;
 const _capitalTaxRate = 0.25;
 const _solidarityRate = 0.055;
 
+/// Investment funds (incl. ETFs) under the German InvStG.
+bool isFundAssetType(String assetType) =>
+    assetType == 'ETF' || assetType == 'Fonds';
+
 /// Share of a fund's gain that stays tax-free (§ 20 InvStG).
 ///
 /// Equity funds and ETFs are assumed unless the name points to a bond, money
 /// market or mixed fund.
 double partialExemptionRate(String assetType, String name) {
-  if (assetType != 'ETF' && assetType != 'Fonds') return 0;
+  if (!isFundAssetType(assetType)) return 0;
   final lower = name.toLowerCase();
   if (RegExp(
     r'anleihe|bond|renten|treasury|geldmarkt|money market|overnight',

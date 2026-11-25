@@ -196,6 +196,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       purchases,
       sales,
       accountCurrencies,
+      includePhysicalAssets:
+          ref
+              .watch(preferencesProvider)
+              .valueOrNull
+              ?.includePhysicalAssetsInTaxAllowance ??
+          false,
     );
     final yearlyDividend = projectionFor(
       _selectedMonth.year,

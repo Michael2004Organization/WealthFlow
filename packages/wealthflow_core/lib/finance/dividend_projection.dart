@@ -1,6 +1,7 @@
 import '../database/app_database.dart';
 import 'dividend_math.dart';
 import 'portfolio_tax_summary.dart';
+import 'sale_tax.dart';
 
 final class ProjectedDividend {
   const ProjectedDividend({
@@ -30,7 +31,8 @@ final class ProjectedDividend {
 
 /// Expected dividend payouts of [year], after foreign withholding tax and
 /// German capital gains tax. The saver allowance is consumed in payout order.
-/// Exact schedules win over the investment's frequency estimate.
+/// Exact schedules win over the investment's frequency estimate. Sales of
+/// the same year use up the allowance first, in date order.
 List<ProjectedDividend> buildDividendProjection(
   List<Investment> investments,
   List<DividendSchedule> schedules,
@@ -38,8 +40,9 @@ List<ProjectedDividend> buildDividendProjection(
   int year,
   List<InvestmentPurchase> purchases,
   List<PortfolioSale> sales,
-  Map<String, String> accountCurrencies,
-) {
+  Map<String, String> accountCurrencies, {
+  bool includePhysicalAssets = false,
+}) {
   var remainingAllowance = allowance.clamp(0, double.infinity).toDouble();
   final events =
       <
@@ -108,8 +111,26 @@ List<ProjectedDividend> buildDividendProjection(
         ? byDate
         : a.investment.name.compareTo(b.investment.name);
   });
+  // Gains from sales use the same allowance, in the order they happened.
+  final yearSales =
+      sales
+          .where(
+            (sale) =>
+                sale.soldAt.year == year &&
+                (includePhysicalAssets || sale.assetKind != 'physical'),
+          )
+          .toList()
+        ..sort((a, b) => a.soldAt.compareTo(b.soldAt));
+  var nextSale = 0;
   final result = <ProjectedDividend>[];
   for (final event in events) {
+    while (nextSale < yearSales.length &&
+        !yearSales[nextSale].soldAt.isAfter(event.date)) {
+      remainingAllowance =
+          (remainingAllowance - yearSales[nextSale++].allowanceUsed)
+              .clamp(0, double.infinity)
+              .toDouble();
+    }
     final shares = investmentSharesAt(
       investment: event.investment,
       date: event.date,
@@ -117,7 +138,8 @@ List<ProjectedDividend> buildDividendProjection(
       sales: sales,
     );
     if (event.amount <= 0 || shares <= 0) continue;
-    final tax = calculateGermanDividendTax(
+    final tax = calculateInvestmentDividendTax(
+      event.investment,
       grossAmount: event.amount * shares,
       exchangeRate: event.exchangeRate,
       withholdingTaxRate: event.withholdingTaxRate,
@@ -129,7 +151,9 @@ List<ProjectedDividend> buildDividendProjection(
         investment: event.investment,
         month: event.month,
         tax: tax,
-        withholdingTaxRate: event.withholdingTaxRate,
+        withholdingTaxRate: isFundAssetType(event.investment.assetType)
+            ? 0
+            : event.withholdingTaxRate,
         date: event.date,
         paymentDateKnown: schedules.any(
           (row) =>
