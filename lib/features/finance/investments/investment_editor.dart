@@ -1110,9 +1110,9 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
           (countryRate?.exchangeRate ??
                   (stock.dividendCurrency.toUpperCase() == 'EUR' ? 1 : 1))
               .toString();
-      _dividendWithholdingTax.text = _isUnitedStates(stock.country)
-          ? _taxRateForCountry(stock.country, fallback: 15).toString()
-          : _taxRateForCountry(stock.country, fallback: 0).toString();
+      _dividendWithholdingTax.text = _taxRateForCountry(
+        stock.country,
+      ).toString();
     });
   }
 
@@ -1211,11 +1211,11 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       _country.text = selected;
       _dividendCurrency.text =
           configuration?.currency.toUpperCase() ??
+          withholdingTaxDefaultFor(selected)?.currency ??
           defaultCurrencyForCountry(selected, fallback: widget.accountCurrency);
       _dividendExchangeRate.text = (configuration?.exchangeRate ?? 1)
           .toString();
-      _dividendWithholdingTax.text = (configuration?.withholdingTaxRate ?? 0)
-          .toString();
+      _dividendWithholdingTax.text = _taxRateForCountry(selected).toString();
     });
   }
 
@@ -1358,20 +1358,7 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
     ));
   }
 
-  bool _isUnitedStates(String country) {
-    final normalized = country.trim().toLowerCase();
-    return normalized == 'usa' ||
-        normalized == 'us' ||
-        normalized.contains('vereinigte staat') ||
-        normalized.contains('united states');
-  }
-
-  double _taxRateForCountry(String country, {required double fallback}) {
-    final normalized = country.trim().toLowerCase();
-    return widget.countryTaxRates
-            .where((item) => item.country.trim().toLowerCase() == normalized)
-            .firstOrNull
-            ?.withholdingTaxRate ??
-        fallback;
-  }
+  /// Stored rate for [country], else the standard value, else 0.
+  double _taxRateForCountry(String country) =>
+      withholdingTaxRateFor(country, widget.countryTaxRates);
 }

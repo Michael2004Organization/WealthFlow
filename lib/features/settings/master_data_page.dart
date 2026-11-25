@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wealthflow_core/database/app_database.dart';
+import 'package:wealthflow_core/finance/currencies.dart';
+import 'package:wealthflow_core/finance/withholding_tax_defaults.dart';
 
 import '../../app/app_theme.dart';
+import '../../app/design.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
@@ -209,20 +212,38 @@ class _MasterDataPageState extends ConsumerState<MasterDataPage> {
         entries
             .where((item) => item.value.toLowerCase().contains(query))
             .toList()
-          ..sort(
-            (a, b) => _sort == _Sort.usage
-                ? usageOf(b.value).total.compareTo(usageOf(a.value).total)
-                : a.value.toLowerCase().compareTo(b.value.toLowerCase()),
-          );
-    if (_sort == _Sort.usage) {
-      // Stable A–Z order among equally used entries.
-      visible.sort((a, b) {
-        final byUse = usageOf(b.value).total.compareTo(usageOf(a.value).total);
-        return byUse != 0
-            ? byUse
-            : a.value.toLowerCase().compareTo(b.value.toLowerCase());
-      });
-    }
+          ..sort((a, b) {
+            final byName = a.value.toLowerCase().compareTo(
+              b.value.toLowerCase(),
+            );
+            if (_sort == _Sort.name) return byName;
+            // Most used first, A–Z among equally used entries.
+            final byUse = usageOf(
+              b.value,
+            ).total.compareTo(usageOf(a.value).total);
+            return byUse != 0 ? byUse : byName;
+          });
+    final isCountry = _kind.key == 'country';
+    final isAdmin = ref.watch(isAdminProvider);
+    final rates =
+        ref.watch(countryTaxRatesProvider).valueOrNull ??
+        const <CountryTaxRate>[];
+    CountryTaxRate? storedRate(String country) => rates
+        .where((r) => normalizeCountry(r.country) == normalizeCountry(country))
+        .firstOrNull;
+    final suggestions = [
+      for (final value in _suggestions(_kind.key))
+        if (!known.contains(value.toLowerCase())) value,
+    ];
+    final missingDefaults = isCountry
+        ? entries
+              .where(
+                (e) =>
+                    storedRate(e.value) == null &&
+                    withholdingTaxDefaultFor(e.value) != null,
+              )
+              .toList()
+        : const <MasterDataData>[];
     final unknown =
         usage.entries
             .where(
@@ -276,7 +297,10 @@ class _MasterDataPageState extends ConsumerState<MasterDataPage> {
                       if (_addError != null) setState(() => _addError = null);
                     },
                     decoration: InputDecoration(
-                      labelText: 'Neue ${_kind.singular}',
+                      labelText: '${_kind.singular} hinzufügen',
+                      hintText: suggestions.isEmpty
+                          ? null
+                          : 'z. B. ${suggestions.first}',
                       prefixIcon: const Icon(Icons.add_rounded),
                       errorText: _addError,
                     ),
@@ -287,6 +311,59 @@ class _MasterDataPageState extends ConsumerState<MasterDataPage> {
               ],
             ),
           ),
+          if (suggestions.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: SizedBox(
+                height: 36,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8, top: 9),
+                      child: Text('Vorschläge:', style: text.bodySmall),
+                    ),
+                    for (final value in suggestions)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ActionChip(
+                          avatar: const Icon(Icons.add_rounded, size: 16),
+                          label: Text(value),
+                          tooltip: '$value hinzufügen',
+                          onPressed: () => _adopt([value]),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          if (isCountry && isAdmin && missingDefaults.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Material(
+                color: colors.incomeSoft,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.auto_fix_high_rounded, color: colors.income),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          '${missingDefaults.length} Länder ohne eigenen '
+                          'Steuersatz. Standardwerte des BZSt übernehmen?',
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => _applyTaxDefaults(missingDefaults),
+                        child: const Text('Übernehmen'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
             child: Wrap(
@@ -341,6 +418,16 @@ class _MasterDataPageState extends ConsumerState<MasterDataPage> {
                   _EntryTile(
                     item: item,
                     usage: usageOf(item.value),
+                    tax: isCountry
+                        ? _CountryTax.of(item.value, storedRate(item.value))
+                        : null,
+                    onEditTax: isCountry && isAdmin
+                        ? () => _editTax(
+                            context,
+                            item.value,
+                            storedRate(item.value),
+                          )
+                        : null,
                     onRename: () =>
                         _rename(context, item, usageOf(item.value), entries),
                     onMerge: entries.length < 2
@@ -398,12 +485,167 @@ class _MasterDataPageState extends ConsumerState<MasterDataPage> {
                       ),
                     ),
                 ],
+                if (isCountry)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                    child: Text(
+                      'Quellensteuer auf Dividenden für Privatanleger mit '
+                      'Wohnsitz in Deutschland. „Anrechenbar“ ist der Teil, '
+                      'den deine Bank auf die Abgeltungsteuer anrechnet; den '
+                      'Rest kannst du nur im Ausland zurückfordern. '
+                      'Standardwerte: $withholdingTaxSource.'
+                      '${isAdmin ? '' : ' Steuersätze ändert ein Administrator.'}',
+                      style: text.bodySmall,
+                    ),
+                  ),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// Stores the standard rate and currency for each country in [countries].
+  Future<void> _applyTaxDefaults(List<MasterDataData> countries) async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    final database = ref.read(databaseProvider);
+    var saved = 0;
+    for (final country in countries) {
+      final defaults = withholdingTaxDefaultFor(country.value);
+      if (defaults == null) continue;
+      await database.saveCountryTaxRate(
+        actorUserId: userId,
+        country: country.value,
+        rate: defaults.withheld,
+        currency: defaults.currency,
+      );
+      saved++;
+    }
+    if (mounted) _snack('Standard-Steuersätze für $saved Länder übernommen');
+  }
+
+  Future<void> _editTax(
+    BuildContext context,
+    String country,
+    CountryTaxRate? stored,
+  ) async {
+    final defaults = withholdingTaxDefaultFor(country);
+    final rate = TextEditingController(
+      text: _percent(withholdingTaxRateFor(country, [?stored])),
+    );
+    final currency = TextEditingController(
+      text:
+          stored?.currency.toUpperCase() ??
+          defaults?.currency ??
+          defaultCurrencyForCountry(country),
+    );
+    final formKey = GlobalKey<FormState>();
+    final result = await showDialog<(double, String)>(
+      context: context,
+      builder: (context) {
+        final text = Theme.of(context).textTheme;
+        return AlertDialog(
+          title: Text('Steuern · $country'),
+          content: SizedBox(
+            width: 440,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextFormField(
+                    controller: rate,
+                    autofocus: true,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Quellensteuer auf Dividenden',
+                      suffixText: '%',
+                    ),
+                    validator: (value) {
+                      final parsed = _parsePercent(value);
+                      return parsed == null || parsed < 0 || parsed > 100
+                          ? 'Bitte 0 bis 100 eingeben.'
+                          : null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: currency,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                      labelText: 'Währung der Dividenden (ISO)',
+                    ),
+                    validator: (value) => isSupportedCurrency(value ?? '')
+                        ? null
+                        : 'Unbekannte Währung, z. B. USD',
+                  ),
+                  const SizedBox(height: 14),
+                  if (defaults != null) ...[
+                    Text(
+                      'Standard: ${_percent(defaults.withheld)} % einbehalten, '
+                      '${_percent(defaults.creditable)} % anrechenbar'
+                      '${defaults.note.isEmpty ? '' : '. ${defaults.note}'}.',
+                      style: text.bodySmall,
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () {
+                          rate.text = _percent(defaults.withheld);
+                          currency.text = defaults.currency;
+                        },
+                        icon: const Icon(Icons.restart_alt_rounded),
+                        label: const Text('Standardwert einsetzen'),
+                      ),
+                    ),
+                  ] else
+                    Text(
+                      'Für dieses Land gibt es keinen Standardwert. '
+                      'Den Satz findest du in der Liste des BZSt.',
+                      style: text.bodySmall,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.pop(context, (
+                    _parsePercent(rate.text)!,
+                    currency.text.trim().toUpperCase(),
+                  ));
+                }
+              },
+              child: const Text('Speichern'),
+            ),
+          ],
+        );
+      },
+    );
+    rate.dispose();
+    currency.dispose();
+    final userId = ref.read(currentUserIdProvider);
+    if (result == null || userId == null) return;
+    await ref
+        .read(databaseProvider)
+        .saveCountryTaxRate(
+          actorUserId: userId,
+          country: country,
+          rate: result.$1,
+          currency: result.$2,
+        );
+    if (mounted) _snack('Steuersatz für $country gespeichert');
   }
 
   Future<void> _add() async {
@@ -630,6 +872,124 @@ class _MasterDataPageState extends ConsumerState<MasterDataPage> {
   }
 }
 
+/// "15", "12,8", "15,315": German decimals without trailing zeros.
+String _percent(double value) {
+  var text = value.toStringAsFixed(3);
+  text = text.replaceFirst(RegExp(r'\.?0+$'), '');
+  return text.replaceAll('.', ',');
+}
+
+double? _parsePercent(String? value) =>
+    double.tryParse((value ?? '').trim().replaceAll(',', '.'));
+
+/// Common values offered as one-tap chips, per kind.
+List<String> _suggestions(String kind) => switch (kind) {
+  'category' => const [
+    'Lebensmittel',
+    'Wohnen',
+    'Auto',
+    'Tanken',
+    'Versicherungen',
+    'Freizeit',
+    'Restaurant',
+    'Kleidung',
+    'Abos',
+    'Urlaub',
+    'Gesundheit',
+    'Geschenke',
+    'Bildung',
+    'Gehalt',
+    'Dividende',
+    'Sparen',
+    'Sonstiges',
+  ],
+  'merchant' => const [
+    'Rewe',
+    'Edeka',
+    'Aldi',
+    'Lidl',
+    'Kaufland',
+    'dm',
+    'Rossmann',
+    'Amazon',
+    'IKEA',
+    'Arbeitgeber',
+  ],
+  'paymentMethod' => const [
+    'Bar',
+    'Girokarte',
+    'Kreditkarte',
+    'Lastschrift',
+    'Überweisung',
+    'PayPal',
+    'Apple Pay',
+    'Google Pay',
+  ],
+  'broker' => const [
+    'Trade Republic',
+    'Scalable Capital',
+    'comdirect',
+    'Consorsbank',
+    'ING',
+    'DKB',
+    'flatex',
+    'Interactive Brokers',
+  ],
+  'country' => [for (final entry in withholdingTaxDefaults) entry.country],
+  'sector' => const [
+    'Technologie',
+    'Finanzen',
+    'Gesundheit',
+    'Industrie',
+    'Basiskonsumgüter',
+    'Nicht-Basiskonsumgüter',
+    'Energie',
+    'Versorger',
+    'Immobilien',
+    'Kommunikation',
+    'Rohstoffe',
+  ],
+  _ => const [],
+};
+
+/// Tax facts of one country for the list: stored rule or standard value.
+class _CountryTax {
+  const _CountryTax({
+    required this.withheld,
+    required this.creditable,
+    required this.currency,
+    required this.source,
+  });
+
+  factory _CountryTax.of(String country, CountryTaxRate? stored) {
+    final defaults = withholdingTaxDefaultFor(country);
+    final withheld = stored?.withholdingTaxRate ?? defaults?.withheld;
+    return _CountryTax(
+      withheld: withheld,
+      // Never more creditable than actually withheld.
+      creditable: defaults == null || withheld == null
+          ? null
+          : (defaults.creditable < withheld ? defaults.creditable : withheld),
+      currency:
+          stored?.currency.toUpperCase() ??
+          defaults?.currency ??
+          defaultCurrencyForCountry(country),
+      source: stored == null
+          ? (defaults == null ? _TaxSource.none : _TaxSource.standard)
+          : (defaults != null && defaults.withheld != stored.withholdingTaxRate
+                ? _TaxSource.custom
+                : _TaxSource.stored),
+    );
+  }
+
+  final double? withheld;
+  final double? creditable;
+  final String currency;
+  final _TaxSource source;
+}
+
+enum _TaxSource { none, standard, stored, custom }
+
 String _usageText(MasterDataUsage usage) {
   final parts = [
     if (usage.household > 0)
@@ -647,6 +1007,8 @@ class _EntryTile extends StatelessWidget {
     required this.onRename,
     required this.onMerge,
     required this.onDelete,
+    this.tax,
+    this.onEditTax,
   });
 
   final MasterDataData item;
@@ -655,18 +1017,62 @@ class _EntryTile extends StatelessWidget {
   final VoidCallback? onMerge;
   final VoidCallback onDelete;
 
+  /// Withholding tax facts, for countries only.
+  final _CountryTax? tax;
+
+  /// Opens the tax rule editor (countries, administrators only).
+  final VoidCallback? onEditTax;
+
   @override
   Widget build(BuildContext context) {
     final colors = WealthColors.of(context);
     final used = usage.total > 0;
+    final usageLine = Text(
+      used ? 'in ${_usageText(usage)}' : 'nicht verwendet',
+      style: TextStyle(color: used ? colors.muted : colors.warning),
+    );
+    final tax = this.tax;
     return ListTile(
       contentPadding: const EdgeInsets.only(left: 20, right: 8),
       title: Text(item.value),
-      subtitle: Text(
-        used ? 'in ${_usageText(usage)}' : 'nicht verwendet',
-        style: TextStyle(color: used ? colors.muted : colors.warning),
-      ),
-      onTap: onRename,
+      subtitle: tax == null
+          ? usageLine
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                usageLine,
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _Fact(
+                      label: 'Quellensteuer',
+                      value: tax.withheld == null
+                          ? 'unbekannt'
+                          : '${_percent(tax.withheld!)} %',
+                      highlight: tax.source == _TaxSource.none,
+                    ),
+                    if (tax.creditable != null)
+                      _Fact(
+                        label: 'anrechenbar',
+                        value: '${_percent(tax.creditable!)} %',
+                      ),
+                    _Fact(label: 'Währung', value: tax.currency),
+                    _Fact(
+                      label: switch (tax.source) {
+                        _TaxSource.none => 'kein Standardwert',
+                        _TaxSource.standard => 'Standardwert',
+                        _TaxSource.stored => 'gespeichert',
+                        _TaxSource.custom => 'eigener Wert',
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+      isThreeLine: tax != null,
+      onTap: onEditTax ?? onRename,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -690,11 +1096,20 @@ class _EntryTile extends StatelessWidget {
           PopupMenuButton<String>(
             tooltip: 'Aktionen für ${item.value}',
             onSelected: (action) => switch (action) {
+              'tax' => onEditTax?.call(),
               'rename' => onRename(),
               'merge' => onMerge?.call(),
               _ => onDelete(),
             },
             itemBuilder: (context) => [
+              if (onEditTax != null)
+                const PopupMenuItem(
+                  value: 'tax',
+                  child: ListTile(
+                    leading: Icon(Icons.percent_rounded),
+                    title: Text('Steuern bearbeiten'),
+                  ),
+                ),
               const PopupMenuItem(
                 value: 'rename',
                 child: ListTile(
@@ -720,6 +1135,47 @@ class _EntryTile extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Small labelled value, e.g. "Quellensteuer 15 %".
+class _Fact extends StatelessWidget {
+  const _Fact({required this.label, this.value, this.highlight = false});
+
+  final String label;
+  final String? value;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WealthColors.of(context);
+    final style = DesignStyle.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: highlight ? colors.expenseSoft : colors.neutralSoft,
+        borderRadius: BorderRadius.circular(
+          style.radiusControl < 8 ? style.radiusControl : 8,
+        ),
+      ),
+      child: Text.rich(
+        TextSpan(
+          text: value == null ? label : '$label ',
+          style: TextStyle(fontSize: 12, color: colors.muted),
+          children: [
+            if (value != null)
+              TextSpan(
+                text: value,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: highlight ? colors.expense : colors.neutral,
+                  fontFeatures: AppTheme.tabular,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

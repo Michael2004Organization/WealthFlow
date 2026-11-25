@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import 'package:wealthflow_core/database/app_database.dart';
 import 'package:wealthflow_core/finance/amount_input.dart';
 import 'package:wealthflow_core/finance/currencies.dart';
+import 'package:wealthflow_core/finance/withholding_tax_defaults.dart';
 import 'package:wealthflow_core/finance/portfolio_master_data.dart';
 
 import '../../core/providers.dart';
@@ -595,22 +596,8 @@ class _TaxAdminState extends ConsumerState<_TaxAdmin> {
     );
   }
 
-  double _countryRate(String country, List<CountryTaxRate> rates) {
-    final stored = rates
-        .where(
-          (rate) =>
-              rate.country.trim().toLowerCase() == country.trim().toLowerCase(),
-        )
-        .firstOrNull;
-    if (stored != null) return stored.withholdingTaxRate;
-    final normalized = country.trim().toLowerCase();
-    return normalized == 'usa' ||
-            normalized == 'us' ||
-            normalized.contains('united states') ||
-            normalized.contains('vereinigte staat')
-        ? 15
-        : 0;
-  }
+  double _countryRate(String country, List<CountryTaxRate> rates) =>
+      withholdingTaxRateFor(country, rates);
 
   String _countryCurrency(String country, List<CountryTaxRate> rates) =>
       rates
@@ -1281,21 +1268,7 @@ Future<void> _editStock(
             ?.map((item) => item.country) ??
         const <String>[],
   }.where((value) => value.trim().isNotEmpty).toList()..sort();
-  double countryRate() {
-    final normalized = country.text.trim().toLowerCase();
-    return rates
-            .where((rate) => rate.country.trim().toLowerCase() == normalized)
-            .firstOrNull
-            ?.withholdingTaxRate ??
-        (const {
-              'usa',
-              'us',
-              'united states',
-              'vereinigte staaten',
-            }.contains(normalized)
-            ? 15
-            : 0);
-  }
+  double countryRate() => withholdingTaxRateFor(country.text, rates);
 
   String? countryCurrency(String value) {
     final normalized = value.trim().toLowerCase();
