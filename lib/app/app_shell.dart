@@ -237,10 +237,17 @@ class _Sidebar extends ConsumerWidget {
                 children: [
                   const AppLogo(),
                   const SizedBox(width: 10),
-                  Text(
-                    'WealthFlow',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
+                  // Shrinks with large system fonts instead of overflowing.
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'WealthFlow',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
                   ),
                 ],

@@ -30,6 +30,17 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
   ];
   String _periodMode = 'month';
   DateTime _periodAnchor = DateTime.now();
+
+  /// The top expenses list shows its scrollbar permanently, which needs an
+  /// explicit controller (there is no primary one inside the shell).
+  final _topExpensesScroll = ScrollController();
+
+  @override
+  void dispose() {
+    _topExpensesScroll.dispose();
+    super.dispose();
+  }
+
   DateTimeRange _customPeriod = DateTimeRange(
     start: DateTime(DateTime.now().year, DateTime.now().month, 1),
     end: DateTime.now(),
@@ -315,8 +326,10 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
               SizedBox(
                 height: 216,
                 child: Scrollbar(
+                  controller: _topExpensesScroll,
                   thumbVisibility: top.length > 3,
                   child: ListView.separated(
+                    controller: _topExpensesScroll,
                     itemCount: top.take(10).length,
                     separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) {

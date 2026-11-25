@@ -12,6 +12,9 @@ import 'app_lock_screen.dart';
 class AppLifecycleGuard extends ConsumerStatefulWidget {
   const AppLifecycleGuard({required this.child, super.key});
 
+  /// How long the app may stay in the background before the lock returns.
+  static const lockAfter = Duration(seconds: 30);
+
   final Widget child;
 
   @override
@@ -19,8 +22,7 @@ class AppLifecycleGuard extends ConsumerStatefulWidget {
 }
 
 class _AppLifecycleGuardState extends ConsumerState<AppLifecycleGuard> {
-  /// How long the app may stay in the background before the lock returns.
-  static const lockAfter = Duration(seconds: 30);
+  static const lockAfter = AppLifecycleGuard.lockAfter;
 
   late final AppLifecycleListener _listener;
   Timer? _midnight;

@@ -7,12 +7,16 @@ import 'package:wealthflow_core/finance/account_balance_math.dart';
 import 'package:wealthflow_core/finance/budget_period.dart';
 import 'package:wealthflow_core/finance/category_budget.dart';
 import 'package:wealthflow_core/finance/dividend_projection.dart';
+import 'package:wealthflow_core/finance/free_to_spend.dart';
 import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 
+import '../../app/app_lifecycle_guard.dart';
 import '../../app/app_theme.dart';
+import '../../app/design.dart';
 import '../../app/app_shell.dart' show desktopBreakpoint;
 import '../../core/providers.dart';
 import '../finance/allocation_card.dart';
+import 'cockpit.dart';
 import '../finance/dividend_prompt.dart';
 import '../household/budgets_page.dart';
 import '../household/standing_orders_page.dart';
@@ -306,6 +310,32 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       ].where((payment) => payment.paymentDateKnown).toList(),
     );
 
+    final design = DesignStyle.of(context).design;
+    final cockpit = _buildCockpitData(
+      now: now,
+      accounts: accounts,
+      investments: investments,
+      physicalAssets: physicalAssets,
+      balanceHistories: balanceHistories,
+      entries: entries,
+      purchases: purchases,
+      sales: sales,
+      standingOrders: standingOrders,
+      budgets: budgets,
+      snapshots: snapshots,
+      netWorth: netWorth,
+      netWorthChange: previousSnapshot == null
+          ? null
+          : netWorth - previousSnapshot.totalNetWorth,
+      income: income,
+      expenses: expenses,
+      dividends: [
+        ...projectionFor(now.year),
+        if (now.month == 12) ...projectionFor(now.year + 1),
+      ],
+      pendingPayouts: pendingPayouts.length,
+    );
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(padding),
       child: Center(
@@ -324,8 +354,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               PageHeader(
                 title:
                     '${_greeting(now)}, ${user?.displayName.split(' ').first ?? 'du'}',
-                action: Row(
-                  mainAxisSize: MainAxisSize.min,
+                // Wraps on narrow phones instead of overflowing.
+                action: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     if (width < desktopBreakpoint)
                       IconButton(
@@ -334,6 +365,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         tooltip: 'Suchen',
                       ),
                     if (width < desktopBreakpoint) const DesignSwitcher(),
+                    const _PrivacyButton(),
                     _MonthSwitcher(
                       month: _selectedMonth,
                       onChanged: (value) =>
@@ -353,61 +385,66 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 ),
                 const SizedBox(height: 16),
               ],
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  const gap = 16.0;
-                  if (constraints.maxWidth < 980) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        hero,
-                        const SizedBox(height: gap),
-                        month,
-                        if (budgetCard != null) ...[
+              Cockpit(data: cockpit),
+              const SizedBox(height: 16),
+              // Bento and Terminal show all of this inside the cockpit; the
+              // classic design keeps its familiar cards below.
+              if (design == AppDesign.classic)
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    const gap = 16.0;
+                    if (constraints.maxWidth < 980) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          hero,
                           const SizedBox(height: gap),
-                          budgetCard,
+                          month,
+                          if (budgetCard != null) ...[
+                            const SizedBox(height: gap),
+                            budgetCard,
+                          ],
+                          const SizedBox(height: gap),
+                          recent,
+                          const SizedBox(height: gap),
+                          upcoming,
                         ],
-                        const SizedBox(height: gap),
-                        recent,
-                        const SizedBox(height: gap),
-                        upcoming,
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              hero,
+                              const SizedBox(height: gap),
+                              recent,
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: gap),
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              month,
+                              if (budgetCard != null) ...[
+                                const SizedBox(height: gap),
+                                budgetCard,
+                              ],
+                              const SizedBox(height: gap),
+                              upcoming,
+                            ],
+                          ),
+                        ),
                       ],
                     );
-                  }
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            hero,
-                            const SizedBox(height: gap),
-                            recent,
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: gap),
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            month,
-                            if (budgetCard != null) ...[
-                              const SizedBox(height: gap),
-                              budgetCard,
-                            ],
-                            const SizedBox(height: gap),
-                            upcoming,
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+                  },
+                ),
               const SizedBox(height: 16),
               const AllocationCard(),
               const SizedBox(height: 8),
@@ -552,6 +589,213 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     );
   }
 
+  CockpitData _buildCockpitData({
+    required DateTime now,
+    required List<Account> accounts,
+    required List<Investment> investments,
+    required List<PhysicalAsset> physicalAssets,
+    required List<AccountBalanceHistory> balanceHistories,
+    required List<LedgerEntry> entries,
+    required List<InvestmentPurchase> purchases,
+    required List<PortfolioSale> sales,
+    required List<StandingOrder> standingOrders,
+    required List<CategoryBudget> budgets,
+    required List<NetWorthSnapshot> snapshots,
+    required double netWorth,
+    required double? netWorthChange,
+    required double income,
+    required double expenses,
+    required List<ProjectedDividend> dividends,
+    required int pendingPayouts,
+  }) {
+    final converter = ref.read(currencyConverterProvider);
+    final monthEnd = DateTime(
+      now.year,
+      now.month + 1,
+    ).subtract(const Duration(microseconds: 1));
+
+    // Free until the end of the current month, from the household accounts.
+    final household = householdAccounts(
+      accounts,
+      investments: investments,
+      physicalAssets: physicalAssets,
+    );
+    final balance = household.fold<double>(
+      0,
+      (sum, account) =>
+          sum +
+          converter.toBase(
+            accountBalanceAt(
+              account: account,
+              date: now,
+              histories: balanceHistories,
+              entries: entries,
+              investments: investments,
+              purchases: purchases,
+              sales: sales,
+            ),
+            account.currency,
+          ),
+    );
+    bool counts(LedgerEntry entry) =>
+        entry.sourceType != 'transfer' && entry.sourceType != 'saving';
+    final upcomingOrders = plannedStandingOrderBookings(
+      standingOrders,
+      after: now,
+      through: now.add(const Duration(days: 30)),
+    );
+    final planned =
+        entries
+            .where(
+              (e) =>
+                  counts(e) &&
+                  !e.isIncome &&
+                  e.bookingDate.isAfter(now) &&
+                  !e.bookingDate.isAfter(monthEnd),
+            )
+            .fold<double>(0, (sum, e) => sum + e.amount) +
+        upcomingOrders
+            .where(
+              (item) =>
+                  item.order.kind != 'income' && !item.date.isAfter(monthEnd),
+            )
+            .fold<double>(0, (sum, item) => sum + item.order.amount);
+    final budgetProgress = buildBudgetProgress(
+      budgets,
+      entries,
+      DateTime(now.year, now.month),
+    );
+    final free = calculateFreeToSpend(
+      balance: balance,
+      plannedExpenses: planned,
+      budgets: budgetProgress,
+      today: now,
+    );
+
+    // Net worth over the last six months.
+    final since = DateTime(now.year, now.month - 6, now.day);
+    final history = [
+      for (final snapshot in snapshots)
+        if (snapshot.capturedAt.isAfter(since)) snapshot.totalNetWorth,
+      netWorth,
+    ];
+
+    // Income and expenses of the last six months.
+    final cashflow = [
+      for (var back = 5; back >= 0; back--)
+        () {
+          final month = DateTime(
+            _selectedMonth.year,
+            _selectedMonth.month - back,
+          );
+          var monthIncome = 0.0;
+          var monthExpenses = 0.0;
+          for (final entry in entries) {
+            if (!counts(entry)) continue;
+            final period = budgetMonthOf(entry.bookingDate, entry.budgetMonth);
+            if (period.year != month.year || period.month != month.month) {
+              continue;
+            }
+            if (entry.isIncome) {
+              monthIncome += entry.amount;
+            } else {
+              monthExpenses += entry.amount;
+            }
+          }
+          return CockpitMonth(
+            monthNames[month.month - 1].substring(0, 3),
+            monthIncome,
+            monthExpenses,
+          );
+        }(),
+    ];
+
+    String orderTitle(StandingOrder order) => order.merchant.isNotEmpty
+        ? order.merchant
+        : order.description.isNotEmpty
+        ? order.description
+        : order.category;
+    final until = now.add(const Duration(days: 30));
+    final due = <CockpitDue>[
+      for (final (:order, :date) in upcomingOrders)
+        if (order.kind != 'transfer' && order.kind != 'saving')
+          CockpitDue(
+            date: date,
+            title: orderTitle(order),
+            amount: order.amount,
+            income: order.kind == 'income',
+          ),
+      for (final entry in entries)
+        if (counts(entry) &&
+            entry.bookingDate.isAfter(now) &&
+            entry.bookingDate.isBefore(until))
+          CockpitDue(
+            date: entry.bookingDate,
+            title: entry.merchant.isEmpty ? entry.category : entry.merchant,
+            amount: entry.amount,
+            income: entry.isIncome,
+          ),
+      for (final payment in dividends)
+        if (payment.paymentDateKnown &&
+            payment.date.isAfter(now) &&
+            payment.date.isBefore(until))
+          CockpitDue(
+            date: payment.date,
+            title: 'Dividende ${payment.investment.name}',
+            amount: payment.tax.net,
+            income: true,
+          ),
+    ]..sort((a, b) => a.date.compareTo(b.date));
+
+    final review = <CockpitReview>[
+      if (pendingPayouts > 0)
+        CockpitReview(
+          pendingPayouts == 1
+              ? 'Dividende bestätigen'
+              : '$pendingPayouts Dividenden bestätigen',
+          (ref) => openFinance(ref, 2),
+        ),
+      for (final progress in budgetProgress)
+        if (progress.ratio > 1)
+          CockpitReview(
+            'Budget ${progress.budget.category} überzogen',
+            (ref) => openMore(ref, 'budgets'),
+          ),
+      for (final (:order, :date) in upcomingOrders)
+        if (order.kind != 'income' &&
+            date.difference(now) <= const Duration(days: 3))
+          CockpitReview(
+            '${orderTitle(order)} fällig am ${date.day}.${date.month}.',
+            (ref) => openMore(ref, 'standingOrders'),
+          ),
+    ];
+
+    final backup = ref.watch(backupStatusProvider).valueOrNull;
+    return CockpitData(
+      free: free,
+      netWorth: netWorth,
+      netWorthChange: netWorthChange,
+      netWorthHistory: history,
+      income: income,
+      expenses: expenses,
+      cashflow: cashflow,
+      due: due,
+      budgets: budgetProgress,
+      recent: entries
+          .where((e) => counts(e) && !e.bookingDate.isAfter(now))
+          .take(8)
+          .toList(),
+      review: review,
+      security: CockpitSecurity(
+        appLock: ref.watch(appPinProvider).valueOrNull != null,
+        lockAfter: AppLifecycleGuard.lockAfter,
+        lastBackup: backup?.writtenAt,
+        backupFailed: backup != null && !backup.succeeded,
+        serverConnected: ref.watch(serverConnectionProvider).isConnected,
+      ),
+    );
+  }
+
   Future<void> _loadCardLayout(String userId) async {
     final preferences = await SharedPreferences.getInstance();
     final storedOrder = preferences.getStringList(
@@ -632,6 +876,23 @@ double _physicalAssetValueAt(
       )
       .fold<double>(0, (sum, sale) => sum + sale.quantity);
   return (asset.weightGrams + laterSales) * asset.currentPricePerGram;
+}
+
+/// Eye button that hides all amounts on the cockpit.
+class _PrivacyButton extends ConsumerWidget {
+  const _PrivacyButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hidden = ref.watch(privacyModeProvider);
+    return IconButton(
+      tooltip: hidden ? 'Beträge zeigen' : 'Beträge verbergen',
+      isSelected: hidden,
+      onPressed: () => ref.read(privacyModeProvider.notifier).state = !hidden,
+      icon: const Icon(Icons.visibility_outlined),
+      selectedIcon: const Icon(Icons.visibility_off_outlined),
+    );
+  }
 }
 
 class _CardMoveControls extends StatelessWidget {
