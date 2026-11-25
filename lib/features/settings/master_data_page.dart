@@ -633,8 +633,8 @@ class _MasterDataPageState extends ConsumerState<MasterDataPage> {
         );
       },
     );
-    rate.dispose();
-    currency.dispose();
+    disposeAfterClose(rate);
+    disposeAfterClose(currency);
     final userId = ref.read(currentUserIdProvider);
     if (result == null || userId == null) return;
     await ref
@@ -747,7 +747,7 @@ class _MasterDataPageState extends ConsumerState<MasterDataPage> {
         },
       ),
     );
-    controller.dispose();
+    disposeAfterClose(controller);
     if (newValue == null) return;
     final changed = await ref
         .read(databaseProvider)

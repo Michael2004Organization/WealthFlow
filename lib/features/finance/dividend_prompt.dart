@@ -341,7 +341,7 @@ Future<void> showDividendReceiptDialog(
     ),
   );
   final value = parseAmount(amount.text) ?? 0;
-  amount.dispose();
+  disposeAfterClose(amount);
   if (confirmed != true || accountId == null || !context.mounted) return;
   final database = ref.read(databaseProvider);
   final messenger = ScaffoldMessenger.of(context);

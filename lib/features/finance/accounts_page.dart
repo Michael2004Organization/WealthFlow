@@ -774,8 +774,8 @@ Future<void> _addBalanceHistoryPoint(
       }
     }, source: 'Kontostand speichern');
   }
-  balance.dispose();
-  available.dispose();
+  disposeAfterClose(balance);
+  disposeAfterClose(available);
 }
 
 double? _parseAccountNumber(String? value) => parseAmount(value);

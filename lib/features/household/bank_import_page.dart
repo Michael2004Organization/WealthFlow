@@ -226,7 +226,7 @@ class _BankImportDialogState extends State<BankImportDialog> {
         ],
       ),
     );
-    controller.dispose();
+    disposeAfterClose(controller);
     if (value == null || value.trim().isEmpty) return;
     setState(() {
       // The same merchant usually belongs to the same category.

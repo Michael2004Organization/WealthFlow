@@ -428,5 +428,5 @@ Future<void> _editCurrentPrice(
       }
     }, source: 'Kurs speichern');
   }
-  controller.dispose();
+  disposeAfterClose(controller);
 }

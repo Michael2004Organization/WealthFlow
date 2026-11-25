@@ -263,7 +263,7 @@ Future<void> _editTaxAllowance(
           );
     }, source: 'Freistellungsauftrag speichern');
   }
-  controller.dispose();
+  disposeAfterClose(controller);
 }
 
 Future<void> _editDefaultInvestmentFee(
@@ -323,5 +323,5 @@ Future<void> _editDefaultInvestmentFee(
           );
     }, source: 'Standardgebühr speichern');
   }
-  controller.dispose();
+  disposeAfterClose(controller);
 }

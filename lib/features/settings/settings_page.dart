@@ -626,8 +626,8 @@ class SettingsPage extends ConsumerWidget {
         ],
       ),
     );
-    pin.dispose();
-    repeat.dispose();
+    disposeAfterClose(pin);
+    disposeAfterClose(repeat);
     return result;
   }
 
@@ -769,8 +769,8 @@ class SettingsPage extends ConsumerWidget {
         ],
       ),
     );
-    password.dispose();
-    repeat.dispose();
+    disposeAfterClose(password);
+    disposeAfterClose(repeat);
     return result;
   }
 
@@ -862,9 +862,9 @@ class SettingsPage extends ConsumerWidget {
         );
       }
     }
-    current.dispose();
-    replacement.dispose();
-    confirm.dispose();
+    disposeAfterClose(current);
+    disposeAfterClose(replacement);
+    disposeAfterClose(confirm);
   }
 }
 

@@ -299,7 +299,7 @@ class _AllocationCardState extends ConsumerState<AllocationCard> {
           label: parseAmount(controller.text)!,
     };
     for (final controller in controllers.values) {
-      controller.dispose();
+      disposeAfterClose(controller);
     }
     if (saved != true || !mounted) return;
     await saveWithFeedback(

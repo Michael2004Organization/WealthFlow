@@ -1,7 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
 
 import '../../app/app_theme.dart';
+
+/// Disposes a controller of a dialog or sheet once its closing animation is
+/// over.
+///
+/// `await showDialog(...)` returns as soon as the dialog is popped, but the
+/// dialog is still built for a few frames while it fades out. Disposing its
+/// text controllers right away makes those frames fail with "A
+/// TextEditingController was used after being disposed". Waiting 400 ms of
+/// frames covers every route transition in the app.
+void disposeAfterClose(ChangeNotifier notifier) {
+  const delay = Duration(milliseconds: 400);
+  Duration? start;
+  void check(Duration stamp) {
+    start ??= stamp;
+    if (stamp - start! >= delay) {
+      notifier.dispose();
+    } else {
+      SchedulerBinding.instance.scheduleFrameCallback(check);
+    }
+  }
+
+  SchedulerBinding.instance.scheduleFrameCallback(check);
+}
 
 /// Standard currency of the signed-in user, used when [money] gets none.
 String moneyCurrency = 'EUR';

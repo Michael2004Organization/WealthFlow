@@ -311,7 +311,7 @@ Future<void> _showPhysicalAssetEditor(
     currentPricePerGram,
     notes,
   ]) {
-    controller.dispose();
+    disposeAfterClose(controller);
   }
 }
 
@@ -469,7 +469,7 @@ Future<void> _showPhysicalSaleDialog(
       }
     }, source: 'Sachwert-Verkauf speichern');
   }
-  grams.dispose();
-  price.dispose();
-  fee.dispose();
+  disposeAfterClose(grams);
+  disposeAfterClose(price);
+  disposeAfterClose(fee);
 }

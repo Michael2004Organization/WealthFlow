@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/providers.dart';
 import '../../core/server/server_sync.dart';
 import '../../core/storage/import_preview.dart';
+import '../../core/widgets/common_widgets.dart';
 
 /// Settings tiles for the connection to the home server.
 class ServerConnectionTiles extends ConsumerWidget {
@@ -200,10 +201,10 @@ class ServerConnectionTiles extends ConsumerWidget {
         },
       ),
     );
-    address.dispose();
-    code.dispose();
-    email.dispose();
-    password.dispose();
+    disposeAfterClose(address);
+    disposeAfterClose(code);
+    disposeAfterClose(email);
+    disposeAfterClose(password);
   }
 
   Future<void> _login(BuildContext context, WidgetRef ref, String email) async {
@@ -235,7 +236,7 @@ class ServerConnectionTiles extends ConsumerWidget {
       ),
     );
     final text = password.text;
-    password.dispose();
+    disposeAfterClose(password);
     if (submitted != true || !context.mounted) return;
     final ok = await ref
         .read(serverConnectionProvider.notifier)

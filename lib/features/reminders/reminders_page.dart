@@ -263,5 +263,5 @@ Future<void> showReminderEditor(
       scheduledAt: scheduledAt,
     );
   }
-  title.dispose();
+  disposeAfterClose(title);
 }

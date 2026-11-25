@@ -2008,10 +2008,10 @@ Future<void> _showScheduleEditor(
       }
     }
   }
-  amount.dispose();
-  currency.dispose();
-  exchangeRate.dispose();
-  taxRate.dispose();
+  disposeAfterClose(amount);
+  disposeAfterClose(currency);
+  disposeAfterClose(exchangeRate);
+  disposeAfterClose(taxRate);
 }
 
 Future<void> _deleteSchedule(

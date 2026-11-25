@@ -125,9 +125,9 @@ Future<void> _showInvestmentSaleDialog(
       }
     }, source: 'Verkauf speichern');
   }
-  quantity.dispose();
-  price.dispose();
-  fee.dispose();
+  disposeAfterClose(quantity);
+  disposeAfterClose(price);
+  disposeAfterClose(fee);
 }
 
 Future<void> _showPurchaseEditor(
@@ -293,11 +293,11 @@ Future<void> _showPurchaseEditor(
       if (context.mounted) Navigator.pop(context);
     }, source: 'Kauf bearbeiten');
   }
-  quantity.dispose();
-  price.dispose();
-  fee.dispose();
-  dividend.dispose();
-  rate.dispose();
+  disposeAfterClose(quantity);
+  disposeAfterClose(price);
+  disposeAfterClose(fee);
+  disposeAfterClose(dividend);
+  disposeAfterClose(rate);
 }
 
 Future<void> _showPortfolioActivity(

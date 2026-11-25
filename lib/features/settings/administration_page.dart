@@ -788,8 +788,8 @@ Future<void> _editAdminCountryExchange(
           exchangeRate: parseAmount(rate.text) ?? current?.exchangeRate ?? 1,
         );
   }
-  currency.dispose();
-  rate.dispose();
+  disposeAfterClose(currency);
+  disposeAfterClose(rate);
 }
 
 Future<void> _editCountryTax(
@@ -881,7 +881,7 @@ Future<void> _editCountryTax(
           );
     }
   }
-  controller.dispose();
+  disposeAfterClose(controller);
 }
 
 Future<void> _addCountryTax(BuildContext context, WidgetRef ref) async {
@@ -973,8 +973,8 @@ Future<void> _addCountryTax(BuildContext context, WidgetRef ref) async {
           );
     }
   }
-  country.dispose();
-  rate.dispose();
+  disposeAfterClose(country);
+  disposeAfterClose(rate);
 }
 
 Future<void> _editMaximumAllowance(
@@ -1031,7 +1031,7 @@ Future<void> _editMaximumAllowance(
           );
     }
   }
-  controller.dispose();
+  disposeAfterClose(controller);
 }
 
 class _ErrorLogsAdmin extends ConsumerWidget {

@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -587,6 +588,142 @@ void main() {
     expect(find.text('Übernehmen'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
+
+  // Regression: closing the dialog disposed its amount controller while the
+  // dialog was still fading out ("TextEditingController used after being
+  // disposed", followed by a huge RenderFlex overflow).
+  for (final confirm in [false, true]) {
+    testWidgets('dividend receipt dialog closes cleanly (confirm: $confirm)', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final now = DateTime.now();
+      final database = AppDatabase.forTesting(NativeDatabase.memory());
+      await tester.runAsync(() async {
+        await database.createUser(
+          UsersCompanion.insert(
+            id: 'responsive-user',
+            email: 'r@example.test',
+            displayName: 'R',
+            passwordHash: 'hash',
+            passwordSalt: 'salt',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        await database.saveAccount(
+          AccountsCompanion.insert(
+            id: 'giro',
+            userId: 'responsive-user',
+            bankName: 'Bank',
+            label: 'Giro',
+            usageType: const Value('household'),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        await database
+            .into(database.investments)
+            .insert(
+              InvestmentsCompanion.insert(
+                id: 'etf',
+                userId: 'responsive-user',
+                name: 'Allianz',
+                assetType: 'Aktie',
+                purchaseDate: now,
+                purchasePrice: 100,
+                quantity: 10,
+                currentPrice: 100,
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+      });
+      final investment = (await tester.runAsync(
+        () => database.select(database.investments).getSingle(),
+      ))!;
+      const tax = DividendTaxResult(
+        grossSource: 50,
+        withholdingTaxSource: 0,
+        gross: 50,
+        withholdingTax: 0,
+        creditableWithholdingTax: 0,
+        germanCapitalTax: 7.9,
+        solidaritySurcharge: 0,
+        churchTax: 0,
+        allowanceUsed: 0,
+        allowanceRemaining: 0,
+        net: 42.1,
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(database),
+            currentUserIdProvider.overrideWithValue('responsive-user'),
+            dividendAutoBookProvider.overrideWith((_) async => false),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              // Like the dashboard, keep the accounts loaded for the dialog.
+              body: Consumer(
+                builder: (context, ref, child) {
+                  ref.watch(accountsProvider);
+                  return child!;
+                },
+                child: SingleChildScrollView(
+                  child: DividendPromptCard(
+                    pending: [
+                      ProjectedDividend(
+                        investment: investment,
+                        month: now.month,
+                        tax: tax,
+                        withholdingTaxRate: 0,
+                        date: DateTime(now.year, now.month, 1),
+                        paymentDateKnown: true,
+                        sourceCurrency: 'EUR',
+                        exchangeRate: 1,
+                        grossSource: 50,
+                        accountCurrency: 'EUR',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      await tester.tap(find.text('Übernehmen').first);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('dividend-amount')), findsOneWidget);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text(confirm ? 'Übernehmen' : 'Abbrechen'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AlertDialog), findsNothing);
+      if (confirm) {
+        final entries = (await tester.runAsync(
+          () => database.select(database.ledgerEntries).get(),
+        ))!;
+        expect(entries.single.amount, 42.1);
+        expect(entries.single.accountId, 'giro');
+      }
+      // Unmount first so stream listeners end, then close the database.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.runAsync(database.close);
+    });
+  }
 
   testWidgets('allocation card fits a phone', (tester) async {
     final now = DateTime.now();
