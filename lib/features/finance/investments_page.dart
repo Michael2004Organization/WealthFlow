@@ -1,4 +1,5 @@
 import 'allocation_card.dart';
+import 'broker_import_dialog.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -129,9 +130,22 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                           _editDefaultInvestmentFee(context, ref, preference),
                         'rates' => _showExchangeRates(context, ref),
                         'converter' => _showCurrencyConverter(context, ref),
+                        'import' when selectedAccountId != null =>
+                          startBrokerImport(
+                            context,
+                            ref,
+                            accountId: selectedAccountId,
+                          ),
                         _ => Future<void>.value(),
                       },
                       itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'import',
+                          child: ListTile(
+                            leading: Icon(Icons.upload_file_rounded),
+                            title: Text('Trade Republic importieren (CSV)'),
+                          ),
+                        ),
                         PopupMenuItem(
                           value: 'activity',
                           child: ListTile(

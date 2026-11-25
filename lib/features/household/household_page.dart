@@ -11,7 +11,6 @@ import 'package:wealthflow_core/finance/budget_period.dart';
 import '../../app/app_theme.dart';
 import '../../core/providers.dart';
 import '../search/search_page.dart';
-import 'bank_import_page.dart';
 import 'standing_orders_page.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/save_feedback.dart';
@@ -119,7 +118,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                       ),
                       tooltip: 'Filter',
                     ),
-                    _HouseholdMenu(accountId: selectedAccountId),
+                    const _HouseholdMenu(),
                   ],
                 ),
               ),
@@ -168,7 +167,7 @@ class _HouseholdPageState extends ConsumerState<HouseholdPage> {
                       icon: const Icon(Icons.add_rounded),
                       label: const Text('Buchung'),
                     ),
-                    _HouseholdMenu(accountId: selectedAccountId),
+                    const _HouseholdMenu(),
                   ],
                 ),
               ),
@@ -670,29 +669,16 @@ const _categories = [
   'Sonstiges',
 ];
 
-/// Import, standing orders and budgets, reachable from the household page.
+/// Standing orders and budgets, reachable from the household page.
 class _HouseholdMenu extends ConsumerWidget {
-  const _HouseholdMenu({required this.accountId});
-
-  final String? accountId;
+  const _HouseholdMenu();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => PopupMenuButton<String>(
     tooltip: 'Mehr',
     icon: const Icon(Icons.more_vert_rounded),
-    onSelected: (value) => switch (value) {
-      'import' => startBankImport(context, ref, accountId: accountId),
-      _ => openMore(ref, value),
-    },
+    onSelected: (value) => openMore(ref, value),
     itemBuilder: (_) => const [
-      PopupMenuItem(
-        value: 'import',
-        child: ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.upload_file_rounded),
-          title: Text('Kontoauszug importieren (CSV)'),
-        ),
-      ),
       PopupMenuItem(
         value: 'standingOrders',
         child: ListTile(

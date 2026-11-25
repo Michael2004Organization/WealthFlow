@@ -14,6 +14,7 @@ import '../finance/portfolio_master_data.dart';
 import '../finance/portfolio_tax_summary.dart';
 import '../finance/sale_tax.dart';
 import '../finance/standing_order_schedule.dart';
+import '../finance/trade_republic_csv.dart';
 import '../finance/withholding_tax_defaults.dart';
 
 part 'app_database.g.dart';
@@ -28,6 +29,7 @@ part 'queries/budgets.dart';
 part 'queries/dividend_receipts.dart';
 part 'queries/master_data.dart';
 part 'queries/trash.dart';
+part 'queries/broker_import.dart';
 
 extension InvestmentPurchaseCash on InvestmentPurchase {
   /// Amount taken from the cash account, in the account's currency.
