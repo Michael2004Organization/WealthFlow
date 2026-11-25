@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -231,6 +232,40 @@ void main() {
       () => database.watchLedgerEntries(_userId).first,
     ))!;
     expect(entries.where((e) => e.merchant == 'Bäcker'), isEmpty);
+  });
+
+  testWidgets('Strg+K books, switches design and opens pages', (tester) async {
+    final database = await _seed('bento');
+    addTearDown(() => tester.runAsync(database.close));
+    final container = await _pumpApp(tester, database, const Size(1440, 900));
+
+    Future<void> command(String text) async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, text);
+      await tester.pump();
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    await command('9,90 Kino');
+    final entries = (await tester.runAsync(
+      () => database.watchLedgerEntries(_userId).first,
+    ))!;
+    expect(entries.where((e) => e.merchant == 'Kino').single.amount, 9.9);
+
+    await command('>papierkorb');
+    await tester.pumpAndSettle();
+    expect(container.read(moreDestinationProvider), 'trash');
+
+    await command('design terminal');
+    await tester.pumpAndSettle();
+    expect(container.read(designProvider), AppDesign.terminal);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('privacy button hides cockpit amounts', (tester) async {

@@ -8,6 +8,9 @@ import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../finance/investments_page.dart';
 import '../household/household_page.dart';
+import '../dashboard/quick_booking.dart';
+import '../finance/broker_import_dialog.dart';
+import '../../app/design.dart';
 
 /// Opens the search above the current page (Ctrl+K, the search field in the
 /// sidebar or the magnifier on phones). A hit closes the search and opens
@@ -97,7 +100,7 @@ class _SearchPanelState extends ConsumerState<_SearchPanel> {
                     },
                     style: const TextStyle(fontSize: 17),
                     decoration: const InputDecoration(
-                      hintText: 'Buchungen, Positionen, Konten suchen',
+                      hintText: 'Suchen, buchen oder Befehl …',
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
@@ -154,7 +157,7 @@ class _SearchPanelState extends ConsumerState<_SearchPanel> {
           child: _query.trim().isEmpty
               ? _Hint(
                   text:
-                      'Name, Händler, Kategorie, Betrag, ISIN oder Kennzeichen',
+                      'Suchen: Name, Händler, Betrag, ISIN · Buchen: „12,50 Bäcker bar“ · Befehle: „>“',
                 )
               : results.isEmpty
               ? const _Hint(text: 'Keine Treffer')
@@ -202,6 +205,14 @@ class _SearchPanelState extends ConsumerState<_SearchPanel> {
         .where((term) => term.isNotEmpty)
         .toList();
     if (terms.isEmpty) return const [];
+    // ">" lists only commands.
+    if (terms.first.startsWith('>')) {
+      final rest = [
+        if (terms.first.length > 1) terms.first.substring(1),
+        ...terms.skip(1),
+      ];
+      return _commands(rest, all: rest.isEmpty);
+    }
     bool matches(String text) {
       final haystack = text.toLowerCase();
       return terms.every(haystack.contains);
@@ -209,6 +220,7 @@ class _SearchPanelState extends ConsumerState<_SearchPanel> {
 
     bool wanted(String type) => _type == 'Alle' || _type == type;
     final output = <_SearchResult>[];
+    if (_type == 'Alle') output.addAll(_commands(terms));
     if (wanted('Buchungen')) {
       final entries = [...?ref.watch(ledgerEntriesProvider).valueOrNull]
         ..sort((a, b) => b.bookingDate.compareTo(a.bookingDate));
@@ -329,6 +341,189 @@ class _SearchPanelState extends ConsumerState<_SearchPanel> {
     }
     return output;
   }
+
+  /// Actions for the command line: a quick booking from "12,50 Bäcker bar",
+  /// then commands whose words match [terms] (all of them with [all]).
+  List<_SearchResult> _commands(List<String> terms, {bool all = false}) {
+    final output = <_SearchResult>[];
+    // The typed text keeps its case: "9,90 Kino" books "Kino".
+    final text = _query.trim();
+    if (RegExp(r'^[+\-]?\d').hasMatch(text)) {
+      final entry = parseQuickBooking(ref, text);
+      if (entry != null) {
+        output.add(
+          _SearchResult(
+            type: 'Buchen',
+            title: '${money(entry.amount)} buchen',
+            subtitle: entry.summary,
+            icon: Icons.bolt_rounded,
+            open: (context, ref) async {
+              await bookQuickEntry(ref, ScaffoldMessenger.of(context), entry);
+            },
+          ),
+        );
+      }
+    }
+    for (final command in _commandList) {
+      final haystack = '${command.title} ${command.keywords}'.toLowerCase();
+      if (!all && !terms.every(haystack.contains)) continue;
+      output.add(
+        _SearchResult(
+          type: 'Befehle',
+          title: command.title,
+          subtitle: command.subtitle,
+          icon: command.icon,
+          open: command.run,
+        ),
+      );
+    }
+    return output;
+  }
+}
+
+class _Command {
+  const _Command(this.title, this.subtitle, this.icon, this.keywords, this.run);
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String keywords;
+  final Future<void> Function(BuildContext context, WidgetRef ref) run;
+}
+
+_Command _page(String title, IconData icon, int page, String keywords) =>
+    _Command(
+      'Gehe zu $title',
+      'Seite öffnen',
+      icon,
+      'öffnen seite $keywords',
+      (_, ref) async => selectShellDestination(ref, page),
+    );
+
+_Command _more(String title, IconData icon, String key, String keywords) =>
+    _Command(
+      'Gehe zu $title',
+      'Seite öffnen',
+      icon,
+      'öffnen seite $keywords',
+      (_, ref) async => openMore(ref, key),
+    );
+
+_Command _design(DesignChoice choice) => _Command(
+  'Design: ${choice.label}',
+  'Aussehen der App wechseln',
+  Icons.palette_outlined,
+  'design theme farbe aussehen ${choice.storedValue}',
+  (_, ref) => saveDesignChoice(ref, choice),
+);
+
+final _commandList = <_Command>[
+  _Command(
+    'Neue Buchung',
+    'Ausgabe oder Einnahme erfassen',
+    Icons.add_rounded,
+    'buchung anlegen erfassen ausgabe einnahme neu',
+    startNewBooking,
+  ),
+  _Command(
+    'Beträge verbergen oder zeigen',
+    'Privat-Modus umschalten',
+    Icons.visibility_off_outlined,
+    'privat privatmodus verbergen ausblenden zeigen beträge',
+    (_, ref) async => togglePrivacyMode(ref),
+  ),
+  _Command(
+    'Trade Republic importieren',
+    'Transaktionsexport (CSV) ins Depot übernehmen',
+    Icons.upload_file_rounded,
+    'import csv depot trade republic broker',
+    _brokerImport,
+  ),
+  _page(
+    'Cockpit',
+    Icons.space_dashboard_outlined,
+    ShellPage.cockpit,
+    'übersicht start dashboard',
+  ),
+  _page(
+    'Haushalt',
+    Icons.receipt_long_outlined,
+    ShellPage.household,
+    'buchungen ausgaben einnahmen',
+  ),
+  _page(
+    'Vermögen',
+    Icons.show_chart_rounded,
+    ShellPage.assets,
+    'depot konten portfolio',
+  ),
+  _page(
+    'Statistik',
+    Icons.query_stats_rounded,
+    ShellPage.statistics,
+    'auswertung',
+  ),
+  _page(
+    'Rechner',
+    Icons.calculate_outlined,
+    ShellPage.calculators,
+    'sparplan zinseszins',
+  ),
+  _page(
+    'Fahrzeuge',
+    Icons.directions_car_outlined,
+    ShellPage.vehicles,
+    'auto motorrad',
+  ),
+  _more('Budgets', Icons.donut_large_rounded, 'budgets', 'grenzen'),
+  _more(
+    'Daueraufträge',
+    Icons.event_repeat_rounded,
+    'standingOrders',
+    'dauerauftrag miete gehalt',
+  ),
+  _more(
+    'Erinnerungen',
+    Icons.notifications_active_rounded,
+    'reminders',
+    'termin',
+  ),
+  _more(
+    'Stammdaten',
+    Icons.list_alt_rounded,
+    'masterData',
+    'kategorien händler zahlungsarten quellensteuer',
+  ),
+  _more(
+    'Papierkorb',
+    Icons.delete_outline_rounded,
+    'trash',
+    'gelöscht wiederherstellen',
+  ),
+  _more(
+    'Einstellungen',
+    Icons.settings_rounded,
+    'settings',
+    'account profil pin sperre sicherung',
+  ),
+  for (final choice in DesignChoice.all) _design(choice),
+];
+
+/// Opens the depot and starts the import into its first portfolio account.
+Future<void> _brokerImport(BuildContext context, WidgetRef ref) async {
+  final accounts = await ref.read(accountsProvider.future);
+  final depot = accounts
+      .where((account) => account.usageType == 'portfolio')
+      .firstOrNull;
+  if (!context.mounted) return;
+  if (depot == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Lege zuerst ein Depotkonto an.')),
+    );
+    return;
+  }
+  openFinance(ref, 1);
+  await startBrokerImport(context, ref, accountId: depot.id);
 }
 
 class _Hint extends StatelessWidget {

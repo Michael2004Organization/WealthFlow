@@ -1,9 +1,6 @@
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
 import 'package:wealthflow_core/database/app_database.dart';
-import 'package:wealthflow_core/finance/account_balance_math.dart';
 import 'package:wealthflow_core/finance/category_budget.dart';
 import 'package:wealthflow_core/finance/free_to_spend.dart';
 import 'package:wealthflow_core/finance/quick_entry.dart';
@@ -13,6 +10,7 @@ import '../../app/design.dart';
 import '../../core/providers.dart';
 import '../../core/security/device_security.dart';
 import '../../core/widgets/common_widgets.dart';
+import 'quick_booking.dart';
 
 /// Something due soon: standing order, dividend or future booking.
 class CockpitDue {
@@ -1032,23 +1030,7 @@ class _QuickEntryFieldState extends ConsumerState<QuickEntryField> {
     super.dispose();
   }
 
-  QuickEntry? _parse() {
-    final masterData =
-        ref.read(masterDataProvider).valueOrNull ?? const <MasterDataData>[];
-    return parseQuickEntry(
-      _controller.text,
-      today: DateTime.now(),
-      paymentMethods: [
-        for (final item in masterData)
-          if (item.kind == 'paymentMethod') item.value,
-      ],
-      categories: [
-        for (final item in masterData)
-          if (item.kind == 'category') item.value,
-      ],
-      history: ref.read(ledgerEntriesProvider).valueOrNull ?? const [],
-    );
-  }
+  QuickEntry? _parse() => parseQuickBooking(ref, _controller.text);
 
   Future<void> _submit() async {
     final parsed = _parse();
@@ -1061,60 +1043,9 @@ class _QuickEntryFieldState extends ConsumerState<QuickEntryField> {
       );
       return;
     }
-    final userId = ref.read(currentUserIdProvider);
-    final accounts = householdAccounts(
-      ref.read(accountsProvider).valueOrNull ?? const [],
-      investments: ref.read(allInvestmentsProvider).valueOrNull ?? const [],
-      physicalAssets: ref.read(physicalAssetsProvider).valueOrNull ?? const [],
-    );
-    final preferred = ref
-        .read(preferencesProvider)
-        .valueOrNull
-        ?.selectedHouseholdAccountId;
-    final account =
-        accounts.where((a) => a.id == preferred).firstOrNull ??
-        accounts.where((a) => a.usageType == 'household').firstOrNull ??
-        accounts.firstOrNull;
-    if (userId == null || account == null) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Lege zuerst ein Haushaltskonto unter Vermögen an.'),
-        ),
-      );
-      return;
-    }
-    final now = DateTime.now().toUtc();
-    final id = const Uuid().v4();
-    final database = ref.read(databaseProvider);
-    await database.saveLedgerEntries([
-      LedgerEntriesCompanion.insert(
-        id: id,
-        userId: userId,
-        bookingDate: parsed.date,
-        amount: parsed.amount,
-        isIncome: Value(parsed.income),
-        category: parsed.category,
-        merchant: Value(parsed.merchant),
-        paymentMethod: Value(parsed.paymentMethod),
-        accountId: Value(account.id),
-        createdAt: now,
-        updatedAt: now,
-      ),
-    ]);
+    if (!await bookQuickEntry(ref, messenger, parsed)) return;
     _controller.clear();
-    if (!mounted) return;
-    setState(() {});
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('Gebucht: ${money(parsed.amount)} · ${parsed.summary}'),
-          action: SnackBarAction(
-            label: 'Rückgängig',
-            onPressed: () => database.deleteLedgerEntry(id, userId),
-          ),
-        ),
-      );
+    if (mounted) setState(() {});
   }
 
   @override
