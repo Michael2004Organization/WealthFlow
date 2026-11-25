@@ -18,6 +18,7 @@ import '../household/budgets_page.dart';
 import '../household/standing_orders_page.dart';
 import '../search/search_page.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/widgets/design_switcher.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -332,6 +333,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         icon: const Icon(Icons.search_rounded),
                         tooltip: 'Suchen',
                       ),
+                    if (width < desktopBreakpoint) const DesignSwitcher(),
                     _MonthSwitcher(
                       month: _selectedMonth,
                       onChanged: (value) =>

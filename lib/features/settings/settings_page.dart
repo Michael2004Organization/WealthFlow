@@ -11,6 +11,7 @@ import 'package:wealthflow_core/database/app_database.dart';
 import 'package:wealthflow_core/finance/currencies.dart';
 import 'package:wealthflow_core/security/data_cipher.dart';
 
+import '../../app/design.dart';
 import '../auth/auth_controller.dart';
 import 'server_section.dart';
 import '../../core/providers.dart';
@@ -90,13 +91,12 @@ class SettingsPage extends ConsumerWidget {
                 icon: Icons.palette_rounded,
                 children: [
                   _DropdownTile(
-                    icon: Icons.brightness_6_rounded,
-                    title: 'Farbschema',
-                    value: preference.themeMode,
-                    values: const {
-                      'system': 'System',
-                      'light': 'Hell',
-                      'dark': 'Dunkel',
+                    icon: Icons.palette_outlined,
+                    title: 'Design',
+                    value: DesignChoice.parse(preference.themeMode).storedValue,
+                    values: {
+                      for (final choice in DesignChoice.all)
+                        choice.storedValue: choice.label,
                     },
                     onChanged: (value) =>
                         _savePreference(ref, preference, themeMode: value),

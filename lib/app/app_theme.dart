@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import 'design.dart';
+
 /// Colors with a meaning of their own, beside the Material color scheme.
 ///
 /// Income and expense always come with a sign (+ / −) as well, so the two
@@ -85,6 +87,54 @@ class WealthColors extends ThemeExtension<WealthColors> {
     ],
   );
 
+  /// B2 Bento: graphite tiles, petrol accent, warm orange for expenses.
+  static const bento = WealthColors(
+    income: Color(0xff3cc4b2),
+    incomeSoft: Color(0xff1f3b37),
+    expense: Color(0xfff0a06a),
+    expenseSoft: Color(0xff3a2a1e),
+    neutral: Color(0xffc4ccd4),
+    neutralSoft: Color(0xff262b31),
+    warning: Color(0xffe8b85c),
+    muted: Color(0xffa3acb6),
+    border: Color(0xff2a3038),
+    ground: Color(0xff121417),
+    hero: Color(0xff0e6e66),
+    onHero: Color(0xffffffff),
+    chart: [
+      Color(0xff3cc4b2),
+      Color(0xfff0a06a),
+      Color(0xff2a8f84),
+      Color(0xff8fa3d6),
+      Color(0xffe8b85c),
+      Color(0xffa3acb6),
+    ],
+  );
+
+  /// B3 Terminal: near-black, lime for income, amber for expenses.
+  static const terminal = WealthColors(
+    income: Color(0xffc8f169),
+    incomeSoft: Color(0xff26301a),
+    expense: Color(0xffffb454),
+    expenseSoft: Color(0xff33260f),
+    neutral: Color(0xffb9c0b2),
+    neutralSoft: Color(0xff1c1f1c),
+    warning: Color(0xffffb454),
+    muted: Color(0xff9ba395),
+    border: Color(0xff262a26),
+    ground: Color(0xff0b0c0b),
+    hero: Color(0xff161a12),
+    onHero: Color(0xffe8ebe4),
+    chart: [
+      Color(0xffc8f169),
+      Color(0xffffb454),
+      Color(0xff8fb5d9),
+      Color(0xff7fa04a),
+      Color(0xffd98c3a),
+      Color(0xff9ba395),
+    ],
+  );
+
   static WealthColors of(BuildContext context) =>
       Theme.of(context).extension<WealthColors>() ?? light;
 
@@ -130,10 +180,88 @@ abstract final class AppTheme {
   static const radiusControl = 12.0;
   static const radiusSmall = 8.0;
 
-  static ThemeData light() => _build(Brightness.light);
-  static ThemeData dark() => _build(Brightness.dark);
+  /// Light theme of [design]; Bento and Terminal are dark only, so they
+  /// return their dark theme here as well.
+  static ThemeData light([AppDesign design = AppDesign.classic]) => _build(
+    design == AppDesign.classic ? Brightness.light : Brightness.dark,
+    design,
+  );
+  static ThemeData dark([AppDesign design = AppDesign.classic]) =>
+      _build(Brightness.dark, design);
 
-  static ColorScheme _scheme(Brightness brightness) {
+  static ColorScheme _scheme(Brightness brightness, AppDesign design) {
+    if (design == AppDesign.bento) {
+      return const ColorScheme(
+        brightness: Brightness.dark,
+        primary: Color(0xff3cc4b2),
+        onPrimary: Color(0xff08201d),
+        primaryContainer: Color(0xff1f3b37),
+        onPrimaryContainer: Color(0xff8fe3d6),
+        secondary: Color(0xffa3acb6),
+        onSecondary: Color(0xff121417),
+        secondaryContainer: Color(0xff262b31),
+        onSecondaryContainer: Color(0xffe6e9ec),
+        tertiary: Color(0xfff0a06a),
+        onTertiary: Color(0xff2a1506),
+        tertiaryContainer: Color(0xff3a2a1e),
+        onTertiaryContainer: Color(0xfff7c9a6),
+        error: Color(0xfff2b8b5),
+        onError: Color(0xff601410),
+        errorContainer: Color(0xff8c1d18),
+        onErrorContainer: Color(0xfff9dedc),
+        surface: Color(0xff1c2026),
+        onSurface: Color(0xfff1f3f5),
+        onSurfaceVariant: Color(0xffa3acb6),
+        surfaceContainerLowest: Color(0xff121417),
+        surfaceContainerLow: Color(0xff1c2026),
+        surfaceContainer: Color(0xff20252b),
+        surfaceContainerHigh: Color(0xff262b31),
+        surfaceContainerHighest: Color(0xff2f353c),
+        outline: Color(0xff3a414a),
+        outlineVariant: Color(0xff2a3038),
+        inverseSurface: Color(0xfff1f3f5),
+        onInverseSurface: Color(0xff1c2026),
+        inversePrimary: Color(0xff0e6e66),
+        shadow: Color(0xff000000),
+        scrim: Color(0xff000000),
+      );
+    }
+    if (design == AppDesign.terminal) {
+      return const ColorScheme(
+        brightness: Brightness.dark,
+        primary: Color(0xffc8f169),
+        onPrimary: Color(0xff0b0c0b),
+        primaryContainer: Color(0xff26301a),
+        onPrimaryContainer: Color(0xffdff7a8),
+        secondary: Color(0xffb9c0b2),
+        onSecondary: Color(0xff0b0c0b),
+        secondaryContainer: Color(0xff1c1f1c),
+        onSecondaryContainer: Color(0xffe8ebe4),
+        tertiary: Color(0xffffb454),
+        onTertiary: Color(0xff1c1205),
+        tertiaryContainer: Color(0xff33260f),
+        onTertiaryContainer: Color(0xffffd59a),
+        error: Color(0xffff8a80),
+        onError: Color(0xff3b0905),
+        errorContainer: Color(0xff5c1a14),
+        onErrorContainer: Color(0xffffd7d2),
+        surface: Color(0xff101210),
+        onSurface: Color(0xffe8ebe4),
+        onSurfaceVariant: Color(0xff9ba395),
+        surfaceContainerLowest: Color(0xff0b0c0b),
+        surfaceContainerLow: Color(0xff101210),
+        surfaceContainer: Color(0xff141614),
+        surfaceContainerHigh: Color(0xff1a1d1a),
+        surfaceContainerHighest: Color(0xff222622),
+        outline: Color(0xff3a403a),
+        outlineVariant: Color(0xff262a26),
+        inverseSurface: Color(0xffe8ebe4),
+        onInverseSurface: Color(0xff101210),
+        inversePrimary: Color(0xff4b6b1c),
+        shadow: Color(0xff000000),
+        scrim: Color(0xff000000),
+      );
+    }
     if (brightness == Brightness.light) {
       return const ColorScheme(
         brightness: Brightness.light,
@@ -206,13 +334,17 @@ abstract final class AppTheme {
     );
   }
 
-  static TextTheme _text(ColorScheme scheme) {
+  static TextTheme _text(ColorScheme scheme, DesignStyle style) {
+    // Monospace headings run wide; keep their weight and spacing calmer.
+    final mono = style.design == AppDesign.terminal;
     TextStyle display(double size, FontWeight weight, {double spacing = 0}) =>
         TextStyle(
-          fontFamily: displayFont,
-          fontSize: size,
-          fontWeight: weight,
-          letterSpacing: spacing,
+          fontFamily: style.displayFont,
+          fontSize: mono ? size * .9 : size,
+          fontWeight: mono && weight == FontWeight.w800
+              ? FontWeight.w700
+              : weight,
+          letterSpacing: mono ? spacing / 2 : spacing,
           color: scheme.onSurface,
           fontFeatures: tabular,
         );
@@ -247,26 +379,35 @@ abstract final class AppTheme {
     );
   }
 
-  static ThemeData _build(Brightness brightness) {
-    final scheme = _scheme(brightness);
-    final wealth = brightness == Brightness.light
-        ? WealthColors.light
-        : WealthColors.dark;
-    final text = _text(scheme);
+  static ThemeData _build(Brightness brightness, AppDesign design) {
+    final style = DesignStyle.forDesign(design);
+    final scheme = _scheme(brightness, design);
+    final wealth = switch (design) {
+      AppDesign.bento => WealthColors.bento,
+      AppDesign.terminal => WealthColors.terminal,
+      AppDesign.classic =>
+        brightness == Brightness.light ? WealthColors.light : WealthColors.dark,
+    };
+    final text = _text(scheme, style);
+    final radiusControl = style.radiusControl;
     final controlShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(radiusControl),
     );
     final cardShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(radiusCard),
-      side: BorderSide(color: wealth.border),
+      borderRadius: BorderRadius.circular(style.radiusCard),
+      side: style.outlinedCards
+          ? BorderSide(color: wealth.border)
+          : BorderSide.none,
     );
+    final dialogRadius = design == AppDesign.terminal ? 6.0 : 24.0;
+    final sheetRadius = design == AppDesign.terminal ? 6.0 : 28.0;
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
       fontFamily: bodyFont,
       textTheme: text,
-      extensions: [wealth],
+      extensions: [wealth, style],
       scaffoldBackgroundColor: wealth.ground,
       canvasColor: wealth.ground,
       dividerTheme: DividerThemeData(color: wealth.border, space: 1),
@@ -336,7 +477,9 @@ abstract final class AppTheme {
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
         indicatorColor: scheme.primaryContainer,
-        indicatorShape: const StadiumBorder(),
+        indicatorShape: design == AppDesign.terminal
+            ? controlShape
+            : const StadiumBorder(),
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => text.labelSmall?.copyWith(
             letterSpacing: 0,
@@ -398,7 +541,11 @@ abstract final class AppTheme {
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
         elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            design == AppDesign.terminal ? 4 : 18,
+          ),
+        ),
       ),
       chipTheme: ChipThemeData(
         shape: StadiumBorder(side: BorderSide(color: scheme.outline)),
@@ -419,15 +566,19 @@ abstract final class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(dialogRadius),
+        ),
         titleTextStyle: text.titleLarge,
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(sheetRadius),
+          ),
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(

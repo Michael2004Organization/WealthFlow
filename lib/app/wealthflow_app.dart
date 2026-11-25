@@ -16,11 +16,12 @@ class WealthFlowApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final design = ref.watch(designProvider);
     return MaterialApp(
       title: 'WealthFlow',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      theme: AppTheme.light(design),
+      darkTheme: AppTheme.dark(design),
       themeMode: themeMode,
       locale: const Locale('de', 'DE'),
       supportedLocales: const [Locale('de', 'DE')],

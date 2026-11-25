@@ -12,6 +12,7 @@ import '../features/search/search_page.dart';
 import '../features/statistics/statistics_page.dart';
 import '../features/vehicles/vehicles_page.dart';
 import '../core/widgets/common_widgets.dart';
+import '../core/widgets/design_switcher.dart';
 import 'app_theme.dart';
 
 /// Width from which the sidebar replaces the bottom navigation.
@@ -260,6 +261,7 @@ class _Sidebar extends ConsumerWidget {
                   onTap: () => selectShellDestination(ref, index),
                 ),
               const Spacer(),
+              const DesignSwitcher(expanded: true),
               Divider(color: colors.border, height: 24),
               InkWell(
                 borderRadius: BorderRadius.circular(12),

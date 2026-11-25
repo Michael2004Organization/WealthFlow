@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wealthflow_core/database/app_database.dart';
 import 'package:wealthflow_core/finance/currency_conversion.dart';
 
+import '../app/design.dart';
 import '../features/auth/auth_controller.dart';
 import 'database/app_connection.dart';
 import 'notifications/notification_service.dart';
@@ -284,14 +285,26 @@ final isAdminProvider = Provider<bool>(
   (ref) => ref.watch(currentRoleProvider) == 'admin',
 );
 
-final themeModeProvider = Provider<ThemeMode>((ref) {
+/// The chosen design and brightness, read from the `themeMode` preference.
+final designChoiceProvider = Provider<DesignChoice>((ref) {
   final preference = ref.watch(preferencesProvider).valueOrNull;
-  return switch (preference?.themeMode) {
-    'light' => ThemeMode.light,
-    'dark' => ThemeMode.dark,
-    _ => ThemeMode.system,
-  };
+  return DesignChoice.parse(preference?.themeMode);
 });
+
+final designProvider = Provider<AppDesign>(
+  (ref) => ref.watch(designChoiceProvider).design,
+);
+
+final themeModeProvider = Provider<ThemeMode>(
+  (ref) => ref.watch(designChoiceProvider).mode,
+);
+
+/// Stores [choice] for the signed-in user.
+Future<void> saveDesignChoice(WidgetRef ref, DesignChoice choice) async {
+  final userId = ref.read(currentUserIdProvider);
+  if (userId == null) return;
+  await ref.read(databaseProvider).setThemeMode(userId, choice.storedValue);
+}
 
 final shellIndexProvider = StateProvider<int>((_) => 0);
 
