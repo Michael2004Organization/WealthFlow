@@ -21,6 +21,8 @@ export 'package:wealthflow_core/database/app_database.dart'
         DataTransferQueries,
         DividendReceiptQueries,
         HouseholdQueries,
+        MasterDataQueries,
+        MasterDataUsage,
         PortfolioQueries,
         PreferenceQueries,
         StandingOrderQueries;
