@@ -231,10 +231,6 @@ extension AdminQueries on AppDatabase {
     countryTaxRates,
   )..orderBy([(row) => OrderingTerm.asc(row.country)])).watch();
 
-  Future<List<CountryTaxRate>> countryExchangePool() => (select(
-    countryTaxRates,
-  )..orderBy([(row) => OrderingTerm.asc(row.country)])).get();
-
   Stream<List<AssetClassesData>> watchAssetClasses() =>
       (select(assetClasses)..orderBy([
             (row) => OrderingTerm.asc(row.displayOrder),

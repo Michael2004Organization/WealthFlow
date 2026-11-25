@@ -6,28 +6,6 @@ double dividendPaymentsPerYear(String frequency) => switch (frequency) {
   _ => 1,
 };
 
-double dividendPerYear(
-  double dividendPerShareAndPayment,
-  double quantity,
-  String frequency,
-) => dividendPerShareAndPayment * quantity * dividendPaymentsPerYear(frequency);
-
-double dividendPerMonth(
-  double dividendPerShareAndPayment,
-  double quantity,
-  String frequency,
-) => dividendPerYear(dividendPerShareAndPayment, quantity, frequency) / 12;
-
-double dividendPerQuarterFromMonth(double monthlyTotal) => monthlyTotal * 3;
-
-double dividendPerYearFromMonth(double monthlyTotal) => monthlyTotal * 12;
-
-double netDividendInBaseCurrency({
-  required double grossAmount,
-  required double exchangeRate,
-  required double withholdingTaxRate,
-}) => grossAmount * exchangeRate * (1 - withholdingTaxRate.clamp(0, 100) / 100);
-
 const germanCapitalGainsTaxRate = 25.0;
 const solidaritySurchargeRate = 5.5;
 

@@ -23,17 +23,6 @@ extension PortfolioQueries on AppDatabase {
             ..orderBy([(row) => OrderingTerm.asc(row.name)]))
           .watch();
 
-  Stream<List<Investment>> watchDeletedInvestments(String userId) =>
-      (select(investments)
-            ..where(
-              (row) =>
-                  row.userId.equals(userId) &
-                  row.deletedAt.isNotNull() &
-                  row.quantity.isBiggerThanValue(0),
-            )
-            ..orderBy([(row) => OrderingTerm.desc(row.deletedAt)]))
-          .watch();
-
   Future<List<Investment>> deletedInvestmentsFor(String userId) =>
       (select(investments)
             ..where(
@@ -1041,17 +1030,6 @@ extension PortfolioQueries on AppDatabase {
               (row) => OrderingTerm.asc(row.category),
               (row) => OrderingTerm.asc(row.name),
             ]))
-          .watch();
-
-  Stream<List<PhysicalAsset>> watchDeletedPhysicalAssets(String userId) =>
-      (select(physicalAssets)
-            ..where(
-              (row) =>
-                  row.userId.equals(userId) &
-                  row.deletedAt.isNotNull() &
-                  row.weightGrams.isBiggerThanValue(0),
-            )
-            ..orderBy([(row) => OrderingTerm.desc(row.deletedAt)]))
           .watch();
 
   Future<List<PhysicalAsset>> deletedPhysicalAssetsFor(String userId) =>

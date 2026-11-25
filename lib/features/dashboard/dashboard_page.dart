@@ -190,22 +190,27 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final accountCurrencies = {
       for (final account in accounts) account.id: account.currency,
     };
-    List<ProjectedDividend> projectionFor(int year) => buildDividendProjection(
-      investments
-          .where((item) => wasHeldDuringYear(item, purchases, sales, year))
-          .toList(),
-      schedules,
-      taxAllowance,
+    // Several cards need the same years; compute each once per build.
+    final projections = <int, List<ProjectedDividend>>{};
+    List<ProjectedDividend> projectionFor(int year) => projections.putIfAbsent(
       year,
-      purchases,
-      sales,
-      accountCurrencies,
-      includePhysicalAssets:
-          ref
-              .watch(preferencesProvider)
-              .valueOrNull
-              ?.includePhysicalAssetsInTaxAllowance ??
-          false,
+      () => buildDividendProjection(
+        investments
+            .where((item) => wasHeldDuringYear(item, purchases, sales, year))
+            .toList(),
+        schedules,
+        taxAllowance,
+        year,
+        purchases,
+        sales,
+        accountCurrencies,
+        includePhysicalAssets:
+            ref
+                .watch(preferencesProvider)
+                .valueOrNull
+                ?.includePhysicalAssetsInTaxAllowance ??
+            false,
+      ),
     );
     final yearlyDividend = projectionFor(
       _selectedMonth.year,

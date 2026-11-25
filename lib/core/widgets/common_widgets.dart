@@ -34,10 +34,15 @@ String moneyCurrency = 'EUR';
 /// Set from `privacyModeProvider` by the app root, which rebuilds the tree.
 bool hideAmounts = false;
 
+/// One formatter per currency; building one parses locale data, and lists
+/// format thousands of amounts per frame.
+final _moneyFormats = <String, NumberFormat>{};
+
 String money(num value, {String? currency}) {
-  final format = NumberFormat.simpleCurrency(
-    locale: 'de_DE',
-    name: currency ?? moneyCurrency,
+  final name = currency ?? moneyCurrency;
+  final format = _moneyFormats.putIfAbsent(
+    name,
+    () => NumberFormat.simpleCurrency(locale: 'de_DE', name: name),
   );
   return hideAmounts ? '•••• ${format.currencySymbol}' : format.format(value);
 }
