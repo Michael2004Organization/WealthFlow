@@ -13,6 +13,7 @@ import '../features/statistics/statistics_page.dart';
 import '../features/vehicles/vehicles_page.dart';
 import '../core/widgets/common_widgets.dart';
 import '../core/widgets/design_switcher.dart';
+import '../core/widgets/privacy_button.dart';
 import 'app_theme.dart';
 import 'design.dart';
 
@@ -44,6 +45,12 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(shellIndexProvider);
+    // Privat-Modus: [money] reads the flag, so a toggle rebuilds the tree.
+    hideAmounts = ref.read(privacyModeProvider);
+    ref.listen<bool>(privacyModeProvider, (_, hidden) {
+      hideAmounts = hidden;
+      _rebuildAll();
+    });
     const pages = [
       DashboardPage(),
       FinancePage(),
@@ -305,7 +312,12 @@ class _Sidebar extends ConsumerWidget {
                   ],
                 ),
               ),
-              const DesignSwitcher(expanded: true),
+              const Row(
+                children: [
+                  Expanded(child: DesignSwitcher(expanded: true)),
+                  PrivacyButton(),
+                ],
+              ),
               Divider(color: colors.border, height: 24),
               InkWell(
                 borderRadius: BorderRadius.circular(12),
@@ -492,4 +504,15 @@ class _SidebarItem extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Rebuilds every widget so amounts formatted by `money` pick up the
+/// Privat-Modus, without losing any page or scroll state.
+void _rebuildAll() {
+  void mark(Element element) {
+    element.markNeedsBuild();
+    element.visitChildren(mark);
+  }
+
+  WidgetsBinding.instance.rootElement?.visitChildren(mark);
 }

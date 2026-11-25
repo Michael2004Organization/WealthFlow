@@ -22,6 +22,7 @@ import '../household/budgets_page.dart';
 import '../household/standing_orders_page.dart';
 import '../search/search_page.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/widgets/privacy_button.dart';
 import '../../core/widgets/design_switcher.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
@@ -371,7 +372,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         tooltip: 'Suchen',
                       ),
                     if (width < desktopBreakpoint) const DesignSwitcher(),
-                    const _PrivacyButton(),
+                    if (width < desktopBreakpoint) const PrivacyButton(),
                     _MonthSwitcher(
                       month: _selectedMonth,
                       onChanged: (value) =>
@@ -531,7 +532,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         caption: 'Einnahmen minus Ausgaben',
                         icon: Icons.waterfall_chart_rounded,
                         color: wealth.amount(income: income >= expenses),
-                        onTap: () => selectShellDestination(ref, ShellPage.household),
+                        onTap: () =>
+                            selectShellDestination(ref, ShellPage.household),
                       ),
                     ),
                     (
@@ -543,7 +545,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         caption: '${money(vehicleValue)} Fahrzeugwert',
                         icon: Icons.directions_car_outlined,
                         color: wealth.neutral,
-                        onTap: () => selectShellDestination(ref, ShellPage.vehicles),
+                        onTap: () =>
+                            selectShellDestination(ref, ShellPage.vehicles),
                       ),
                     ),
                   ];
@@ -882,23 +885,6 @@ double _physicalAssetValueAt(
       )
       .fold<double>(0, (sum, sale) => sum + sale.quantity);
   return (asset.weightGrams + laterSales) * asset.currentPricePerGram;
-}
-
-/// Eye button that hides all amounts on the cockpit.
-class _PrivacyButton extends ConsumerWidget {
-  const _PrivacyButton();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hidden = ref.watch(privacyModeProvider);
-    return IconButton(
-      tooltip: hidden ? 'Beträge zeigen' : 'Beträge verbergen',
-      isSelected: hidden,
-      onPressed: () => ref.read(privacyModeProvider.notifier).state = !hidden,
-      icon: const Icon(Icons.visibility_outlined),
-      selectedIcon: const Icon(Icons.visibility_off_outlined),
-    );
-  }
 }
 
 class _CardMoveControls extends StatelessWidget {

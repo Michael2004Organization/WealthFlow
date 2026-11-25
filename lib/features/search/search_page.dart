@@ -321,7 +321,8 @@ class _SearchPanelState extends ConsumerState<_SearchPanel> {
             icon: item.vehicleType == 'Motorrad'
                 ? Icons.two_wheeler_rounded
                 : Icons.directions_car_rounded,
-            open: (context, ref) async => selectShellDestination(ref, ShellPage.vehicles),
+            open: (context, ref) async =>
+                selectShellDestination(ref, ShellPage.vehicles),
           ),
         );
       }

@@ -239,9 +239,20 @@ void main() {
     await _pumpApp(tester, database, const Size(1440, 900));
     expect(find.text('•••• €'), findsNothing);
 
-    await tester.tap(find.byTooltip('Beträge verbergen'));
+    await tester.tap(find.byTooltip('Beträge verbergen').first);
     await tester.pump();
-    expect(find.text('•••• €'), findsWidgets);
+    expect(find.textContaining('•••• €'), findsWidgets);
+    // On the PC the button sits in the sidebar, on every page.
     expect(find.byTooltip('Beträge zeigen'), findsOneWidget);
+
+    // The whole app, not only the cockpit.
+    await tester.tap(find.text('Haushalt').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('•••• €'), findsWidgets);
+    expect(find.textContaining(RegExp(r'[0-9],[0-9][0-9] €')), findsNothing);
+
+    await tester.tap(find.byTooltip('Beträge zeigen').first);
+    await tester.pump();
+    expect(find.textContaining('•••• €'), findsNothing);
   });
 }

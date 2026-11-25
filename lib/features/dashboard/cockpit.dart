@@ -13,10 +13,6 @@ import '../../app/design.dart';
 import '../../core/providers.dart';
 import '../../core/widgets/common_widgets.dart';
 
-/// Hides amounts on the cockpit while on (bus, office, screen sharing).
-/// Kept in memory only, so the app always starts with amounts visible.
-final privacyModeProvider = StateProvider<bool>((_) => false);
-
 /// Something due soon: standing order, dividend or future booking.
 class CockpitDue {
   const CockpitDue({

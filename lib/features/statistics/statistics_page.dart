@@ -942,11 +942,13 @@ class _CashflowChartState extends State<_CashflowChart> {
                             showTitles: true,
                             reservedSize: 54,
                             getTitlesWidget: (value, meta) => Text(
-                              NumberFormat.compactCurrency(
-                                locale: 'de_DE',
-                                symbol: '€',
-                                decimalDigits: 0,
-                              ).format(value),
+                              hideAmounts
+                                  ? '•••'
+                                  : NumberFormat.compactCurrency(
+                                      locale: 'de_DE',
+                                      symbol: '€',
+                                      decimalDigits: 0,
+                                    ).format(value),
                               style: Theme.of(context).textTheme.labelSmall,
                             ),
                           ),

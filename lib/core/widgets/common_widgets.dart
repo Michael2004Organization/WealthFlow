@@ -30,10 +30,17 @@ void disposeAfterClose(ChangeNotifier notifier) {
 /// Standard currency of the signed-in user, used when [money] gets none.
 String moneyCurrency = 'EUR';
 
-String money(num value, {String? currency}) => NumberFormat.simpleCurrency(
-  locale: 'de_DE',
-  name: currency ?? moneyCurrency,
-).format(value);
+/// Privat-Modus: every amount formatted by [money] shows as "•••• €".
+/// Set from `privacyModeProvider` by the app root, which rebuilds the tree.
+bool hideAmounts = false;
+
+String money(num value, {String? currency}) {
+  final format = NumberFormat.simpleCurrency(
+    locale: 'de_DE',
+    name: currency ?? moneyCurrency,
+  );
+  return hideAmounts ? '•••• ${format.currencySymbol}' : format.format(value);
+}
 
 /// A quantity with every decimal that matters (fractions of savings-plan
 /// shares included), without trailing zeros: 0,1234 · 12 · 1.000,5.

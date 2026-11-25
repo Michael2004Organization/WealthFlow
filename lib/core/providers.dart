@@ -372,3 +372,10 @@ final appPinProvider = FutureProvider<({String hash, String salt})?>((ref) {
       ? Future.value(null)
       : ref.watch(secureSessionStoreProvider).readAppPin(userId);
 });
+
+/// Privat-Modus: hides amounts in the whole app (bus, office, screen
+/// sharing). Kept in memory only, so the app starts with amounts visible.
+final privacyModeProvider = StateProvider<bool>((_) => false);
+
+void togglePrivacyMode(WidgetRef ref) =>
+    ref.read(privacyModeProvider.notifier).update((hidden) => !hidden);
