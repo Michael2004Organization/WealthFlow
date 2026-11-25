@@ -239,7 +239,7 @@ class _SearchPanelState extends ConsumerState<_SearchPanel> {
                     ? Icons.south_west_rounded
                     : Icons.north_east_rounded,
                 open: (context, ref) async {
-                  selectShellDestination(ref, 2);
+                  selectShellDestination(ref, ShellPage.household);
                   await showEntryEditor(context, ref, entry: item);
                 },
               ),
@@ -321,7 +321,7 @@ class _SearchPanelState extends ConsumerState<_SearchPanel> {
             icon: item.vehicleType == 'Motorrad'
                 ? Icons.two_wheeler_rounded
                 : Icons.directions_car_rounded,
-            open: (context, ref) async => selectShellDestination(ref, 5),
+            open: (context, ref) async => selectShellDestination(ref, ShellPage.vehicles),
           ),
         );
       }

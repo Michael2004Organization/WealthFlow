@@ -285,7 +285,7 @@ class _FreeTile extends ConsumerWidget {
     return _Tile(
       color: terminal ? null : colors.hero,
       semanticLabel: 'Frei bis Monatsende',
-      onTap: () => selectShellDestination(ref, 2),
+      onTap: () => selectShellDestination(ref, ShellPage.household),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -633,7 +633,7 @@ class _CashflowTile extends ConsumerWidget {
       ],
     );
     return _Tile(
-      onTap: () => selectShellDestination(ref, 3),
+      onTap: () => selectShellDestination(ref, ShellPage.statistics),
       semanticLabel: 'Cashflow der letzten Monate',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -950,7 +950,7 @@ class _RecentTile extends ConsumerWidget {
     final style = DesignStyle.of(context);
     final items = data.recent.take(limit).toList();
     return _Tile(
-      onTap: () => selectShellDestination(ref, 2),
+      onTap: () => selectShellDestination(ref, ShellPage.household),
       semanticLabel: 'Letzte Buchungen',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

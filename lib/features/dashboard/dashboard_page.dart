@@ -261,11 +261,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       income: income,
       expenses: expenses,
       planned: plannedExpenses,
-      onTap: () => selectShellDestination(ref, 2),
+      onTap: () => selectShellDestination(ref, ShellPage.household),
     );
     final recent = _RecentEntries(
       entries: entries,
-      onShowAll: () => selectShellDestination(ref, 2),
+      onShowAll: () => selectShellDestination(ref, ShellPage.household),
     );
     final previousMonth = DateTime(
       _selectedMonth.year,
@@ -531,7 +531,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         caption: 'Einnahmen minus Ausgaben',
                         icon: Icons.waterfall_chart_rounded,
                         color: wealth.amount(income: income >= expenses),
-                        onTap: () => selectShellDestination(ref, 2),
+                        onTap: () => selectShellDestination(ref, ShellPage.household),
                       ),
                     ),
                     (
@@ -543,7 +543,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         caption: '${money(vehicleValue)} Fahrzeugwert',
                         icon: Icons.directions_car_outlined,
                         color: wealth.neutral,
-                        onTap: () => selectShellDestination(ref, 5),
+                        onTap: () => selectShellDestination(ref, ShellPage.vehicles),
                       ),
                     ),
                   ];

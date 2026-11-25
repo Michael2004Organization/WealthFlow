@@ -308,7 +308,21 @@ Future<void> saveDesignChoice(WidgetRef ref, DesignChoice choice) async {
   await ref.read(databaseProvider).setThemeMode(userId, choice.storedValue);
 }
 
-final shellIndexProvider = StateProvider<int>((_) => 0);
+/// Shell pages in [IndexedStack] order.
+abstract final class ShellPage {
+  static const cockpit = 0;
+  static const assets = 1;
+  static const household = 2;
+  static const statistics = 3;
+  static const calculators = 4;
+  static const vehicles = 5;
+  static const more = 6;
+
+  /// Pages that phones open from "Mehr".
+  static const tools = [statistics, calculators, vehicles];
+}
+
+final shellIndexProvider = StateProvider<int>((_) => ShellPage.cockpit);
 
 /// Keeps nested destinations addressable while their pages stay alive inside
 /// the shell's [IndexedStack].
@@ -317,19 +331,19 @@ final moreDestinationProvider = StateProvider<String?>((_) => null);
 
 void openFinance(WidgetRef ref, int tab) {
   ref.read(financeTabProvider.notifier).state = tab;
-  ref.read(shellIndexProvider.notifier).state = 1;
+  ref.read(shellIndexProvider.notifier).state = ShellPage.assets;
 }
 
 void openMore(WidgetRef ref, String destination) {
   ref.read(moreDestinationProvider.notifier).state = destination;
-  ref.read(shellIndexProvider.notifier).state = 6;
+  ref.read(shellIndexProvider.notifier).state = ShellPage.more;
 }
 
 void selectShellDestination(WidgetRef ref, int destination) {
-  if (destination == 1) {
+  if (destination == ShellPage.assets) {
     ref.read(financeTabProvider.notifier).state = 0;
   }
-  if (destination == 6) {
+  if (destination == ShellPage.more) {
     ref.read(moreDestinationProvider.notifier).state = null;
   }
   ref.read(shellIndexProvider.notifier).state = destination;

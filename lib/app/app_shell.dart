@@ -14,6 +14,7 @@ import '../features/vehicles/vehicles_page.dart';
 import '../core/widgets/common_widgets.dart';
 import '../core/widgets/design_switcher.dart';
 import 'app_theme.dart';
+import 'design.dart';
 
 /// Width from which the sidebar replaces the bottom navigation.
 const desktopBreakpoint = 900.0;
@@ -24,7 +25,7 @@ class AppShell extends ConsumerWidget {
   /// Shell pages in [IndexedStack] order; the indices are used by
   /// [selectShellDestination] throughout the app.
   static const _destinations = [
-    _Destination('Übersicht', Icons.space_dashboard_outlined),
+    _Destination('Cockpit', Icons.space_dashboard_outlined),
     _Destination('Vermögen', Icons.show_chart_rounded),
     _Destination('Haushalt', Icons.receipt_long_outlined),
     _Destination('Statistik', Icons.query_stats_rounded),
@@ -33,8 +34,12 @@ class AppShell extends ConsumerWidget {
     _Destination('Mehr', Icons.more_horiz_rounded),
   ];
 
-  /// Sidebar order on larger screens.
-  static const _desktopOrder = [0, 2, 1, 3, 4, 5, 6];
+  /// Sidebar groups on larger screens: daily use, then evaluation and tools.
+  static const _mainPages = [
+    ShellPage.cockpit,
+    ShellPage.household,
+    ShellPage.assets,
+  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -89,7 +94,7 @@ class _Destination {
   final IconData icon;
 }
 
-/// Übersicht · Haushalt · + · Vermögen · Mehr. Statistik, Rechner and
+/// Cockpit · Haushalt · + · Vermögen · Mehr. Statistik, Rechner and
 /// Fahrzeuge are opened from "Mehr" on phones.
 class _PhoneNavigation extends ConsumerWidget {
   const _PhoneNavigation({required this.selected});
@@ -100,11 +105,14 @@ class _PhoneNavigation extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final colors = WealthColors.of(context);
+    final style = DesignStyle.of(context);
+    final terminal = style.design == AppDesign.terminal;
     Widget item(int index) {
       final destination = AppShell._destinations[index];
       final active =
           selected == index ||
-          (index == 6 && const [3, 4, 5].contains(selected));
+          (index == ShellPage.more && ShellPage.tools.contains(selected));
+      final foreground = active ? colors.income : colors.neutral;
       return Expanded(
         child: Semantics(
           selected: active,
@@ -121,24 +129,38 @@ class _PhoneNavigation extends ConsumerWidget {
                   duration: const Duration(milliseconds: 180),
                   width: 56,
                   height: 30,
-                  decoration: BoxDecoration(
-                    color: active ? colors.incomeSoft : Colors.transparent,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Icon(
-                    destination.icon,
-                    size: 21,
-                    color: active ? colors.income : colors.neutral,
-                  ),
+                  // Terminal marks the active tab with a line, the others
+                  // with a soft pill in the design's own roundness.
+                  decoration: terminal
+                      ? BoxDecoration(
+                          border: Border(
+                            top: BorderSide(
+                              color: active
+                                  ? colors.income
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                        )
+                      : BoxDecoration(
+                          color: active
+                              ? colors.incomeSoft
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(
+                            style.radiusControl.clamp(0, 15),
+                          ),
+                        ),
+                  child: Icon(destination.icon, size: 21, color: foreground),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   destination.label,
                   maxLines: 1,
                   style: TextStyle(
+                    fontFamily: terminal ? style.numberFont : null,
                     fontSize: 11,
                     fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                    color: active ? colors.income : colors.neutral,
+                    color: foreground,
                   ),
                 ),
               ],
@@ -161,8 +183,8 @@ class _PhoneNavigation extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
-                item(0),
-                item(2),
+                item(ShellPage.cockpit),
+                item(ShellPage.household),
                 Expanded(
                   child: Center(
                     child: Tooltip(
@@ -198,8 +220,8 @@ class _PhoneNavigation extends ConsumerWidget {
                     ),
                   ),
                 ),
-                item(1),
-                item(6),
+                item(ShellPage.assets),
+                item(ShellPage.more),
               ],
             ),
           ),
@@ -261,13 +283,28 @@ class _Sidebar extends ConsumerWidget {
               const SizedBox(height: 10),
               _SearchButton(onTap: () => showSearchOverlay(context, ref)),
               const SizedBox(height: 18),
-              for (final index in AppShell._desktopOrder)
-                _SidebarItem(
-                  destination: AppShell._destinations[index],
-                  active: selected == index,
-                  onTap: () => selectShellDestination(ref, index),
+              // Scrolls on short windows instead of overflowing.
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    for (final index in [
+                      ...AppShell._mainPages,
+                      null,
+                      ...ShellPage.tools,
+                      ShellPage.more,
+                    ])
+                      if (index == null)
+                        const _SidebarSection('Auswerten & Planen')
+                      else
+                        _SidebarItem(
+                          destination: AppShell._destinations[index],
+                          active: selected == index,
+                          onTap: () => selectShellDestination(ref, index),
+                        ),
+                  ],
                 ),
-              const Spacer(),
+              ),
               const DesignSwitcher(expanded: true),
               Divider(color: colors.border, height: 24),
               InkWell(
@@ -359,6 +396,33 @@ class _SearchButton extends StatelessWidget {
   }
 }
 
+class _SidebarSection extends StatelessWidget {
+  const _SidebarSection(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = DesignStyle.of(context);
+    final terminal = style.design == AppDesign.terminal;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 6),
+      child: Text(
+        terminal ? '// ${label.toLowerCase()}' : label.toUpperCase(),
+        style: TextStyle(
+          fontFamily: terminal ? style.numberFont : null,
+          fontSize: 11,
+          letterSpacing: terminal ? 0 : .8,
+          fontWeight: FontWeight.w700,
+          color: WealthColors.of(context).muted,
+        ),
+      ),
+    );
+  }
+}
+
+/// One sidebar entry. Terminal marks the active page with a bar on the left,
+/// Bento and Hell & Dunkel with a filled pill in their own roundness.
 class _SidebarItem extends StatelessWidget {
   const _SidebarItem({
     required this.destination,
@@ -373,6 +437,11 @@ class _SidebarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WealthColors.of(context);
+    final style = DesignStyle.of(context);
+    final terminal = style.design == AppDesign.terminal;
+    final radius = BorderRadius.circular(
+      terminal ? 0 : style.radiusControl.clamp(0, 14),
+    );
     final foreground = active
         ? colors.income
         : Theme.of(context).colorScheme.onSurface;
@@ -381,23 +450,38 @@ class _SidebarItem extends StatelessWidget {
       child: Semantics(
         selected: active,
         child: Material(
-          color: active ? colors.incomeSoft : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
+          color: active && !terminal ? colors.incomeSoft : Colors.transparent,
+          borderRadius: radius,
           child: InkWell(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: radius,
             onTap: onTap,
-            child: SizedBox(
+            child: Container(
               height: 42,
+              decoration: terminal
+                  ? BoxDecoration(
+                      border: Border(
+                        left: BorderSide(
+                          color: active ? colors.income : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                    )
+                  : null,
               child: Row(
                 children: [
                   const SizedBox(width: 12),
                   Icon(destination.icon, size: 20, color: foreground),
                   const SizedBox(width: 12),
-                  Text(
-                    destination.label,
-                    style: TextStyle(
-                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                      color: foreground,
+                  Expanded(
+                    child: Text(
+                      destination.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: terminal ? style.numberFont : null,
+                        fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                        color: foreground,
+                      ),
                     ),
                   ),
                 ],

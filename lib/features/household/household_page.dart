@@ -389,7 +389,7 @@ class _MissingAccountHint extends ConsumerWidget {
           const Icon(Icons.info_outline_rounded),
           const Text('Für Buchungen wird ein Haushaltskonto benötigt.'),
           FilledButton.tonalIcon(
-            onPressed: () => selectShellDestination(ref, 1),
+            onPressed: () => selectShellDestination(ref, ShellPage.assets),
             icon: const Icon(Icons.account_balance_rounded),
             label: const Text('Konto anlegen'),
           ),
@@ -1020,7 +1020,7 @@ Future<void> startNewBooking(BuildContext context, WidgetRef ref) async {
       household.where((item) => item.usageType == 'household').firstOrNull ??
       household.firstOrNull;
   if (account == null) {
-    selectShellDestination(ref, 2);
+    selectShellDestination(ref, ShellPage.household);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Lege zuerst ein Haushaltskonto unter Vermögen an.'),
