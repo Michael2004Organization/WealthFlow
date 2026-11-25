@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/providers.dart';
+import '../core/security/device_security.dart';
 import '../core/widgets/common_widgets.dart';
 import 'app_lock_screen.dart';
 
@@ -12,8 +13,9 @@ import 'app_lock_screen.dart';
 class AppLifecycleGuard extends ConsumerStatefulWidget {
   const AppLifecycleGuard({required this.child, super.key});
 
-  /// How long the app may stay in the background before the lock returns.
-  static const lockAfter = Duration(seconds: 30);
+  /// Default time in the background before the lock returns; the user can
+  /// choose another one in the settings ([lockDelayProvider]).
+  static const lockAfter = defaultLockDelay;
 
   final Widget child;
 
@@ -22,8 +24,6 @@ class AppLifecycleGuard extends ConsumerStatefulWidget {
 }
 
 class _AppLifecycleGuardState extends ConsumerState<AppLifecycleGuard> {
-  static const lockAfter = AppLifecycleGuard.lockAfter;
-
   late final AppLifecycleListener _listener;
   Timer? _midnight;
   DateTime? _hiddenAt;
@@ -34,6 +34,9 @@ class _AppLifecycleGuardState extends ConsumerState<AppLifecycleGuard> {
     super.initState();
     _listener = AppLifecycleListener(onHide: _onHide, onShow: _onShow);
     _scheduleMidnight();
+    unawaited(
+      ref.read(screenProtectionProvider.future).then(applyScreenProtection),
+    );
     // A freshly entered password counts as unlocking; a restored session
     // stays covered until the PIN check below has run.
     _locked = ref.read(authControllerProvider.notifier).sessionRestored;
@@ -58,7 +61,9 @@ class _AppLifecycleGuardState extends ConsumerState<AppLifecycleGuard> {
     _hiddenAt = null;
     if (hiddenAt != null &&
         !_locked &&
-        DateTime.now().difference(hiddenAt) >= lockAfter) {
+        DateTime.now().difference(hiddenAt) >=
+            (ref.read(lockDelayProvider).valueOrNull ??
+                AppLifecycleGuard.lockAfter)) {
       _locked = true;
       unawaited(_lockIfPinSet());
     }
@@ -100,6 +105,8 @@ class _AppLifecycleGuardState extends ConsumerState<AppLifecycleGuard> {
   Widget build(BuildContext context) {
     // Keeps the sync with the home server running while someone is signed in.
     ref.listen(serverSyncProvider, (_, _) {});
+    // Loaded early so the chosen lock time is known when the app hides.
+    ref.listen(lockDelayProvider, (_, _) {});
     final currency =
         ref.watch(preferencesProvider).valueOrNull?.currency.toUpperCase() ??
         'EUR';

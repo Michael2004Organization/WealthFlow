@@ -11,6 +11,7 @@ import 'package:wealthflow_core/finance/quick_entry.dart';
 import '../../app/app_theme.dart';
 import '../../app/design.dart';
 import '../../core/providers.dart';
+import '../../core/security/device_security.dart';
 import '../../core/widgets/common_widgets.dart';
 
 /// Something due soon: standing order, dividend or future booking.
@@ -890,7 +891,9 @@ class _SecurityTile extends ConsumerWidget {
 
     final lines = [
       security.appLock
-          ? 'Sperre nach ${security.lockAfter.inSeconds} s'
+          ? (security.lockAfter == Duration.zero
+                ? 'Sperre sofort'
+                : 'Sperre nach ${lockDelayChoices[security.lockAfter] ?? '${security.lockAfter.inSeconds} s'}')
           : 'App-Sperre aus',
       backupText(),
       security.serverConnected ? 'Server verbunden' : 'Nur auf diesem Gerät',

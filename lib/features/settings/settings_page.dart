@@ -15,6 +15,7 @@ import '../../app/design.dart';
 import '../auth/auth_controller.dart';
 import 'server_section.dart';
 import '../../core/providers.dart';
+import '../../core/security/device_security.dart';
 import '../../core/storage/data_export.dart';
 import '../../core/storage/import_preview.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -77,12 +78,42 @@ class SettingsPage extends ConsumerWidget {
                     secondary: const Icon(Icons.lock_outline_rounded),
                     title: const Text('App-Sperre mit PIN'),
                     subtitle: const Text(
-                      'Beim Öffnen und nach 30 Sekunden im Hintergrund wird die PIN abgefragt.',
+                      'Beim Öffnen und nach der Sperrzeit im Hintergrund wird die PIN abgefragt.',
                     ),
                     value: appPinSet,
                     onChanged: (enable) =>
                         _toggleAppLock(context, ref, user.id, enable),
                   ),
+                  if (appPinSet)
+                    _DropdownTile(
+                      icon: Icons.timer_outlined,
+                      title: 'Sperrzeit im Hintergrund',
+                      value:
+                          (ref.watch(lockDelayProvider).valueOrNull ??
+                                  defaultLockDelay)
+                              .inSeconds
+                              .toString(),
+                      values: {
+                        for (final entry in lockDelayChoices.entries)
+                          entry.key.inSeconds.toString(): entry.value,
+                      },
+                      onChanged: (value) => setLockDelay(
+                        ref,
+                        Duration(seconds: int.parse(value)),
+                      ),
+                    ),
+                  if (screenProtectionSupported)
+                    SwitchListTile(
+                      secondary: const Icon(Icons.screenshot_monitor_outlined),
+                      title: const Text('Bildschirmschutz'),
+                      subtitle: const Text(
+                        'Keine Screenshots und leere Vorschau beim App-Wechsel.',
+                      ),
+                      value:
+                          ref.watch(screenProtectionProvider).valueOrNull ??
+                          true,
+                      onChanged: (value) => setScreenProtection(ref, value),
+                    ),
                 ],
               ),
               const SizedBox(height: 16),

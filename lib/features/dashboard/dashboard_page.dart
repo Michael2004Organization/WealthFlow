@@ -15,6 +15,7 @@ import '../../app/app_theme.dart';
 import '../../app/design.dart';
 import '../../app/app_shell.dart' show desktopBreakpoint;
 import '../../core/providers.dart';
+import '../../core/security/device_security.dart';
 import '../finance/allocation_card.dart';
 import 'cockpit.dart';
 import '../finance/dividend_prompt.dart';
@@ -797,7 +798,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       review: review,
       security: CockpitSecurity(
         appLock: ref.watch(appPinProvider).valueOrNull != null,
-        lockAfter: AppLifecycleGuard.lockAfter,
+        lockAfter:
+            ref.watch(lockDelayProvider).valueOrNull ??
+            AppLifecycleGuard.lockAfter,
         lastBackup: backup?.writtenAt,
         backupFailed: backup != null && !backup.succeeded,
         serverConnected: ref.watch(serverConnectionProvider).isConnected,

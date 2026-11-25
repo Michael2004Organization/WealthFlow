@@ -27,6 +27,7 @@ part 'queries/standing_orders.dart';
 part 'queries/budgets.dart';
 part 'queries/dividend_receipts.dart';
 part 'queries/master_data.dart';
+part 'queries/trash.dart';
 
 extension InvestmentPurchaseCash on InvestmentPurchase {
   /// Amount taken from the cash account, in the account's currency.

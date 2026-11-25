@@ -11,6 +11,7 @@ import '../search/search_page.dart';
 import '../settings/settings_page.dart';
 import '../settings/master_data_page.dart';
 import '../settings/administration_page.dart';
+import 'trash_page.dart';
 
 class MorePage extends ConsumerStatefulWidget {
   const MorePage({super.key});
@@ -41,7 +42,7 @@ class _MorePageState extends ConsumerState<MorePage> {
       'Auswertungen und Verläufe',
       Icons.query_stats_rounded,
       null,
-      shellIndex: 3,
+      shellIndex: ShellPage.statistics,
       phoneOnly: true,
     ),
     _MoreDestination(
@@ -50,7 +51,7 @@ class _MorePageState extends ConsumerState<MorePage> {
       'Sparplan, Entnahme und Preisvergleich',
       Icons.calculate_rounded,
       null,
-      shellIndex: 4,
+      shellIndex: ShellPage.calculators,
       phoneOnly: true,
     ),
     _MoreDestination(
@@ -59,7 +60,7 @@ class _MorePageState extends ConsumerState<MorePage> {
       'Fahrzeuge und ihre Kosten',
       Icons.directions_car_rounded,
       null,
-      shellIndex: 5,
+      shellIndex: ShellPage.vehicles,
       phoneOnly: true,
     ),
     _MoreDestination(
@@ -96,6 +97,13 @@ class _MorePageState extends ConsumerState<MorePage> {
       'Händler, Zahlungsarten und Vorschläge',
       Icons.list_alt_rounded,
       MasterDataPage(),
+    ),
+    _MoreDestination(
+      'trash',
+      'Papierkorb',
+      'Gelöschte Buchungen wiederherstellen',
+      Icons.delete_outline_rounded,
+      TrashPage(),
     ),
     _MoreDestination(
       'settings',

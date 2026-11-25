@@ -379,3 +379,12 @@ final privacyModeProvider = StateProvider<bool>((_) => false);
 
 void togglePrivacyMode(WidgetRef ref) =>
     ref.read(privacyModeProvider.notifier).update((hidden) => !hidden);
+
+/// Papierkorb: bookings deleted in the last 30 days.
+final deletedLedgerEntriesProvider =
+    StreamProvider.autoDispose<List<LedgerEntry>>((ref) {
+      final userId = ref.watch(currentUserIdProvider);
+      return userId == null
+          ? Stream.value(const <LedgerEntry>[])
+          : ref.watch(databaseProvider).watchDeletedLedgerEntries(userId);
+    });
