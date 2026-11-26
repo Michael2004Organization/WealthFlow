@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wealthflow_core/database/app_database.dart';
+import 'package:wealthflow_core/finance/currency_conversion.dart';
 import 'package:wealthflow_core/finance/dividend_projection.dart';
 import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
 
@@ -58,6 +59,7 @@ void main() {
         schedules: schedules,
         sales: const [],
         through: DateTime(2026, 8, 1),
+        converter: _usdAtPar,
       );
 
       expect(summary.allowanceUsed, 100);
@@ -91,6 +93,7 @@ void main() {
       [purchase],
       const [],
       const {'portfolio': 'EUR'},
+      converter: _usdAtPar,
     );
 
     expect(projection, hasLength(1));
@@ -181,3 +184,6 @@ PortfolioSale _physicalSale({
   soldAt: DateTime(2026, 8, 1),
   createdAt: DateTime(2026, 8, 1),
 );
+
+/// The fixtures book USD dividends 1:1, as a configured rate.
+final _usdAtPar = CurrencyConverter('EUR', const {'USD': 1});

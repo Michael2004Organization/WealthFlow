@@ -681,3 +681,9 @@ Future<bool> confirmDelete(
       ) ??
       false;
 }
+
+/// An exchange rate for an input field: up to 6 decimals, no trailing zeros.
+String rateText(double rate) => rate
+    .toStringAsFixed(6)
+    .replaceFirst(RegExp(r'0+$'), '')
+    .replaceFirst(RegExp(r'\.$'), '');

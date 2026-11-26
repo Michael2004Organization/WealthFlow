@@ -210,6 +210,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 .valueOrNull
                 ?.includePhysicalAssetsInTaxAllowance ??
             false,
+        converter: ref.watch(currencyConverterProvider),
       ),
     );
     final yearlyDividend = projectionFor(

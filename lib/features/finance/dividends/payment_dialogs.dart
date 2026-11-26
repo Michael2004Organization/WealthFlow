@@ -152,8 +152,15 @@ Future<void> _showScheduleEditor(
     text: schedule?.currency ?? investment.dividendCurrency,
   );
   final exchangeRate = TextEditingController(
-    text: (schedule?.exchangeRate ?? investment.dividendExchangeRate)
-        .toString(),
+    text: rateText(
+      ref
+          .read(currencyConverterProvider)
+          .dividendRate(
+            schedule?.exchangeRate ?? investment.dividendExchangeRate,
+            schedule?.currency ?? investment.dividendCurrency,
+            baseCurrency,
+          ),
+    ),
   );
   final taxRate = TextEditingController(
     text:

@@ -353,6 +353,7 @@ extension PortfolioQueries on AppDatabase {
     required double allowance,
     required double salesAllowanceUsed,
   }) async {
+    final converter = await _converterFor(userId);
     final holdings = await (select(
       investments,
     )..where((row) => row.userId.equals(userId))).get();
@@ -439,8 +440,11 @@ extension PortfolioQueries on AppDatabase {
         grossAmount:
             (schedule?.amountPerShare ?? event.investment.annualDividend) *
             quantity,
-        exchangeRate:
-            schedule?.exchangeRate ?? event.investment.dividendExchangeRate,
+        exchangeRate: converter.dividendRate(
+          schedule?.exchangeRate ?? event.investment.dividendExchangeRate,
+          schedule?.currency ?? event.investment.dividendCurrency,
+          converter.baseCurrency,
+        ),
         withholdingTaxRate:
             schedule?.withholdingTaxRate ??
             event.investment.dividendWithholdingTaxRate,
@@ -550,7 +554,7 @@ extension PortfolioQueries on AppDatabase {
     );
     final allowanceUsed = tax.allowanceUsed;
     final taxPaid = tax.taxPaid;
-    final proceeds = ((proceedsBeforeTax - taxPaid) * 100).round() / 100;
+    final proceeds = roundCents(proceedsBeforeTax - taxPaid);
     final consistent = await _purchasesMatchHolding(investment, userId);
     await transaction(() async {
       await into(portfolioSales).insert(
@@ -752,9 +756,9 @@ extension PortfolioQueries on AppDatabase {
       allowanceUsed = realizedGain.clamp(0, available).toDouble();
       final taxable = (realizedGain - allowanceUsed).clamp(0, double.infinity);
       final capitalTax = taxable * .25;
-      taxPaid = ((capitalTax + capitalTax * .055) * 100).round() / 100;
+      taxPaid = roundCents(capitalTax + capitalTax * .055);
     }
-    final proceeds = ((proceedsBeforeTax - taxPaid) * 100).round() / 100;
+    final proceeds = roundCents(proceedsBeforeTax - taxPaid);
     final remainingGrams =
         ((asset.weightGrams - grams) * 1000000).round() / 1000000;
     await transaction(() async {

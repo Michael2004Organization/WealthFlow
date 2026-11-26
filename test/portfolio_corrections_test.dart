@@ -169,7 +169,7 @@ void main() {
     await user('u');
     await account('depot', 'u');
     await position('apple', 'u', 'depot', currency: 'USD', currentPrice: 120);
-    // Ohne hinterlegten Kurs wurde früher 1:1 gebucht.
+    // Ohne hinterlegten Kurs gilt der EZB-Durchschnitt (1,1094 USD je EUR).
     await database.recordInvestmentPurchase(
       userId: 'u',
       investmentId: 'apple',
@@ -179,7 +179,10 @@ void main() {
       fees: 0,
       buy: true,
     );
-    expect((await cash('u', 'depot')).balance, closeTo(800, 1e-9));
+    expect(
+      (await cash('u', 'depot')).balance,
+      closeTo(1000 - 200 / 1.1094, 1e-6),
+    );
     final purchase =
         (await database.watchInvestmentPurchases('u').first).single;
 

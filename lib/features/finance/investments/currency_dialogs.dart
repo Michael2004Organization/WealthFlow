@@ -9,6 +9,11 @@ Future<void> _showExchangeRates(BuildContext context, WidgetRef ref) async {
       ref.read(countryTaxRatesProvider).valueOrNull ?? const <CountryTaxRate>[];
   final baseCurrency =
       ref.read(preferencesProvider).valueOrNull?.currency ?? 'EUR';
+  final converter = ref.read(currencyConverterProvider);
+  String currencyOf(String country, CountryTaxRate? stored) =>
+      stored?.currency.toUpperCase() ??
+      withholdingTaxDefaultFor(country)?.currency ??
+      defaultCurrencyForCountry(country, fallback: baseCurrency);
   if (!context.mounted) return;
   await showDialog<void>(
     context: context,
@@ -37,8 +42,9 @@ Future<void> _showExchangeRates(BuildContext context, WidgetRef ref) async {
                   return _ExchangeRateEditorRow(
                     country: country,
                     baseCurrency: baseCurrency,
-                    initialCurrency: stored?.currency ?? baseCurrency,
-                    initialRate: stored?.exchangeRate ?? 1,
+                    initialCurrency: currencyOf(country, stored),
+                    // Configured rate, else the ECB average.
+                    initialRate: converter.rateOf(currencyOf(country, stored)),
                     onSave: ({required currency, required exchangeRate}) =>
                         database.saveCountryExchangeRate(
                           actorUserId: userId,

@@ -74,10 +74,17 @@ class _DividendQuickEntryState extends ConsumerState<_DividendQuickEntry> {
         widget.investment.dividendCurrency,
   );
   late final _exchangeRate = TextEditingController(
-    text:
-        (widget.schedules.firstOrNull?.exchangeRate ??
-                widget.investment.dividendExchangeRate)
-            .toString(),
+    text: rateText(
+      ref
+          .read(currencyConverterProvider)
+          .dividendRate(
+            widget.schedules.firstOrNull?.exchangeRate ??
+                widget.investment.dividendExchangeRate,
+            widget.schedules.firstOrNull?.currency ??
+                widget.investment.dividendCurrency,
+            ref.read(currencyConverterProvider).baseCurrency,
+          ),
+    ),
   );
   late final _taxRate = TextEditingController(
     text:

@@ -11,8 +11,12 @@ void main() {
     expect(converter.toBase(100, 'EUR'), 100);
     expect(converter.toBase(100, 'usd'), closeTo(90, 0.0001));
     expect(converter.toBase(100, 'CHF'), closeTo(105, 0.0001));
-    expect(converter.canConvert('GBP'), isFalse);
-    expect(converter.toBase(100, 'GBP'), 100);
+    // Without a configured rate the ECB average applies …
+    expect(converter.canConvert('GBP'), isTrue);
+    expect(converter.toBase(100, 'GBP'), closeTo(100 / .83558, 1e-6));
+    // … and a currency the ECB does not publish stays 1:1.
+    expect(converter.canConvert('TWD'), isFalse);
+    expect(converter.toBase(100, 'TWD'), 100);
   });
 
   test('net worth snapshot converts foreign accounts', () async {

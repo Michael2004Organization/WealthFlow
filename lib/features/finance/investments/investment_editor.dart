@@ -1106,10 +1106,9 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
           );
       _frequency = stock.dividendFrequency;
       _startMonth = stock.dividendStartMonth;
-      _dividendExchangeRate.text =
-          (countryRate?.exchangeRate ??
-                  (stock.dividendCurrency.toUpperCase() == 'EUR' ? 1 : 1))
-              .toString();
+      _dividendExchangeRate.text = rateText(
+        _currentRate(countryRate, _dividendCurrency.text),
+      );
       _dividendWithholdingTax.text = _taxRateForCountry(
         stock.country,
       ).toString();
@@ -1213,8 +1212,9 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
           configuration?.currency.toUpperCase() ??
           withholdingTaxDefaultFor(selected)?.currency ??
           defaultCurrencyForCountry(selected, fallback: widget.accountCurrency);
-      _dividendExchangeRate.text = (configuration?.exchangeRate ?? 1)
-          .toString();
+      _dividendExchangeRate.text = rateText(
+        _currentRate(configuration, _dividendCurrency.text),
+      );
       _dividendWithholdingTax.text = _taxRateForCountry(selected).toString();
     });
   }
@@ -1356,6 +1356,21 @@ class _InvestmentEditorState extends State<_InvestmentEditor> {
       ),
       buy: buy,
     ));
+  }
+
+  /// The country's configured rate, else the ECB average.
+  double _currentRate(CountryTaxRate? row, String currency) {
+    final target = widget.accountCurrency;
+    if (row != null &&
+        isConfiguredRate(
+          row.exchangeRate,
+          currency,
+          target,
+          updatedAt: row.exchangeRateUpdatedAt,
+        )) {
+      return row.exchangeRate;
+    }
+    return defaultExchangeRate(currency, target) ?? 1;
   }
 
   /// Stored rate for [country], else the standard value, else 0. Funds

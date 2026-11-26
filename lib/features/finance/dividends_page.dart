@@ -97,6 +97,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
           purchases: purchases,
           includePhysicalAssets:
               preference?.includePhysicalAssetsInTaxAllowance ?? false,
+          converter: ref.watch(currencyConverterProvider),
           through: taxThrough,
         );
         var dividendItems = accountItems
@@ -118,6 +119,7 @@ class _DividendsPageState extends ConsumerState<DividendsPage> {
           {for (final account in accounts) account.id: account.currency},
           includePhysicalAssets:
               preference?.includePhysicalAssetsInTaxAllowance ?? false,
+          converter: ref.watch(currencyConverterProvider),
         );
         dividendItems.sort(
           (a, b) => _netForInvestment(

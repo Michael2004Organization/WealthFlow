@@ -1,4 +1,5 @@
 import '../database/app_database.dart';
+import 'currency_conversion.dart';
 import 'dividend_math.dart';
 import 'portfolio_tax_summary.dart';
 import 'sale_tax.dart';
@@ -42,7 +43,10 @@ List<ProjectedDividend> buildDividendProjection(
   List<PortfolioSale> sales,
   Map<String, String> accountCurrencies, {
   bool includePhysicalAssets = false,
+  CurrencyConverter? converter,
 }) {
+  // Without the user's rates the ECB averages apply.
+  final rates = converter ?? CurrencyConverter('EUR', const {});
   var remainingAllowance = allowance.clamp(0, double.infinity).toDouble();
   final events =
       <
@@ -76,9 +80,11 @@ List<ProjectedDividend> buildDividendProjection(
             investment: investment,
             month: month,
             amount: row.amountPerShare,
-            exchangeRate: sourceCurrency == accountCurrency
-                ? 1
-                : row.exchangeRate,
+            exchangeRate: rates.dividendRate(
+              row.exchangeRate,
+              sourceCurrency,
+              accountCurrency,
+            ),
             withholdingTaxRate: row.withholdingTaxRate,
             currency: sourceCurrency,
             date: row.paymentDate ?? row.exDate ?? DateTime(year, month, 1),
@@ -95,9 +101,11 @@ List<ProjectedDividend> buildDividendProjection(
           investment: investment,
           month: month,
           amount: investment.annualDividend,
-          exchangeRate: sourceCurrency == accountCurrency
-              ? 1
-              : investment.dividendExchangeRate,
+          exchangeRate: rates.dividendRate(
+            investment.dividendExchangeRate,
+            sourceCurrency,
+            accountCurrency,
+          ),
           withholdingTaxRate: investment.dividendWithholdingTaxRate,
           currency: sourceCurrency,
           date: DateTime(year, month),

@@ -1,4 +1,5 @@
 import '../database/app_database.dart';
+import 'currency_conversion.dart';
 import 'dividend_math.dart';
 import 'sale_tax.dart';
 import 'withholding_tax_defaults.dart';
@@ -47,6 +48,7 @@ PortfolioTaxSummary calculatePortfolioTaxYear({
   List<InvestmentPurchase> purchases = const [],
   bool includePhysicalAssets = false,
   DateTime? through,
+  CurrencyConverter? converter,
 }) {
   final events = calculatePortfolioTaxEvents(
     year: year,
@@ -57,6 +59,7 @@ PortfolioTaxSummary calculatePortfolioTaxYear({
     purchases: purchases,
     includePhysicalAssets: includePhysicalAssets,
     through: through,
+    converter: converter,
   );
   return PortfolioTaxSummary(
     allowance: allowance,
@@ -81,7 +84,9 @@ List<PortfolioTaxEvent> calculatePortfolioTaxEvents({
   List<InvestmentPurchase> purchases = const [],
   bool includePhysicalAssets = false,
   DateTime? through,
+  CurrencyConverter? converter,
 }) {
+  final rates = converter ?? CurrencyConverter('EUR', const {});
   final limit = through ?? DateTime(year + 1);
   var remaining = allowance.clamp(0, double.infinity).toDouble();
   final results = <PortfolioTaxEvent>[];
@@ -180,7 +185,11 @@ List<PortfolioTaxEvent> calculatePortfolioTaxEvents({
       investment,
       grossAmount:
           (schedule?.amountPerShare ?? investment.annualDividend) * quantity,
-      exchangeRate: schedule?.exchangeRate ?? investment.dividendExchangeRate,
+      exchangeRate: rates.dividendRate(
+        schedule?.exchangeRate ?? investment.dividendExchangeRate,
+        schedule?.currency ?? investment.dividendCurrency,
+        rates.baseCurrency,
+      ),
       withholdingTaxRate:
           schedule?.withholdingTaxRate ?? investment.dividendWithholdingTaxRate,
       allowanceRemaining: remaining,

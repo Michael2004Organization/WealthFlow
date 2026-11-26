@@ -8,6 +8,8 @@
 /// § 23 EStG and are not subject to this tax.
 library;
 
+import 'dividend_math.dart' show roundCents;
+
 const _capitalTaxRate = 0.25;
 const _solidarityRate = 0.055;
 
@@ -128,8 +130,7 @@ SaleTaxResult saleTax({
       .toDouble();
   final taxable = offset.remaining - allowanceUsed;
   final capitalTax = taxable * _capitalTaxRate;
-  final taxPaid =
-      ((capitalTax + capitalTax * _solidarityRate) * 100).round() / 100;
+  final taxPaid = roundCents(capitalTax + capitalTax * _solidarityRate);
   return SaleTaxResult(
     taxableGain: taxable,
     lossOffset: offset.offset,

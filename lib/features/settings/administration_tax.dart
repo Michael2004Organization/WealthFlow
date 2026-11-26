@@ -388,11 +388,17 @@ Future<void> _editAdminCountryExchange(
   String accountCurrency,
   CountryTaxRate? current,
 ) async {
-  final currency = TextEditingController(
-    text: current?.currency ?? defaultCurrencyForCountry(country),
-  );
+  final currencyCode =
+      current?.currency.toUpperCase() ??
+      withholdingTaxDefaultFor(country)?.currency ??
+      defaultCurrencyForCountry(country);
+  final currency = TextEditingController(text: currencyCode);
+  // Configured rate, else the ECB average.
   final rate = TextEditingController(
-    text: (current?.exchangeRate ?? 1).toStringAsFixed(6),
+    text: ref
+        .read(currencyConverterProvider)
+        .rateOf(currencyCode)
+        .toStringAsFixed(6),
   );
   final userId = ref.read(currentUserIdProvider);
   final saved = await showDialog<bool>(

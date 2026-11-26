@@ -10,6 +10,8 @@ import 'package:wealthflow_core/database/app_database.dart';
 import 'package:wealthflow_core/finance/account_balance_math.dart';
 import 'package:wealthflow_core/finance/amount_input.dart';
 import 'package:wealthflow_core/finance/currencies.dart';
+import 'package:wealthflow_core/finance/currency_conversion.dart';
+import 'package:wealthflow_core/finance/exchange_rate_defaults.dart';
 import 'package:wealthflow_core/finance/withholding_tax_defaults.dart';
 import 'package:wealthflow_core/finance/portfolio_master_data.dart';
 import 'package:wealthflow_core/finance/portfolio_tax_summary.dart';
@@ -369,6 +371,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                       includePhysicalAssets:
                           preference?.includePhysicalAssetsInTaxAllowance ??
                           false,
+                      converter: ref.watch(currencyConverterProvider),
                       through: DateTime.now(),
                     );
                     final taxEvents = calculatePortfolioTaxEvents(
@@ -381,6 +384,7 @@ class _InvestmentsPageState extends ConsumerState<InvestmentsPage> {
                       includePhysicalAssets:
                           preference?.includePhysicalAssetsInTaxAllowance ??
                           false,
+                      converter: ref.watch(currencyConverterProvider),
                       through: DateTime.now(),
                     );
                     return ListView(

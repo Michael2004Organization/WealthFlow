@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wealthflow_core/database/app_database.dart';
 import 'package:wealthflow_core/finance/currencies.dart';
+import 'package:wealthflow_core/finance/currency_conversion.dart';
+import 'package:wealthflow_core/finance/exchange_rate_defaults.dart';
 import 'package:wealthflow_core/finance/withholding_tax_defaults.dart';
 
 import '../../app/app_theme.dart';
@@ -419,7 +421,11 @@ class _MasterDataPageState extends ConsumerState<MasterDataPage> {
                     item: item,
                     usage: usageOf(item.value),
                     tax: isCountry
-                        ? _CountryTax.of(item.value, storedRate(item.value))
+                        ? _CountryTax.of(
+                            item.value,
+                            storedRate(item.value),
+                            ref.watch(currencyConverterProvider),
+                          )
                         : null,
                     onEditTax: isCountry && isAdmin
                         ? () => _editTax(
@@ -493,7 +499,8 @@ class _MasterDataPageState extends ConsumerState<MasterDataPage> {
                       'Wohnsitz in Deutschland. „Anrechenbar“ ist der Teil, '
                       'den deine Bank auf die Abgeltungsteuer anrechnet; den '
                       'Rest kannst du nur im Ausland zurückfordern. '
-                      'Standardwerte: $withholdingTaxSource.'
+                      'Standardwerte: $withholdingTaxSource. Kurse ohne eigenen Wert: '
+                      '$exchangeRateSource.'
                       '${isAdmin ? '' : ' Steuersätze ändert ein Administrator.'}',
                       style: text.bodySmall,
                     ),
@@ -955,25 +962,49 @@ List<String> _suggestions(String kind) => switch (kind) {
 /// Tax facts of one country for the list: stored rule or standard value.
 class _CountryTax {
   const _CountryTax({
+    required this.baseCurrency,
+    required this.rate,
+    required this.rateIsAverage,
     required this.withheld,
     required this.creditable,
     required this.currency,
     required this.source,
   });
 
-  factory _CountryTax.of(String country, CountryTaxRate? stored) {
+  factory _CountryTax.of(
+    String country,
+    CountryTaxRate? stored,
+    CurrencyConverter converter,
+  ) {
     final defaults = withholdingTaxDefaultFor(country);
     final withheld = stored?.withholdingTaxRate ?? defaults?.withheld;
+    final currency =
+        stored?.currency.toUpperCase() ??
+        defaults?.currency ??
+        defaultCurrencyForCountry(country);
+    final base = converter.baseCurrency;
+    final configured =
+        stored != null &&
+        isConfiguredRate(
+          stored.exchangeRate,
+          currency,
+          base,
+          updatedAt: stored.exchangeRateUpdatedAt,
+        );
     return _CountryTax(
+      baseCurrency: base,
+      rate: currency == base
+          ? null
+          : configured
+          ? stored.exchangeRate
+          : defaultExchangeRate(currency, base),
+      rateIsAverage: !configured,
       withheld: withheld,
       // Never more creditable than actually withheld.
       creditable: defaults == null || withheld == null
           ? null
           : (defaults.creditable < withheld ? defaults.creditable : withheld),
-      currency:
-          stored?.currency.toUpperCase() ??
-          defaults?.currency ??
-          defaultCurrencyForCountry(country),
+      currency: currency,
       source: stored == null
           ? (defaults == null ? _TaxSource.none : _TaxSource.standard)
           : (defaults != null && defaults.withheld != stored.withholdingTaxRate
@@ -986,6 +1017,15 @@ class _CountryTax {
   final double? creditable;
   final String currency;
   final _TaxSource source;
+
+  final String baseCurrency;
+
+  /// Units of [baseCurrency] for 1 [currency]; null for the same currency
+  /// or without a published rate.
+  final double? rate;
+
+  /// The ECB average, not a rate the administration set.
+  final bool rateIsAverage;
 }
 
 enum _TaxSource { none, standard, stored, custom }
@@ -1059,6 +1099,13 @@ class _EntryTile extends StatelessWidget {
                         value: '${_percent(tax.creditable!)} %',
                       ),
                     _Fact(label: 'Währung', value: tax.currency),
+                    if (tax.rate != null)
+                      _Fact(
+                        label: tax.rateIsAverage ? 'Ø EZB-Kurs' : 'Kurs',
+                        value:
+                            '1 ${tax.currency} = '
+                            '${rateText(tax.rate!).replaceAll('.', ',')} ${tax.baseCurrency}',
+                      ),
                     _Fact(
                       label: switch (tax.source) {
                         _TaxSource.none => 'kein Standardwert',

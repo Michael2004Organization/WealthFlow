@@ -141,7 +141,14 @@ DividendTaxResult calculateGermanDividendTax({
   );
 }
 
-double _cents(num value) => (value * 100).roundToDouble() / 100;
+double _cents(num value) => roundCents(value);
+
+/// Rounds to cents like a bank statement: half up. 2.235 is stored as
+/// 2.23499… in binary, so a tiny nudge keeps it from rounding down.
+double roundCents(num value) {
+  final scaled = value * 100;
+  return (scaled + (scaled >= 0 ? 1e-6 : -1e-6)).roundToDouble() / 100;
+}
 
 List<int> dividendPaymentMonths(String frequency, int startMonth) {
   final interval = switch (frequency) {
